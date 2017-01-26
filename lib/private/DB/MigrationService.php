@@ -21,56 +21,81 @@
 
 namespace OC\DB;
 
-use Doctrine\DBAL\Migrations\Configuration\Configuration;
-use Doctrine\DBAL\Migrations\Migration;
-use Doctrine\DBAL\Migrations\OutputWriter;
+use OCP\AppFramework\QueryException;
 use OCP\IDBConnection;
+use OCP\Migration\ISchemaMigration;
+use OCP\Migration\ISimpleMigration;
+use OCP\Migration\ISqlMigration;
+use OCP\Migration\ITransactionalStep;
 
 class MigrationService {
 
 	/**
 	 * @param string $appName
 	 * @param IDBConnection $connection
-	 * @return Configuration
+	 * @return MigrationConfiguration
 	 * @throws \Exception
 	 */
 	public function buildConfiguration($appName, $connection) {
-		if ($appName === 'core') {
-			$migrationsPath = \OC::$SERVERROOT . '/core/Migrations';
-			$migrationsNamespace = 'OC\\Migrations';
-		} else {
-			$appPath = \OC_App::getAppPath($appName);
-			if (!$appPath) {
-				throw new \InvalidArgumentException('Path to app is not defined.');
-			}
-			$migrationsPath = "$appPath/appinfo/Migrations";
-			$migrationsNamespace = "OCA\\$appName\\Migrations";
-		}
-
-		if (!is_dir($migrationsPath)) {
-			if (!mkdir($migrationsPath)) {
-				throw new \Exception("Could not create migration folder \"$migrationsPath\"");
-			};
-		}
-		$prefix = $connection->getPrefix();
-		$mc = new MigrationConfiguration($connection);
-		$mc->setMigrationsDirectory($migrationsPath);
-		$mc->setMigrationsNamespace($migrationsNamespace);
-		$mc->setMigrationsTableName("{$prefix}{$appName}_migration_versions");
-		return $mc;
+		return new MigrationConfiguration($appName, $connection);
 	}
 
 	/**
-	 * @param Configuration $migrationConfiguration
-	 * @param bool $noMigrationException
+	 * @param MigrationConfiguration $migrationConfiguration
 	 */
-	public function migrate($migrationConfiguration, $noMigrationException = false) {
-		$migrationConfiguration->setOutputWriter(new OutputWriter(function ($message){
-			\OCP\Util::writeLog('migrations', $message, \OCP\Util::INFO);
-		}));
-
-		$migration = new Migration($migrationConfiguration);
-		$migration->setNoMigrationException($noMigrationException);
-		$migration->migrate();
+	public function migrate($migrationConfiguration, $to = 'latest') {
+		// read known migrations
+		$toBeExecuted = $migrationConfiguration->getMigrationsToExecute($to);
+		foreach ($toBeExecuted as $version => $class) {
+			$this->executeStep($migrationConfiguration, $version, $class);
+		}
 	}
+
+	private function createInstance($class) {
+		try {
+			$s = \OC::$server->query($class);
+		} catch (QueryException $e) {
+			if (class_exists($class)) {
+				$s = new $class();
+			} else {
+				throw new \Exception("Migration step '$class' is unknown");
+			}
+		}
+
+		return $s;
+	}
+
+	public function executeStep(MigrationConfiguration $migrationConfiguration, $version, $class = null) {
+
+		if (is_null($class)) {
+			$class = $migrationConfiguration->getClass($version);
+		}
+		$instance = $this->createInstance($class);
+		if ($instance instanceof ITransactionalStep) {
+			$instance->beginTransaction();
+		}
+		if ($instance instanceof ISimpleMigration) {
+			$instance->run($migrationConfiguration->getOutput());
+		}
+		if ($instance instanceof ISqlMigration) {
+			$connection = $migrationConfiguration->getConnection();
+			$sqls = $instance->sql($connection);
+			foreach ($sqls as $s) {
+				$connection->executeQuery($s);
+			}
+		}
+		if ($instance instanceof ISchemaMigration) {
+			$connection = $migrationConfiguration->getConnection();
+			$toSchema = $connection->createSchema();
+			$instance->changeSchema($toSchema, ['tablePrefix' => $connection->getPrefix()]);
+			$connection->migrateToSchema($toSchema);
+		}
+		$migrationConfiguration->markAsExecuted($version);
+
+		if ($instance instanceof ITransactionalStep) {
+			$instance->commit();
+		}
+	}
+
+
 }

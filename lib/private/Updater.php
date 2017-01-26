@@ -276,7 +276,7 @@ class Updater extends BasicEmitter {
 			$ms = new \OC\DB\MigrationService();
 			$mc = $ms->buildConfiguration('core', \OC::$server->getDatabaseConnection());
 
-			$ms->migrate($mc, true);
+			$ms->migrate($mc);
 		}
 
 		$this->emit('\OC\Updater', 'dbUpgrade');

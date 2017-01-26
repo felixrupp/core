@@ -1226,7 +1226,7 @@ class OC_App {
 		if (isset($appData['use-migrations']) && $appData['use-migrations'] === 'true') {
 			$ms = new \OC\DB\MigrationService();
 			$mc = $ms->buildConfiguration($appId, \OC::$server->getDatabaseConnection());
-			$ms->migrate($mc, true);
+			$ms->migrate($mc);
 		} else {
 			if (file_exists($appPath . '/appinfo/database.xml')) {
 				OC_DB::updateDbFromStructure($appPath . '/appinfo/database.xml');
