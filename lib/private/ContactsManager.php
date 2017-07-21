@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tobia De Koninck <tobia@ledfan.be>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -26,7 +26,9 @@
 
 namespace OC {
 
-	class ContactsManager implements \OCP\Contacts\IManager {
+	use OCP\Contacts\IManager;
+
+	class ContactsManager implements IManager {
 
 		/**
 		 * This function is used to search and find contacts within the users address books.
@@ -35,13 +37,15 @@ namespace OC {
 		 * @param string $pattern which should match within the $searchProperties
 		 * @param array $searchProperties defines the properties within the query pattern should match
 		 * @param array $options - for future use. One should always have options!
+		 * @param int $limit
+		 * @param int $offset
 		 * @return array an array of contacts which are arrays of key-value-pairs
 		 */
-		public function search($pattern, $searchProperties = [], $options = []) {
+		public function search($pattern, $searchProperties = [], $options = [], $limit = 100, $offset = 0) {
 			$this->loadAddressBooks();
 			$result = [];
 			foreach($this->addressBooks as $addressBook) {
-				$r = $addressBook->search($pattern, $searchProperties, $options);
+				$r = $addressBook->search($pattern, $searchProperties, $options, $limit, $offset);
 				$contacts = [];
 				foreach($r as $c){
 					$c['addressbook-key'] = $addressBook->getKey();

@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -62,8 +62,14 @@ class FileTest extends TestCase {
 	 */
 	private $user;
 
+	/** @var IConfig | \PHPUnit_Framework_MockObject_MockObject */
+	protected $config;
+
 	public function setUp() {
 		parent::setUp();
+		unset($_SERVER['HTTP_OC_CHUNKED']);
+		unset($_SERVER['CONTENT_LENGTH']);
+		unset($_SERVER['REQUEST_METHOD']);
 
 		\OC_Hook::clear();
 
@@ -72,11 +78,15 @@ class FileTest extends TestCase {
 		$userManager->createUser($this->user, 'pass');
 
 		$this->loginAsUser($this->user);
+		
+		$this->config = $this->getMockBuilder('\OCP\IConfig')->getMock();
 	}
 
 	public function tearDown() {
 		$userManager = \OC::$server->getUserManager();
-		$userManager->get($this->user)->delete();
+		if ($userManager->userExists($this->user)) {
+			$userManager->get($this->user)->delete();
+		}
 		unset($_SERVER['HTTP_OC_CHUNKED']);
 
 		parent::tearDown();
@@ -294,7 +304,7 @@ class FileTest extends TestCase {
 	 *
 	 * @return null|string of the PUT operaiton which is usually the etag
 	 */
-	private function doPut($path, $viewRoot = null) {
+	private function doPut($path, $viewRoot = null, \OC\AppFramework\Http\Request $request = null) {
 		$view = Filesystem::getView();
 		if (!is_null($viewRoot)) {
 			$view = new View($viewRoot);
@@ -310,7 +320,7 @@ class FileTest extends TestCase {
 			null
 		);
 
-		$file = new File($view, $info);
+		$file = new File($view, $info, null, $request);
 
 		// beforeMethod locks
 		$view->lockFile($path, ILockingProvider::LOCK_SHARED);
@@ -328,6 +338,105 @@ class FileTest extends TestCase {
 	 */
 	public function testPutSingleFile() {
 		$this->assertNotEmpty($this->doPut('/foo.txt'));
+	}
+
+	/**
+	 * Determine if the underlying storage supports a negative mtime value
+	 *
+	 * @return boolean true if negative mtime is supported
+	 */
+	private function supportsNegativeMtime() {
+		return (getenv("PRIMARY_STORAGE_CONFIG") !== "swift");
+	}
+
+	public function legalMtimeProvider() {
+		return [
+			"string" => [ 
+					'HTTP_X_OC_MTIME' => "string",
+					'expected result' => 0
+			],
+			"castable string (int)" => [
+					'HTTP_X_OC_MTIME' => "34",
+					'expected result' => 34
+			],
+			"castable string (float)" => [ 
+					'HTTP_X_OC_MTIME' => "34.56",
+					'expected result' => 34
+			],
+			"float" => [
+					'HTTP_X_OC_MTIME' => 34.56,
+					'expected result' => 34
+			],
+			"zero" => [
+					'HTTP_X_OC_MTIME' => 0,
+					'expected result' => 0
+			],
+			"zero string" => [
+					'HTTP_X_OC_MTIME' => "0",
+					'expected result' => 0
+			],
+			"negative zero string" => [
+					'HTTP_X_OC_MTIME' => "-0",
+					'expected result' => 0
+			],
+			"string starting with number following by char" => [
+					'HTTP_X_OC_MTIME' => "2345asdf",
+					'expected result' => 2345
+			],
+			"string castable hex int" => [
+					'HTTP_X_OC_MTIME' => "0x45adf",
+					'expected result' => 0
+			],
+			"string that looks like invalid hex int" => [
+					'HTTP_X_OC_MTIME' => "0x123g",
+					'expected result' => 0
+			],
+			"negative int" => [
+					'HTTP_X_OC_MTIME' => -34,
+					'expected result' => ($this->supportsNegativeMtime() ? -34 : 0)
+			],
+			"negative float" => [
+					'HTTP_X_OC_MTIME' => -34.43,
+					'expected result' => ($this->supportsNegativeMtime() ? -34 : 0)
+			],
+		];
+	}
+
+	/**
+	 * Test putting a file with string Mtime
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 * @dataProvider legalMtimeProvider
+	 */
+	public function testPutSingleFileLegalMtime($requestMtime, $resultMtime) {
+		$request = new \OC\AppFramework\Http\Request([
+				'server' => [
+						'HTTP_X_OC_MTIME' => $requestMtime,
+				]
+		], null, $this->config, null);
+		$file = 'foo.txt';
+		$this->doPut($file, null, $request);
+		$this->assertEquals($resultMtime, $this->getFileInfos($file)['mtime']);
+	}
+
+	/**
+	 * Test putting a file with string Mtime using chunking
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 * @dataProvider legalMtimeProvider
+	 */
+	public function testChunkedPutLegalMtime($requestMtime, $resultMtime) {
+		$request = new \OC\AppFramework\Http\Request([
+				'server' => [
+						'HTTP_X_OC_MTIME' => $requestMtime,
+				]
+		], null, $this->config, null);
+		
+		$_SERVER['HTTP_OC_CHUNKED'] = true;
+		$file = 'foo.txt';
+		$this->doPut($file.'-chunking-12345-2-0', null, $request);
+		$this->doPut($file.'-chunking-12345-2-1', null, $request);
+		$this->assertEquals($resultMtime, $this->getFileInfos($file)['mtime']);
 	}
 
 	/**
@@ -529,7 +638,12 @@ class FileTest extends TestCase {
 			$thrown = true;
 		}
 
-		$this->assertTrue($thrown);
+		// objectstore does not use partfiles -> no move after upload -> no exception
+		if (getenv('RUN_OBJECTSTORE_TESTS')) {
+			$this->assertFalse($thrown);
+		} else {
+			$this->assertTrue($thrown);
+		}
 		$this->assertEmpty($this->listPartFiles(), 'No stray part files');
 	}
 
@@ -964,6 +1078,25 @@ class FileTest extends TestCase {
 	}
 
 	/**
+	 * returns an array of file information filesize, mtime, filetype,  mimetype
+	 * 
+	 * @param string $path
+	 * @param View $userView
+	 * @return array
+	 */
+	private function getFileInfos($path = '', View $userView = null) {
+		if ($userView === null) {
+			$userView = Filesystem::getView();
+		}
+		return [
+				"filesize" => $userView->filesize($path),
+				"mtime" => $userView->filemtime($path),
+				"filetype" => $userView->filetype($path),
+				"mimetype" => $userView->getMimeType($path)
+		];
+	}
+
+	/**
 	 * @expectedException \Sabre\DAV\Exception\ServiceUnavailable
 	 */
 	public function testGetFopenFails() {
@@ -996,6 +1129,25 @@ class FileTest extends TestCase {
 
 		$info = new FileInfo('/test.txt', $this->getMockStorage(), null, [
 			'permissions' => Constants::PERMISSION_ALL
+		], null);
+
+		$file = new File($view, $info);
+
+		$file->get();
+	}
+
+	/**
+	 * @expectedException \Sabre\DAV\Exception\NotFound
+	 */
+	public function testGetThrowsIfNoPermission() {
+		$view = $this->getMockBuilder(View::class)
+			->setMethods(['fopen'])
+			->getMock();
+		$view->expects($this->never())
+			->method('fopen');
+
+		$info = new FileInfo('/test.txt', $this->getMockStorage(), null, [
+			'permissions' => Constants::PERMISSION_CREATE // no read perm
 		], null);
 
 		$file = new File($view, $info);

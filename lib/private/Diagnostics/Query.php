@@ -3,7 +3,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -63,7 +63,14 @@ class Query implements IQuery {
 	}
 
 	/**
-	 * @return int
+	 * @return float
+	 */
+	public function getStart() {
+		return $this->start;
+	}
+	
+	/**
+	 * @return float
 	 */
 	public function getDuration() {
 		return $this->end - $this->start;

@@ -2,7 +2,7 @@
 /**
  * @author Christoph Wurst <christoph@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -111,6 +111,7 @@ class DefaultToken extends Entity implements IToken {
 			'name' => $this->name,
 			'lastActivity' => $this->lastActivity,
 			'type' => $this->type,
+			'canDelete' => true,
 		];
 	}
 

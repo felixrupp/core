@@ -7,7 +7,7 @@
  * @author Stephan Peijnik <speijnik@anexia-it.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -185,7 +185,7 @@ class MetaData {
 	 */
 	protected function getGroups($search = '') {
 		if($this->isAdmin) {
-			return $this->groupManager->search($search);
+			return $this->groupManager->search($search, null, null, 'management');
 		} else {
 			$userObject = $this->userSession->getUser();
 			if($userObject !== null) {

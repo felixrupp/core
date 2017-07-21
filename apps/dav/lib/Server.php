@@ -1,14 +1,14 @@
 <?php
 /**
- * @author Arthur Schiwon <blizzz@arthur-schiwon.de>
  * @author Christoph Wurst <christoph@owncloud.com>
  * @author Georg Ehrke <georg@owncloud.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Thomas Citharel <tcit@tcit.fr>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -49,6 +49,7 @@ use Sabre\CardDAV\VCFExportPlugin;
 use Sabre\DAV\Auth\Plugin;
 use OCA\DAV\Connector\Sabre\TagsPlugin;
 use OCA\DAV\AppInfo\PluginManager;
+use OCA\DAV\Connector\Sabre\MaintenancePlugin;
 
 class Server {
 
@@ -77,7 +78,9 @@ class Server {
 		$this->server->httpRequest->setUrl($this->request->getRequestUri());
 		$this->server->setBaseUri($this->baseUri);
 
-		$this->server->addPlugin(new BlockLegacyClientPlugin(\OC::$server->getConfig()));
+		$config = \OC::$server->getConfig();
+		$this->server->addPlugin(new MaintenancePlugin($config));
+		$this->server->addPlugin(new BlockLegacyClientPlugin($config));
 		$authPlugin = new Plugin();
 		$authPlugin->addBackend(new PublicAuth());
 		$this->server->addPlugin($authPlugin);
@@ -111,7 +114,7 @@ class Server {
 		// calendar plugins
 		$this->server->addPlugin(new \OCA\DAV\CalDAV\Plugin());
 		$this->server->addPlugin(new \Sabre\CalDAV\ICSExportPlugin());
-		$this->server->addPlugin(new \Sabre\CalDAV\Schedule\Plugin());
+		$this->server->addPlugin(new \OCA\DAV\CalDAV\Schedule\Plugin());
 		$this->server->addPlugin(new IMipPlugin($mailer, $logger));
 		$this->server->addPlugin(new \Sabre\CalDAV\Subscriptions\Plugin());
 		$this->server->addPlugin(new \Sabre\CalDAV\Notifications\Plugin());
@@ -140,6 +143,7 @@ class Server {
 		if($request->isUserAgent([
 			'/WebDAVFS/',
 			'/Microsoft Office OneNote 2013/',
+			'/Microsoft-WebDAV-MiniRedir/',
 		])) {
 			$this->server->addPlugin(new FakeLockerPlugin());
 		}
@@ -188,7 +192,6 @@ class Server {
 				$this->server->addPlugin(new SharesPlugin(
 					$this->server->tree,
 					$userSession,
-					$userFolder,
 					\OC::$server->getShareManager()
 				));
 				$this->server->addPlugin(new CommentPropertiesPlugin(

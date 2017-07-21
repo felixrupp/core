@@ -18,8 +18,9 @@
  * @author shkdee <louis.traynard@m4x.org>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tom Needham <tom@owncloud.com>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -186,9 +187,11 @@ class OC_User {
 			if (self::getUser() !== $uid) {
 				self::setUserId($uid);
 				self::setDisplayName($uid);
-				self::getUserSession()->setLoginName($uid);
+				$userSession = self::getUserSession();
+				$userSession->getSession()->regenerateId();
+				$userSession->setLoginName($uid);
 				$request = OC::$server->getRequest();
-				self::getUserSession()->createSessionToken($request, $uid, $uid);
+				$userSession->createSessionToken($request, $uid, $uid);
 				// setup the filesystem
 				OC_Util::setupFS($uid);
 				// first call the post_login hooks, the login-process needs to be
@@ -196,8 +199,15 @@ class OC_User {
 				// For example encryption needs to initialize the users keys first
 				// before we can create the user folder with the skeleton files
 				OC_Hook::emit("OC_User", "post_login", ["uid" => $uid, 'password' => '']);
-				//trigger creation of user home and /files folder
-				\OC::$server->getUserFolder($uid);
+				$user = $userSession->getUser();
+				$firstTimeLogin = $user->updateLastLoginTimestamp();
+				if ($userSession->isLoggedIn()) {
+					$userSession->prepareUserLogin($firstTimeLogin);
+				} else {
+					// injecting l10n does not work - there is a circular dependency between session and \OCP\L10N\IFactory
+					$message = \OC::$server->getL10N('lib')->t('Login canceled by app');
+					throw new \OC\User\LoginException($message);
+				}
 			}
 			return true;
 		}
@@ -320,7 +330,7 @@ class OC_User {
 	 * @return bool
 	 */
 	public static function isAdminUser($uid) {
-		if (OC_Group::inGroup($uid, 'admin') && self::$incognitoMode === false) {
+		if (\OC::$server->getGroupManager()->inGroup($uid, 'admin') && self::$incognitoMode === false) {
 			return true;
 		}
 		return false;

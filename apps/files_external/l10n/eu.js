@@ -1,8 +1,6 @@
 OC.L10N.register(
     "files_external",
     {
-    "Step 1 failed. Exception: %s" : "1 Urratsak huts egin du. Salbuespena: %s",
-    "Step 2 failed. Exception: %s" : "2 Urratsak huts egin du. Salbuespena: %s",
     "External storage" : "Kanpoko biltegiratzea",
     "Personal" : "Pertsonala",
     "System" : "Sistema",
@@ -29,7 +27,6 @@ OC.L10N.register(
     "URL" : "URL",
     "Remote subfolder" : "Urruneko azpikarpeta",
     "Secure https://" : "https:// segurua",
-    "Dropbox" : "Dropbox",
     "Local" : "Bertakoa",
     "Location" : "Kokapena",
     "ownCloud" : "ownCloud",

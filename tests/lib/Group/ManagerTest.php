@@ -22,6 +22,8 @@
  */
 namespace Test\Group;
 
+use OC\Group\Database;
+use OC\User\Manager;
 use OCP\IUser;
 use OCP\GroupInterface;
 
@@ -37,7 +39,7 @@ class ManagerTest extends \Test\TestCase {
 		return $mockUser;
 	}
 
-	private function getTestBackend($implementedActions = null) {
+	private function getTestBackend($implementedActions = null, $visibleForScopes = null) {
 		if (is_null($implementedActions)) {
 			$implementedActions =
 				GroupInterface::ADD_TO_GROUP |
@@ -61,6 +63,7 @@ class ManagerTest extends \Test\TestCase {
 				'createGroup',
 				'addToGroup',
 				'removeFromGroup',
+				'isVisibleForScope',
 			])
 			->getMock();
 		$backend->expects($this->any())
@@ -68,6 +71,15 @@ class ManagerTest extends \Test\TestCase {
 			->will($this->returnCallback(function($actions) use ($implementedActions) {
 				return (bool)($actions & $implementedActions);
 			}));
+		if (is_null($visibleForScopes)) {
+			$backend->expects($this->any())
+				->method('isVisibleForScope')
+				->willReturn(true);
+		} else {
+			$backend->expects($this->any())
+				->method('isVisibleForScope')
+				->will($this->returnValueMap($visibleForScopes));
+		}
 		return $backend;
 	}
 
@@ -84,7 +96,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -97,7 +109,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 
 		$this->assertNull($manager->get('group1'));
@@ -116,7 +128,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -130,7 +142,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -161,7 +173,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend1);
 		$manager->addBackend($backend2);
@@ -192,7 +204,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -215,7 +227,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -240,7 +252,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -278,7 +290,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend1);
 		$manager->addBackend($backend2);
@@ -319,7 +331,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend1);
 		$manager->addBackend($backend2);
@@ -336,7 +348,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
 		 */
-		$backend = $this->createMock('\OC\Group\Database');
+		$backend = $this->createMock(Database::class);
 		$backend->expects($this->once())
 			->method('getGroups')
 			->with('1')
@@ -345,17 +357,71 @@ class ManagerTest extends \Test\TestCase {
 			->method('groupExists')
 			->with('group1')
 			->will($this->returnValue(false));
+		$backend->expects($this->once())
+			->method('isVisibleForScope')
+			->will($this->returnValue(true));
 
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
 		$groups = $manager->search('1');
 		$this->assertEmpty($groups);
+	}
+
+	public function testSearchBackendsForScope() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend1
+		 */
+		$backend1 = $this->getTestBackend();
+		$backend1->expects($this->any())
+			->method('getGroups')
+			->with('1')
+			->will($this->returnValue(['group1']));
+		$backend1->expects($this->any())
+			->method('groupExists')
+			->will($this->returnValue(true));
+
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend2
+		 */
+		$backend2 = $this->getTestBackend(null, [
+			[null, false],
+			['sharing', true],
+		]);
+		$backend2->expects($this->any())
+			->method('getGroups')
+			->with('1')
+			->will($this->returnValue(['group12', 'group1']));
+		$backend2->expects($this->any())
+			->method('groupExists')
+			->will($this->returnValue(true));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend1);
+		$manager->addBackend($backend2);
+
+		// search without scope
+		$groups = $manager->search('1', null, null, null);
+		$this->assertEquals(1, count($groups));
+		$group1 = reset($groups);
+		$this->assertEquals('group1', $group1->getGID());
+
+		// search with scope
+		$groups = $manager->search('1', null, null, 'sharing');
+		$this->assertEquals(2, count($groups));
+		$group1 = reset($groups);
+		$group12 = next($groups);
+		$this->assertEquals('group1', $group1->getGID());
+		$this->assertEquals('group12', $group12->getGID());
 	}
 
 	public function testGetUserGroups() {
@@ -375,8 +441,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -416,7 +482,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
 		 */
-		$backend = $this->createMock('\OC\Group\Database');
+		$backend = $this->createMock(Database::class);
 		$backend->expects($this->once())
 			->method('getUserGroups')
 			->with('user1')
@@ -429,8 +495,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -440,6 +506,40 @@ class ManagerTest extends \Test\TestCase {
 
 		$groups = $manager->getUserGroups($user);
 		$this->assertEmpty($groups);
+	}
+
+	public function testGetUserGroupsWithScope() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend(null, [
+			[null, false],
+			['sharing', true],
+		]);
+		$backend->expects($this->any())
+			->method('getUserGroups')
+			->with('user1')
+			->will($this->returnValue(['group1']));
+		$backend->expects($this->any())
+			->method('groupExists')
+			->with('group1')
+			->will($this->returnValue(true));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$groups = $manager->getUserGroups($this->getTestUser('user1'));
+		$this->assertEmpty($groups);
+
+		$groups = $manager->getUserGroups($this->getTestUser('user1'), 'sharing');
+		$this->assertCount(1, $groups);
+		$group1 = reset($groups);
+		$this->assertEquals('group1', $group1->getGID());
 	}
 
 	public function testInGroup() {
@@ -458,8 +558,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -482,8 +582,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -506,8 +606,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -542,8 +642,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend1);
 		$manager->addBackend($backend2);
@@ -582,8 +682,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 
 		$userManager->expects($this->any())
 			->method('searchDisplayName')
@@ -647,8 +747,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 
 		$userManager->expects($this->any())
 			->method('searchDisplayName')
@@ -714,8 +814,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 
 		$userManager->expects($this->any())
 			->method('searchDisplayName')
@@ -775,8 +875,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 
 		$userManager->expects($this->any())
 			->method('get')
@@ -819,8 +919,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 
 		$userManager->expects($this->any())
 			->method('get')
@@ -864,8 +964,8 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
-		$userBackend = $this->createMock('\OC_User_Backend');
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
 
 		$userManager->expects($this->any())
 			->method('get')
@@ -911,7 +1011,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -958,7 +1058,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -992,7 +1092,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -1022,7 +1122,7 @@ class ManagerTest extends \Test\TestCase {
 		/**
 		 * @var \OC\User\Manager $userManager
 		 */
-		$userManager = $this->createMock('\OC\User\Manager');
+		$userManager = $this->createMock(Manager::class);
 		$manager = new \OC\Group\Manager($userManager);
 		$manager->addBackend($backend);
 
@@ -1037,6 +1137,341 @@ class ManagerTest extends \Test\TestCase {
 		$this->assertNotNull($group);
 		$this->assertEquals('group2', $group->getGID());
 		$this->assertEquals('group2', $group->getDisplayName());
+	}
+
+	public function testFindUsersInGroupWithOneUserBackend() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend();
+		$backend->expects($this->exactly(1))
+			->method('groupExists')
+			->with('testgroup')
+			->will($this->returnValue(true));
+
+		$backend->expects($this->any())
+			->method('inGroup')
+			->will($this->returnCallback(function($uid, $gid) {
+				switch($uid) {
+					case 'user1' : return false;
+					case 'user2' : return true;
+					case 'user3' : return false;
+					case 'user33': return true;
+					default:
+						return null;
+				}
+			}));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+
+		$userManager->expects($this->any())
+			->method('find')
+			->with('user3')
+			->will($this->returnCallback(function($search, $limit, $offset) use ($userBackend) {
+				switch($offset) {
+					case 0 : return ['user3' => $this->getTestUser('user3'),
+						'user33' => $this->getTestUser('user33')];
+					case 2 : return [];
+				}
+			}));
+
+		$userManager->expects($this->any())
+			->method('get')
+			->will($this->returnCallback(function($uid) use ($userBackend) {
+				switch($uid) {
+					case 'user1' : return $this->getTestUser('user1');
+					case 'user2' : return $this->getTestUser('user2');
+					case 'user3' : return $this->getTestUser('user3');
+					case 'user33': return $this->getTestUser('user33');
+					default:
+						return null;
+				}
+			}));
+
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$users = $manager->findUsersInGroup('testgroup', 'user3');
+		$this->assertEquals(1, count($users));
+		$this->assertFalse(isset($users['user1']));
+		$this->assertFalse(isset($users['user2']));
+		$this->assertFalse(isset($users['user3']));
+		$this->assertTrue(isset($users['user33']));
+	}
+
+	public function testFindUsersInGroupWithOneUserBackendWithLimitSpecified() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend();
+		$backend->expects($this->exactly(1))
+			->method('groupExists')
+			->with('testgroup')
+			->will($this->returnValue(true));
+
+		$backend->expects($this->any())
+			->method('inGroup')
+			->will($this->returnCallback(function($uid, $gid) {
+				switch($uid) {
+					case 'user1' : return false;
+					case 'user2' : return true;
+					case 'user3' : return false;
+					case 'user33': return true;
+					case 'user333': return true;
+					default:
+						return null;
+				}
+			}));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+
+		$userManager->expects($this->any())
+			->method('find')
+			->with('user3')
+			->will($this->returnCallback(function($search, $limit, $offset) use ($userBackend) {
+				switch($offset) {
+					case 0 : return ['user3' => $this->getTestUser('user3'),
+						'user33' => $this->getTestUser('user33')];
+					case 2 : return ['user333' => $this->getTestUser('user333')];
+				}
+			}));
+
+		$userManager->expects($this->any())
+			->method('get')
+			->will($this->returnCallback(function($uid) use ($userBackend) {
+				switch($uid) {
+					case 'user1' : return $this->getTestUser('user1');
+					case 'user2' : return $this->getTestUser('user2');
+					case 'user3' : return $this->getTestUser('user3');
+					case 'user33': return $this->getTestUser('user33');
+					case 'user333': return $this->getTestUser('user333');
+					default:
+						return null;
+				}
+			}));
+
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$users = $manager->findUsersInGroup('testgroup', 'user3', 1);
+		$this->assertEquals(1, count($users));
+		$this->assertFalse(isset($users['user1']));
+		$this->assertFalse(isset($users['user2']));
+		$this->assertFalse(isset($users['user3']));
+		$this->assertTrue(isset($users['user33']));
+		$this->assertFalse(isset($users['user333']));
+	}
+
+	public function testFindUsersInGroupWithOneUserBackendWithLimitAndOffsetSpecified() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend();
+		$backend->expects($this->exactly(1))
+			->method('groupExists')
+			->with('testgroup')
+			->will($this->returnValue(true));
+
+		$backend->expects($this->any())
+			->method('inGroup')
+			->will($this->returnCallback(function($uid) {
+				switch($uid) {
+					case 'user1' : return false;
+					case 'user2' : return true;
+					case 'user3' : return false;
+					case 'user33': return true;
+					case 'user333': return true;
+					default:
+						return null;
+				}
+			}));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+
+		$userManager->expects($this->any())
+			->method('find')
+			->with('user3')
+			->will($this->returnCallback(function($search, $limit, $offset) use ($userBackend) {
+				switch($offset) {
+					case 0 :
+						return [
+							'user3' => $this->getTestUser('user3'),
+							'user33' => $this->getTestUser('user33'),
+							'user333' => $this->getTestUser('user333')
+						];
+				}
+			}));
+
+		$userManager->expects($this->any())
+			->method('get')
+			->will($this->returnCallback(function($uid) use ($userBackend) {
+				switch($uid) {
+					case 'user1' : return $this->getTestUser('user1');
+					case 'user2' : return $this->getTestUser('user2');
+					case 'user3' : return $this->getTestUser('user3');
+					case 'user33': return $this->getTestUser('user33');
+					case 'user333': return $this->getTestUser('user333');
+					default:
+						return null;
+				}
+			}));
+
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$users = $manager->findUsersInGroup('testgroup', 'user3', 1, 1);
+		$this->assertEquals(1, count($users));
+		$this->assertFalse(isset($users['user1']));
+		$this->assertFalse(isset($users['user2']));
+		$this->assertFalse(isset($users['user3']));
+		$this->assertFalse(isset($users['user33']));
+		$this->assertTrue(isset($users['user333']));
+	}
+
+	public function testFindUsersInGroupWithOneUserBackendAndSearchEmpty() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend();
+		$backend->expects($this->exactly(1))
+			->method('groupExists')
+			->with('testgroup')
+			->will($this->returnValue(true));
+
+		$backend->expects($this->once())
+			->method('usersInGroup')
+			->with('testgroup', '', -1, 0)
+			->will($this->returnValue(['user2', 'user33']));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+
+		$userManager->expects($this->any())
+			->method('get')
+			->will($this->returnCallback(function($uid) use ($userBackend) {
+				switch($uid) {
+					case 'user1' : return $this->getTestUser('user1');
+					case 'user2' : return $this->getTestUser('user2');
+					case 'user3' : return $this->getTestUser('user3');
+					case 'user33': return $this->getTestUser('user33');
+					default:
+						return null;
+				}
+			}));
+
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$users = $manager->findUsersInGroup('testgroup', '');
+		$this->assertEquals(2, count($users));
+		$this->assertFalse(isset($users['user1']));
+		$this->assertTrue(isset($users['user2']));
+		$this->assertFalse(isset($users['user3']));
+		$this->assertTrue(isset($users['user33']));
+	}
+
+	public function testFindUsersInGroupWithOneUserBackendAndSearchEmptyAndLimitSpecified() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend();
+		$backend->expects($this->exactly(1))
+			->method('groupExists')
+			->with('testgroup')
+			->will($this->returnValue(true));
+
+		$backend->expects($this->once())
+			->method('usersInGroup')
+			->with('testgroup', '', 1, 0)
+			->will($this->returnValue(['user2']));
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+
+		$userManager->expects($this->any())
+			->method('get')
+			->will($this->returnCallback(function($uid) use ($userBackend) {
+				switch($uid) {
+					case 'user1' : return $this->getTestUser('user1');
+					case 'user2' : return $this->getTestUser('user2');
+					case 'user3' : return $this->getTestUser('user3');
+					case 'user33': return $this->getTestUser('user33');
+					default:
+						return null;
+				}
+			}));
+
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$users = $manager->findUsersInGroup('testgroup', '', 1);
+		$this->assertEquals(1, count($users));
+		$this->assertFalse(isset($users['user1']));
+		$this->assertTrue(isset($users['user2']));
+		$this->assertFalse(isset($users['user3']));
+		$this->assertFalse(isset($users['user33']));
+	}
+
+	public function testFindUsersInGroupWithOneUserBackendAndSearchEmptyAndLimitAndOffsetSpecified() {
+		/**
+		 * @var \PHPUnit_Framework_MockObject_MockObject | \OC\Group\Backend $backend
+		 */
+		$backend = $this->getTestBackend();
+		$backend->expects($this->exactly(1))
+			->method('groupExists')
+			->with('testgroup')
+			->will($this->returnValue(true));
+
+		$backend->expects($this->once())
+			->method('usersInGroup')
+			->with('testgroup', '', 1, 1)
+			->will($this->returnValue(['user33']));
+
+		/**
+		 * @var \OC\User\Manager $userManager
+		 */
+		$userManager = $this->createMock(Manager::class);
+		$userBackend = $this->createMock(\OC_User_Backend::class);
+
+		$userManager->expects($this->any())
+			->method('get')
+			->will($this->returnCallback(function($uid) use ($userBackend) {
+				switch($uid) {
+					case 'user1' : return $this->getTestUser('user1');
+					case 'user2' : return $this->getTestUser('user2');
+					case 'user3' : return $this->getTestUser('user3');
+					case 'user33': return $this->getTestUser('user33');
+					default:
+						return null;
+				}
+			}));
+
+		$manager = new \OC\Group\Manager($userManager);
+		$manager->addBackend($backend);
+
+		$users = $manager->findUsersInGroup('testgroup', '', 1, 1);
+		$this->assertEquals(1, count($users));
+		$this->assertFalse(isset($users['user1']));
+		$this->assertFalse(isset($users['user2']));
+		$this->assertFalse(isset($users['user3']));
+		$this->assertTrue(isset($users['user33']));
 	}
 
 }

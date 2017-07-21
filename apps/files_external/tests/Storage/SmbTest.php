@@ -1,13 +1,14 @@
 <?php
 /**
  * @author Joas Schilling <coding@schilljs.com>
+ * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -85,5 +86,24 @@ class SmbTest extends \Test\Files\Storage\Storage {
 		]);
 		$this->assertEquals('smb::testuser@testhost//someshare//someroot/', $this->instance->getId());
 		$this->instance = null;
+	}
+
+	public function testRenameRoot() {
+		// root can't be renamed
+		$this->assertFalse($this->instance->rename('', 'foo1'));
+
+		$this->instance->mkdir('foo2');
+		$this->assertFalse($this->instance->rename('foo2', ''));
+		$this->instance->rmdir('foo2');
+	}
+
+	public function testUnlinkRoot() {
+		// root can't be deleted
+		$this->assertFalse($this->instance->unlink(''));
+	}
+
+	public function testRmdirRoot() {
+		// root can't be deleted
+		$this->assertFalse($this->instance->rmdir(''));
 	}
 }

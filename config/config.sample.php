@@ -80,6 +80,12 @@ $CONFIG = array(
 'version' => '',
 
 /**
+ * While hardening an ownCloud instance hiding the version information in status.php
+ * can be a legitimate step. Please consult the documentation before enabling this.
+ */
+'version.hide' => false,
+
+/**
  * Identifies the database used with this installation. See also config option
  * ``supportedDatabases``
  *
@@ -122,6 +128,7 @@ $CONFIG = array(
  * Prefix for the ownCloud tables in the database.
  */
 'dbtableprefix' => '',
+
 
 /**
  * Indicates whether the ownCloud instance was installed successfully; ``true``
@@ -202,6 +209,26 @@ $CONFIG = array(
 'token_auth_enforced' => false,
 
 /**
+ * Allows to specify additional login buttons on the logon screen for e.g. SSO integration
+ *  'login.alternatives' => [
+ *    ['href' => 'https://www.testshib.org/Shibboleth.sso/ProtectNetwork?target=https%3A%2F%2Fmy.owncloud.tld%2Flogin%2Fsso-saml%2F', 'name' => 'ProtectNetwork', 'img' => '/img/PN_sign-in.gif'],
+ *    ['href' => 'https://www.testshib.org/Shibboleth.sso/OpenIdP.org?target=https%3A%2F%2Fmy.owncloud.tld%2Flogin%2Fsso-saml%2F', 'name' => 'OpenIdP.org', 'img' => '/img/openidp.png'],
+ *  ]
+ */
+'login.alternatives' => [],
+
+/**
+ * Disable ownCloud's built-in CSRF protection mechanism.
+ *
+ * In some specific setups CSRF protection is handled in the environment, e.g.,
+ * running F5 ASM. In these cases the built-in mechanism is not needed and can be disabled.
+ * Generally speaking, however, this config switch should be left unchanged.
+ *
+ * WARNING: leave this as is if you're not sure what it does
+ */
+'csrf.disabled' => false,
+
+/**
  * The directory where the skeleton files are located. These files will be
  * copied to the data directory of new users. Leave empty to not copy any
  * skeleton files.
@@ -221,12 +248,21 @@ $CONFIG = array(
 ),
 
 /**
- * If your user backend does not allow to reset the password (e.g. when it's a
+ * If your user backend does not allow password resets (e.g. when it's a
  * read-only user backend like LDAP), you can specify a custom link, where the
  * user is redirected to, when clicking the "reset password" link after a failed
  * login-attempt.
+ * In case you do not want to provide any link, replace the url with 'disabled'
  */
 'lost_password_link' => 'https://example.org/link/to/password/reset',
+
+/**
+ * Allow medial search on account properties like display name, user id, email,
+ * and other search terms. Allows finding 'Alice' when searching for 'lic'.
+ * May slow down user search. Disable this if you encounter slow username search
+ * in the sharing dialog.
+ */
+'accounts.enable_medial_search' => true,
 
 /**
  * Mail Parameters
@@ -381,12 +417,12 @@ $CONFIG = array(
  * the correct value would most likely be "/owncloud". If ownCloud is running
  * under "https://mycloud.org/" then it would be "/".
  *
- * Note that above rule is not valid in every case, there are some rare setup
+ * Note that the above rule is not valid in every case, as there are some rare setup
  * cases where this may not apply. However, to avoid any update problems this
  * configuration value is explicitly opt-in.
  *
- * After setting this value run `occ maintenance:update:htaccess` and when following
- * conditions are met ownCloud uses URLs without index.php in it:
+ * After setting this value run `occ maintenance:update:htaccess`. Now, when the
+ * following conditions are met ownCloud URLs won't contain `index.php`:
  *
  * - `mod_rewrite` is installed
  * - `mod_env` is installed
@@ -491,13 +527,6 @@ $CONFIG = array(
  */
 
 /**
- * Checks an app before install whether it uses private APIs instead of the
- * proper public APIs. If this is set to true it will only allow to install or
- * enable apps that pass this check.
- */
-'appcodechecker' => true,
-
-/**
  * Check if ownCloud is up-to-date and shows a notification if a new version is
  * available.
  */
@@ -590,13 +619,25 @@ $CONFIG = array(
  *                this condition is met
  *  - ``apps``:   if the log message is invoked by one of the specified apps,
  *                this condition is met
+ *  - ``logfile``: the log message invoked by the specified apps get redirected to
+ *		   this logfile, this condition is met
+ *		   Note: Not applicable when using syslog.
  *
  * Defaults to an empty array.
  */
-'log.condition' => [
-	'shared_secret' => '57b58edb6637fe3059b3595cf9c41b9',
-	'users' => ['sample-user'],
-	'apps' => ['files'],
+'log.conditions' => [
+        [
+		'shared_secret' => '57b58edb6637fe3059b3595cf9c41b9',
+		'users' => ['user1'],
+		'apps' => ['files_texteditor'],
+		'logfile' => '/tmp/test.log'
+        ],
+        [
+		'shared_secret' => '57b58edb6637fe3059b3595cf9c41b9',
+		'users' => ['user1'],
+		'apps' => ['gallery'],
+		'logfile' => '/tmp/gallery.log'
+        ],
 ],
 
 /**
@@ -609,12 +650,6 @@ $CONFIG = array(
  * http://php.net/manual/en/timezones.php
  */
 'logtimezone' => 'Europe/Berlin',
-
-/**
- * Append all database queries and parameters to the log file. Use this only for
- * debugging, as your logfile will become huge.
- */
-'log_query' => false,
 
 /**
  * Log successful cron runs.
@@ -655,23 +690,9 @@ $CONFIG = array(
  */
 
 /**
- * When enabled, admins may install apps from the ownCloud app store.
- */
-'appstoreenabled' => true,
-
-/**
  * The URL of the appstore to use.
  */
 'appstoreurl' => 'https://api.owncloud.com/v1',
-
-/**
- * Whether to show experimental apps in the appstore interface
- *
- * Experimental apps are not checked for security issues and are new or known
- * to be unstable and under heavy development. Installing these can cause data
- * loss or security breaches.
- */
-'appstore.experimental.enabled' => false,
 
 /**
  * Use the ``apps_paths`` parameter to set the location of the Apps directory,
@@ -689,11 +710,6 @@ $CONFIG = array(
        'writable' => true,
      )
    ),
-
-/**
- * @see appcodechecker
- */
-
 
 /**
  * Previews
@@ -839,7 +855,7 @@ $CONFIG = array(
 /**
  * Replaces the default System Tags Manager Factory. This can be utilized if an
  * own or 3rdParty SystemTagsManager should be used that – for instance – uses the
- * filesystem instead of the database to keep the comments.
+ * filesystem instead of the database to keep the tags.
  */
 'systemtags.managerFactory' => '\OC\SystemTag\ManagerFactory',
 
@@ -919,19 +935,43 @@ $CONFIG = array(
 'memcache.distributed' => '\OC\Memcache\Memcached',
 
 /**
- * Connection details for redis to use for memory caching.
+ * Connection details for redis to use for memory caching in a single server configuration.
  *
  * For enhanced security it is recommended to configure Redis
  * to require a password. See http://redis.io/topics/security
  * for more information.
  */
-'redis' => array(
+'redis' => [
 	'host' => 'localhost', // can also be a unix domain socket: '/tmp/redis.sock'
 	'port' => 6379,
 	'timeout' => 0.0,
 	'password' => '', // Optional, if not defined no password will be used.
 	'dbindex' => 0, // Optional, if undefined SELECT will not run and will use Redis Server's default DB Index.
-),
+],
+
+/**
+ * Connection details for a Redis Cluster
+ *
+ * Only for use with Redis Clustering, for Sentinel-based setups use the single
+ * server configuration above, and perform HA on the hostname.
+ *
+ * Redis Cluster support requires the php module phpredis in version 3.0.0 or higher.
+ *
+ * Available failover modes:
+ *  - \RedisCluster::FAILOVER_NONE - only send commands to master nodes (default)
+ *  - \RedisCluster::FAILOVER_ERROR - failover to slaves for read commands if master is unavailable
+ *  - \RedisCluster::FAILOVER_DISTRIBUTE - randomly distribute read commands across master and slaves
+ */
+'redis.cluster' => [
+	'seeds' => [ // provide some/all of the cluster servers to bootstrap discovery, port required
+		'localhost:7000',
+		'localhost:7001'
+	],
+	'timeout' => 0.0,
+	'read_timeout' => 0.0,
+	'failover_mode' => \RedisCluster::FAILOVER_DISTRIBUTE
+],
+
 
 /**
  * Server details for one or more memcached servers to use for memory caching.
@@ -1009,7 +1049,7 @@ $CONFIG = array(
 'objectstore' => [
 	'class' => 'OC\\Files\\ObjectStore\\Swift',
 	'arguments' => [
-		// trystack will user your facebook id as the user name
+		// trystack will use your facebook id as the user name
 		'username' => 'facebook100000123456789',
 		// in the trystack dashboard go to user -> settings -> API Password to
 		// generate a password
@@ -1043,7 +1083,7 @@ $CONFIG = array(
 
 /**
  * Replaces the default Share Provider Factory. This can be utilized if
- * own or 3rdParty Share Providers be used that – for instance – uses the
+ * own or 3rdParty Share Providers are used that – for instance – use the
  * filesystem instead of the database to keep the share information.
  */
 'sharing.managerFactory' => '\OC\Share20\ProviderFactory',
@@ -1068,6 +1108,39 @@ $CONFIG = array(
  * can be 'WAL' or 'DELETE' see for more details https://www.sqlite.org/wal.html
  */
 'sqlite.journal_mode' => 'DELETE',
+
+/**
+ * During setup, if requirements are met (see below), this setting is set to true
+ * and MySQL can handle 4 byte characters instead of 3 byte characters.
+ *
+ * If you want to convert an existing 3-byte setup into a 4-byte setup please 
+ * set the parameters in MySQL as mentioned below and run the migration command:
+ *  ./occ db:convert-mysql-charset
+ * The config setting will be set automatically after a successful run.
+ * 
+ * Consult the documentation for more details.
+ * 
+ * MySQL requires a special setup for longer indexes (> 767 bytes) which are
+ * needed:
+ *
+ * [mysqld]
+ * innodb_large_prefix=ON
+ * innodb_file_format=Barracuda
+ * innodb_file_per_table=ON
+ *
+ * Tables will be created with
+ *  * character set: utf8mb4
+ *  * collation:     utf8mb4_bin
+ *  * row_format:    compressed
+ *
+ * See:
+ * https://dev.mysql.com/doc/refman/5.7/en/charset-unicode-utf8mb4.html
+ * https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_large_prefix
+ * https://mariadb.com/kb/en/mariadb/xtradbinnodb-server-system-variables/#innodb_large_prefix
+ * http://www.tocker.ca/2013/10/31/benchmarking-innodb-page-compression-performance.html
+ * http://mechanics.flite.com/blog/2014/07/29/using-innodb-large-prefix-to-avoid-error-1071/
+ */
+'mysql.utf8mb4' => false,
 
 /**
  * Database types that are supported for installation.
@@ -1149,7 +1222,7 @@ $CONFIG = array(
  * client may not function as expected, and could lead to permanent data loss for
  * clients or other unexpected results.
  */
-'minimum.supported.desktop.version' => '2.0.0',
+'minimum.supported.desktop.version' => '2.2.4',
 
 /**
  * EXPERIMENTAL: option whether to include external storage in quota
@@ -1178,22 +1251,6 @@ $CONFIG = array(
  * external storage setups that have limited rename capabilities.
  */
 'part_file_in_storage' => true,
-
-/**
- * All css and js files will be served by the Web server statically in one js
- * file and one css file if this is set to ``true``. This improves performance.
- */
-'asset-pipeline.enabled' => false,
-
-/**
- * The parent of the directory where css and js assets will be stored if
- * pipelining is enabled; this defaults to the ownCloud directory. The assets
- * will be stored in a subdirectory of this directory named 'assets'. The
- * server *must* be configured to serve that directory as $WEBROOT/assets.
- * You will only likely need to change this if the main ownCloud directory
- * is not writeable by the Web server in your configuration.
- */
-'assetdirectory' => '/var/www/owncloud',
 
 /**
  * Where ``mount.json`` file should be stored, defaults to ``data/mount.json``
@@ -1256,7 +1313,7 @@ $CONFIG = array(
 'filelocking.enabled' => true,
 
 /**
- * Set the time-to-live for locks in secconds.
+ * Set the lock's time-to-live in seconds.
  *
  * Any lock older than this will be automatically cleaned up.
  *
@@ -1299,13 +1356,6 @@ $CONFIG = array(
 'data-fingerprint' => '',
 
 /**
- * Set this property to false if you want to disable the files_external local mount Option.
- * Default: true
- * 
- */
-'files_external_allow_local' => true,
-
-/**
  * This entry is just here to show a warning in case somebody copied the sample
  * configuration. DO NOT ADD THIS SWITCH TO YOUR CONFIGURATION!
  *
@@ -1313,5 +1363,12 @@ $CONFIG = array(
  * modify *ANY* settings in this file without reading the documentation.
  */
 'copied_sample_config' => true,
+
+/**
+ * Set this property to true if you want to enable the files_external local mount Option.
+ * Default: false
+ *
+ */
+'files_external_allow_create_new_local' => false,
 
 );

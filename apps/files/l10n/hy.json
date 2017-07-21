@@ -1,6 +1,7 @@
 { "translations": {
     "Unknown error" : "Անհայտ սխալ",
     "All files" : "Բոլոր ֆայլերը",
+    "Saved" : "Պահված",
     "File could not be found" : "Ֆայլը չգտնվեց",
     "Home" : "Գլխավոր էջ",
     "Close" : "Փակել",
@@ -23,7 +24,6 @@
     "Could not create file \"{file}\" because it already exists" : "Չկարողացա ստեղծել «{file}» ֆայլը, քանի որ այն գոյություն ունի",
     "Could not create folder \"{dir}\" because it already exists" : "Չկարողացա ստեղծել «{dir}» պանակը, քանի որ այն գոյություն ունի",
     "Error deleting file \"{fileName}\"." : "Չկարողացա ջնջել «{fileName}» ֆայլը",
-    "No entries in this folder match '{filter}'" : "'{filter}' համապասխանող ոչինչ չգտնվեց պանակում",
     "Name" : "Անուն",
     "Size" : "Չափս",
     "Modified" : "Փոփոխված",
@@ -31,6 +31,7 @@
     "_%n file_::_%n files_" : ["%n ֆայլ","%n ֆայլ"],
     "{dirs} and {files}" : "{dirs} և {files}",
     "New" : "Նոր",
+    "File name cannot be empty." : "Ֆայլի անունը դատարկ լինել չի կարող",
     "_%n byte_::_%n bytes_" : ["%n բայտ","%n բայտ"],
     "Folder" : "Պանակ",
     "New folder" : "Նոր պանակ",

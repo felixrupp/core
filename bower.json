@@ -1,6 +1,6 @@
 {
   "name": "ownCloud",
-  "version": "9.2 pre alpha",
+  "version": "10.0.0 beta",
   "homepage": "https://www.owncloud.org",
   "license": "AGPL",
   "private": true,
@@ -28,10 +28,11 @@
     "underscore": "1.8.3",
     "bootstrap": "3.3.6",
     "backbone": "1.2.3",
-    "davclient.js": "https://github.com/evert/davclient.js.git#0.0.1",
+    "davclient.js": "https://github.com/evert/davclient.js.git#0.1.1",
     "es6-promise": "https://github.com/jakearchibald/es6-promise.git#2.3.0",
     "base64": "0.3.0",
     "clipboard": "1.5.12",
-    "browser-update": "^2.0.1"
+    "browser-update": "^2.0.1",
+    "bowser": "browser#^1.6.0"
   }
 }

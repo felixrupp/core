@@ -20,12 +20,14 @@
  * @author Jakob Sack <mail@jakobsack.de>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
+ * @author Kawohl <john@owncloud.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Markus Goetz <markus@woboq.com>
  * @author Martin Mattel <martin.mattel@diemattels.at>
  * @author Marvin Thomas Rabe <mrabe@marvinrabe.de>
  * @author Michael Gapczynski <GapczynskiM@gmail.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Philipp Schaffrath <github@philippschaffrath.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
@@ -37,7 +39,7 @@
  * @author Vincent Petry <pvince81@owncloud.com>
  * @author Volkan Gezer <volkangezer@gmail.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -64,6 +66,9 @@ class OC_Util {
 	public static $headers = [];
 	private static $rootMounted = false;
 	private static $fsSetup = false;
+	private static $version;
+	const EDITION_COMMUNITY = 'Community';
+	const EDITION_ENTERPRISE = 'Enterprise';
 
 	protected static function getAppManager() {
 		return \OC::$server->getAppManager();
@@ -175,6 +180,17 @@ class OC_Util {
 			return $storage;
 		});
 
+		// install storage checksum wrapper
+		\OC\Files\Filesystem::addStorageWrapper('oc_checksum', function ($mountPoint, \OCP\Files\Storage\IStorage $storage) {
+			if (!$storage->instanceOfStorage('\OCA\Files_Sharing\SharedStorage')) {
+				return new \OC\Files\Storage\Wrapper\Checksum(['storage' => $storage]);
+			}
+
+			return $storage;
+
+		}, 1);
+
+
 		\OC\Files\Filesystem::addStorageWrapper('oc_encoding', function ($mountPoint, \OCP\Files\Storage $storage, \OCP\Files\Mount\IMountPoint $mount) {
 			if ($mount->getOption('encoding_compatibility', false) && !$storage->instanceOfStorage('\OCA\Files_Sharing\SharedStorage') && !$storage->isLocal()) {
 				return new \OC\Files\Storage\Wrapper\Encoding(['storage' => $storage]);
@@ -207,6 +223,57 @@ class OC_Util {
 
 		OC_Hook::emit('OC_Filesystem', 'preSetup', ['user' => $user]);
 		\OC\Files\Filesystem::logWarningWhenAddingStorageWrapper(true);
+
+		// Make users storage readonly if he is a guest or in a read_only group
+
+		$isGuest = \OC::$server->getConfig()->getUserValue(
+			$user,
+			'owncloud',
+			'isGuest',
+			false
+		);
+
+		if (!$isGuest) {
+			$readOnlyGroups = json_decode(\OC::$server->getConfig()->getAppValue(
+				'core',
+				'read_only_groups',
+				'[]'
+			), true);
+
+			if (!is_array($readOnlyGroups)) {
+				$readOnlyGroups = [];
+			}
+
+
+			$userGroups = array_keys(
+				\OC::$server->getGroupManager()->getUserIdGroups($user)
+			);
+
+			$readOnlyGroupMemberships = array_intersect(
+				$readOnlyGroups,
+				$userGroups
+			);
+		}
+
+
+		if ($isGuest === '1' || !empty($readOnlyGroupMemberships)) {
+			\OC\Files\Filesystem::addStorageWrapper(
+				'oc_readonly',
+				function ($mountPoint, $storage) use ($user) {
+					if ($mountPoint === '/' || $mountPoint === "/$user/") {
+						return new \OC\Files\Storage\Wrapper\ReadOnlyJail(
+							[
+								'storage' => $storage,
+								'mask' => \OCP\Constants::PERMISSION_READ,
+								'path' => 'files'
+							]
+						);
+					}
+
+					return $storage;
+				}
+			);
+		}
 
 		//check if we are using an object storage
 		$objectStore = \OC::$server->getSystemConfig()->getValue('objectstore', null);
@@ -294,16 +361,23 @@ class OC_Util {
 	/**
 	 * Get the quota of a user
 	 *
-	 * @param string $userId
+	 * @param string|IUser $userId
 	 * @return int Quota bytes
 	 */
 	public static function getUserQuota($userId) {
-		$user = \OC::$server->getUserManager()->get($userId);
+		if ($userId instanceof IUser) {
+			$user = $userId;
+		} else {
+			$user = \OC::$server->getUserManager()->get($userId);
+		}
 		if (is_null($user)) {
 			return \OCP\Files\FileInfo::SPACE_UNLIMITED;
 		}
 		$userQuota = $user->getQuota();
-		if($userQuota === 'none') {
+		if ($userQuota === null || $userQuota === 'default') {
+			$userQuota = \OC::$server->getConfig()->getAppValue('files', 'default_quota', 'none');
+		}
+		if ($userQuota === null || $userQuota === 'none') {
 			return \OCP\Files\FileInfo::SPACE_UNLIMITED;
 		}
 		return OC_Helper::computerFileSize($userQuota);
@@ -370,7 +444,7 @@ class OC_Util {
 	 */
 	public static function getVersion() {
 		OC_Util::loadVersion();
-		return \OC::$server->getSession()->get('OC_Version');
+		return self::$version['OC_Version'];
 	}
 
 	/**
@@ -380,21 +454,20 @@ class OC_Util {
 	 */
 	public static function getVersionString() {
 		OC_Util::loadVersion();
-		return \OC::$server->getSession()->get('OC_VersionString');
+		return self::$version['OC_VersionString'];
 	}
 
 	/**
-	 * @description get the current installed edition of ownCloud. There is the community
-	 * edition that just returns an empty string and the enterprise edition
-	 * that returns "Enterprise".
+	 * @description get the current installed edition of ownCloud. 
+	 * There is the community edition that returns "Community" and 
+	 * the enterprise edition that returns "Enterprise".
 	 * @return string
 	 */
 	public static function getEditionString() {
 		if (OC_App::isEnabled('enterprise_key')) {
-			return "Enterprise";
-		} else {
-			return "";
-		}
+ 			return OC_Util::EDITION_ENTERPRISE;
+ 		} else {
+			return OC_Util::EDITION_COMMUNITY;		}
 
 	}
 
@@ -404,7 +477,7 @@ class OC_Util {
 	 */
 	public static function getChannel() {
 		OC_Util::loadVersion();
-		return \OC::$server->getSession()->get('OC_Channel');
+		return self::$version['OC_Channel'];
 	}
 
 	/**
@@ -413,41 +486,30 @@ class OC_Util {
 	 */
 	public static function getBuild() {
 		OC_Util::loadVersion();
-		return \OC::$server->getSession()->get('OC_Build');
+		return self::$version['OC_Build'];
 	}
 
 	/**
 	 * @description load the version.php into the session as cache
 	 */
 	private static function loadVersion() {
-		$timestamp = filemtime(OC::$SERVERROOT . '/version.php');
-		if (!\OC::$server->getSession()->exists('OC_Version') or OC::$server->getSession()->get('OC_Version_Timestamp') != $timestamp) {
-			require OC::$SERVERROOT . '/version.php';
-			$session = \OC::$server->getSession();
-			/** @var $timestamp int */
-			$session->set('OC_Version_Timestamp', $timestamp);
-			/** @var $OC_Version string */
-			$session->set('OC_Version', $OC_Version);
-			/** @var $OC_VersionString string */
-			$session->set('OC_VersionString', $OC_VersionString);
-			/** @var $OC_Build string */
-			$session->set('OC_Build', $OC_Build);
-			
-			// Allow overriding update channel
-			
-			if (\OC::$server->getSystemConfig()->getValue('installed', false)) {
-				$channel = \OC::$server->getAppConfig()->getValue('core', 'OC_Channel');
-			} else {
-				/** @var $OC_Channel string */
-				$channel = $OC_Channel;
-			}
-			
-			if (!is_null($channel)) {
-				$session->set('OC_Channel', $channel);
-			} else {
-				/** @var $OC_Channel string */
-				$session->set('OC_Channel', $OC_Channel);
-			}
+		require __DIR__ . '/../../../version.php';
+		/** @var $OC_Version string */
+		/** @var $OC_VersionString string */
+		/** @var $OC_Build string */
+		/** @var $OC_Channel string */
+		self::$version = [
+			'OC_Version' => $OC_Version,
+			'OC_VersionString' => $OC_VersionString,
+			'OC_Build' => $OC_Build,
+			'OC_Channel' => $OC_Channel,
+		];
+
+		// Allow overriding update channel
+
+		if (\OC::$server->getSystemConfig()->getValue('installed', false)) {
+			$channel = \OC::$server->getConfig()->getAppValue('core', 'OC_Channel', $OC_Channel);
+			self::$version['OC_Channel'] = $channel;
 		}
 	}
 
@@ -665,19 +727,17 @@ class OC_Util {
 		}
 
 		// Check if there is a writable install folder.
-		if ($config->getSystemValue('appstoreenabled', true)) {
-			if (OC_App::getInstallPath() === null
-				|| !is_writable(OC_App::getInstallPath())
-				|| !is_readable(OC_App::getInstallPath())
-			) {
-				$errors[] = [
-					'error' => $l->t('Cannot write into "apps" directory'),
-					'hint' => $l->t('This can usually be fixed by '
-						. '%sgiving the webserver write access to the apps directory%s'
-						. ' or disabling the appstore in the config file.',
-						['<a href="' . $urlGenerator->linkToDocs('admin-dir_permissions') . '" target="_blank" rel="noreferrer">', '</a>'])
-				];
-			}
+		if (OC_App::getInstallPath() === null
+			|| !is_writable(OC_App::getInstallPath())
+			|| !is_readable(OC_App::getInstallPath())
+		) {
+			$errors[] = [
+				'error' => $l->t('Cannot write into "apps" directory'),
+				'hint' => $l->t('This can usually be fixed by '
+					. '%sgiving the webserver write access to the apps directory%s'
+					. ' or disabling the appstore in the config file.',
+					['<a href="' . $urlGenerator->linkToDocs('admin-dir_permissions') . '" target="_blank" rel="noreferrer">', '</a>'])
+			];
 		}
 		// Create root dir.
 		if ($config->getSystemValue('installed', false)) {
@@ -1076,6 +1136,9 @@ class OC_Util {
 	/**
 	 * get an id unique for this instance
 	 *
+	 * The instance id must begin with a letter. It's typically used as the
+	 * session name and appears in a file or directory's 'id' property.
+	 *
 	 * @return string
 	 */
 	public static function getInstanceId() {
@@ -1131,6 +1194,9 @@ class OC_Util {
 		if (php_sapi_name() === 'cli-server') {
 			return false;
 		}
+		if (\OC::$CLI) {
+			return false;
+		}
 
 		// testdata
 		$fileName = '/htaccesstest.txt';
@@ -1151,45 +1217,6 @@ class OC_Util {
 		}
 		fwrite($fp, $testContent);
 		fclose($fp);
-	}
-
-	/**
-	 * Check if the .htaccess file is working
-	 * @param \OCP\IConfig $config
-	 * @return bool
-	 * @throws Exception
-	 * @throws \OC\HintException If the test file can't get written.
-	 */
-	public function isHtaccessWorking(\OCP\IConfig $config) {
-
-		if (\OC::$CLI || !$config->getSystemValue('check_for_working_htaccess', true)) {
-			return true;
-		}
-
-		$testContent = $this->createHtaccessTestFile($config);
-		if ($testContent === false) {
-			return false;
-		}
-
-		$fileName = '/htaccesstest.txt';
-		$testFile = $config->getSystemValue('datadirectory', OC::$SERVERROOT . '/data') . '/' . $fileName;
-
-		// accessing the file via http
-		$url = \OC::$server->getURLGenerator()->getAbsoluteURL(OC::$WEBROOT . '/data' . $fileName);
-		try {
-			$content = \OC::$server->getHTTPClientService()->newClient()->get($url)->getBody();
-		} catch (\Exception $e) {
-			$content = false;
-		}
-
-		// cleanup
-		@unlink($testFile);
-
-		/*
-		 * If the content is not equal to test content our .htaccess
-		 * is working as required
-		 */
-		return $content !== $testContent;
 	}
 
 	/**
@@ -1383,6 +1410,12 @@ class OC_Util {
 		if (\OC\Files\Filesystem::isIgnoredDir($trimmed)) {
 			return false;
 		}
+
+		// detect part files
+		if (preg_match('/' . \OCP\Files\FileInfo::BLACKLIST_FILES_REGEX . '/', $trimmed) !== 0) {
+			return false;
+		}
+
 		foreach (str_split($trimmed) as $char) {
 			if (strpos(\OCP\Constants::FILENAME_INVALID_CHARS, $char) !== false) {
 				return false;

@@ -16,7 +16,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -568,11 +568,15 @@ class AmazonS3 extends \OCP\Files\Storage\StorageAdapter {
 		$scheme = ($this->params['use_ssl'] === false) ? 'http' : 'https';
 		$base_url = $scheme . '://' . $this->params['hostname'] . ':' . $this->params['port'] . '/';
 
+		$isLondon = !(strpos($this->params['region'], 'eu-west-2') === false);
+		$signature = $isLondon ? 'v4' : null;
+
 		$this->connection = S3Client::factory([
 			'key' => $this->params['key'],
 			'secret' => $this->params['secret'],
 			'base_url' => $base_url,
 			'region' => $this->params['region'],
+			'signature' => $signature,
 			S3Client::COMMAND_PARAMS => [
 				'PathStyle' => $this->params['use_path_style'],
 			],

@@ -19,7 +19,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -80,11 +80,11 @@ class Setup {
 	}
 
 	static $dbSetupClasses = [
-		'mysql' => '\OC\Setup\MySQL',
-		'pgsql' => '\OC\Setup\PostgreSQL',
-		'oci'   => '\OC\Setup\OCI',
-		'sqlite' => '\OC\Setup\Sqlite',
-		'sqlite3' => '\OC\Setup\Sqlite',
+		'mysql' => \OC\Setup\MySQL::class,
+		'pgsql' => \OC\Setup\PostgreSQL::class,
+		'oci'   => \OC\Setup\OCI::class,
+		'sqlite' => \OC\Setup\Sqlite::class,
+		'sqlite3' => \OC\Setup\Sqlite::class,
 	];
 
 	/**
@@ -198,21 +198,9 @@ class Setup {
 		if(!file_exists($dataDir)) {
 			@mkdir($dataDir);
 		}
-		$htAccessWorking = true;
 		if (is_dir($dataDir) && is_writable($dataDir)) {
 			// Protect data directory here, so we can test if the protection is working
 			\OC\Setup::protectDataDirectory();
-
-			try {
-				$util = new \OC_Util();
-				$htAccessWorking = $util->isHtaccessWorking(\OC::$server->getConfig());
-			} catch (\OC\HintException $e) {
-				$errors[] = [
-					'error' => $e->getMessage(),
-					'hint' => $e->getHint()
-				];
-				$htAccessWorking = false;
-			}
 		}
 
 		if (\OC_Util::runningOnMac()) {
@@ -244,7 +232,6 @@ class Setup {
 			'hasOracle' => isset($databases['oci']),
 			'databases' => $databases,
 			'directory' => $dataDir,
-			'htaccessWorking' => $htAccessWorking,
 			'errors' => $errors,
 		];
 	}
@@ -348,6 +335,7 @@ class Setup {
 		//create the user and group
 		$user =  null;
 		try {
+			\OC::$server->getUserManager()->registerBackend(new \OC\User\Database());
 			$user = \OC::$server->getUserManager()->createUser($username, $password);
 			if (!$user) {
 				$error[] = "User <$username> could not be created.";
@@ -360,6 +348,8 @@ class Setup {
 			$config = \OC::$server->getConfig();
 			$config->setAppValue('core', 'installedat', microtime(true));
 			$config->setAppValue('core', 'lastupdatedat', microtime(true));
+
+			\OC::$server->getGroupManager()->addBackend(new \OC\Group\Database());
 
 			$group =\OC::$server->getGroupManager()->createGroup('admin');
 			$group->addUser($user);
@@ -384,15 +374,6 @@ class Setup {
 
 			//and we are done
 			$config->setSystemValue('installed', true);
-
-			// Create a session token for the newly created user
-			// The token provider requires a working db, so it's not injected on setup
-			/* @var $userSession User\Session */
-			$userSession = \OC::$server->getUserSession();
-			$defaultTokenProvider = \OC::$server->query('OC\Authentication\Token\DefaultTokenProvider');
-			$userSession->setTokenProvider($defaultTokenProvider);
-			$userSession->login($username, $password);
-			$userSession->createSessionToken($request, $userSession->getUser()->getUID(), $username, $password);
 		}
 
 		return $error;

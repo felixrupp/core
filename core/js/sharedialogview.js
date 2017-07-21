@@ -16,18 +16,28 @@
 	var TEMPLATE_BASE =
 		'<div class="resharerInfoView subView"></div>' +
 		'{{#if isSharingAllowed}}' +
-		'<label for="shareWith-{{cid}}" class="hidden-visually">{{shareLabel}}</label>' +
-		'<div class="oneline">' +
-		'    <input id="shareWith-{{cid}}" class="shareWithField" type="text" placeholder="{{sharePlaceholder}}" />' +
-		'    <span class="shareWithLoading icon-loading-small hidden"></span>'+
-		'{{{remoteShareInfo}}}' +
-		'</div>' +
+		'{{#if isLinkSharingAllowed}}' +
+		'<ul class="subTabHeaders">' +
+		'    <li class="subTabHeader selected subtab-localshare">{{localSharesLabel}}</li>' +
+		'    <li class="subTabHeader subtab-publicshare">{{publicSharesLabel}}</li>' +
+		'</ul>' +
 		'{{/if}}' +
-		'<div class="shareeListView subView"></div>' +
-		'<div class="linkShareView subView"></div>' +
-		'<div class="expirationView subView"></div>' +
-		'<div class="mailView subView"></div>' +
-		'<div class="socialView subView"></div>' +
+		'<div class="tabsContainer">' +
+		// TODO: this really should be a separate view class
+		'    <div class="localShareView tab" style="padding-left:0;padding-right:0;">' +
+		'        <label for="shareWith-{{cid}}" class="hidden-visually">{{shareLabel}}</label>' +
+		'        <div class="oneline">' +
+		'            <input id="shareWith-{{cid}}" class="shareWithField" type="text" placeholder="{{sharePlaceholder}}" />' +
+		'            <span class="shareWithLoading icon-loading-small hidden"></span>'+
+		'{{{remoteShareInfo}}}' +
+		'        </div>' +
+		'        <div class="shareeListView subView"></div>' +
+		'    </div>' +
+		'    <div class="linkShareView subView tab hidden" style="padding-left:0;padding-right:0;"></div>' +
+		'</div>' +
+		'{{else}}' +
+		'<div class="noSharingPlaceholder">{{noSharingPlaceholder}}</div>' +
+		'{{/if}}' +
 		'<div class="loading hidden" style="height: 50px"></div>';
 
 	var TEMPLATE_REMOTE_SHARE_INFO =
@@ -48,9 +58,6 @@
 		/** @type {Object} **/
 		_templates: {},
 
-		/** @type {boolean} **/
-		_showLink: true,
-
 		/** @type {string} **/
 		tagName: 'div',
 
@@ -64,19 +71,11 @@
 		linkShareView: undefined,
 
 		/** @type {object} **/
-		expirationView: undefined,
-
-		/** @type {object} **/
 		shareeListView: undefined,
 
-		/** @type {object} **/
-		mailView: undefined,
-
-		/** @type {object} **/
-		socialView: undefined,
-
 		events: {
-			'input .shareWithField': 'onShareWithFieldChanged'
+			'input .shareWithField': 'onShareWithFieldChanged',
+			'click .subTabHeader': '_onClickTabHeader'
 		},
 
 		initialize: function(options) {
@@ -109,11 +108,7 @@
 
 			var subViews = {
 				resharerInfoView: 'ShareDialogResharerInfoView',
-				linkShareView: 'ShareDialogLinkShareView',
-				expirationView: 'ShareDialogExpirationView',
-				shareeListView: 'ShareDialogShareeListView',
-				mailView: 'ShareDialogMailView',
-				socialView: 'ShareDialogLinkSocialView'
+				shareeListView: 'ShareDialogShareeListView'
 			};
 
 			for(var name in subViews) {
@@ -123,11 +118,39 @@
 					: options[name];
 			}
 
+			this.linkShareView = null;
+
 			_.bindAll(this,
 				'autocompleteHandler',
 				'_onSelectRecipient',
 				'onShareWithFieldChanged'
 			);
+
+			OC.Plugins.attach('OC.Share.ShareDialogView', this);
+		},
+
+		_onClickTabHeader: function(ev) {
+			var $target = $(ev.target);
+			this.$('.subTabHeaders .subTabHeader.selected').removeClass('selected');
+
+			$target.addClass('selected');
+
+			this.$('.localShareView').toggleClass('hidden', !$target.hasClass('subtab-localshare'));
+
+			var $linkShareView = this.$('.linkShareView');
+			if ($linkShareView.length) {
+				$linkShareView.toggleClass('hidden', !$target.hasClass('subtab-publicshare'));
+
+				if (!this.linkShareView) {
+					this.linkShareView = new OC.Share.ShareDialogLinkListView({
+						collection: this.model.getLinkSharesCollection(),
+						// pass in the legacy stuff...
+						itemModel: this.model
+					});
+					this.linkShareView.render();
+					$linkShareView.append(this.linkShareView.$el);
+				}
+			}
 		},
 
 		onShareWithFieldChanged: function() {
@@ -220,7 +243,11 @@
 
 						var suggestions = users.concat(groups).concat(remotes);
 
+
 						if (suggestions.length > 0) {
+							suggestions.sort(function (a, b) {
+								return OC.Util.naturalSortCompare(a.label, b.label);
+							});
 							$('.shareWithField').removeClass('error')
 								.tooltip('hide')
 								.autocomplete("option", "autoFocus", true);
@@ -273,11 +300,14 @@
 				}
 			}
 			var insert = $("<div class='share-autocomplete-item'/>");
-			var avatar = $("<div class='avatardiv'></div>").appendTo(insert);
-			if (item.value.shareType === OC.Share.SHARE_TYPE_USER) {
-				avatar.avatar(item.value.shareWith, 32, undefined, undefined, undefined, item.label);
-			} else {
-				avatar.imageplaceholder(text, undefined, 32);
+
+			if(this.configModel.areAvatarsEnabled()) {
+				var avatar = $("<div class='avatardiv'></div>").appendTo(insert);
+				if (item.value.shareType === OC.Share.SHARE_TYPE_USER) {
+					avatar.avatar(item.value.shareWith, 32, undefined, undefined, undefined, item.label);
+				} else {
+					avatar.imageplaceholder(text, undefined, 32);
+				}
 			}
 
 			$("<div class='autocomplete-item-text'></div>")
@@ -316,7 +346,7 @@
 
 		_toggleLoading: function(state) {
 			this._loading = state;
-			this.$el.find('.subView').toggleClass('hidden', state);
+			this.$el.find('.localShareView, .noSharingPlaceholder').toggleClass('hidden', state);
 			this.$el.find('.loading').toggleClass('hidden', !state);
 		},
 
@@ -333,9 +363,11 @@
 			if (!this._loadingOnce) {
 				this._loadingOnce = true;
 				// the first time, focus on the share field after the spinner disappeared
-				_.defer(function() {
-					self.$('.shareWithField').focus();
-				});
+				if (!bowser.msie) {
+					_.defer(function () {
+						self.$('.shareWithField').focus();
+					});
+				}
 			}
 		},
 
@@ -347,7 +379,11 @@
 				shareLabel: t('core', 'Share'),
 				sharePlaceholder: this._renderSharePlaceholderPart(),
 				remoteShareInfo: this._renderRemoteShareInfoPart(),
-				isSharingAllowed: this.model.sharePermissionPossible()
+				isSharingAllowed: this.model.sharePermissionPossible(),
+				isLinkSharingAllowed: this.configModel.isShareWithLinkAllowed(),
+				localSharesLabel: t('core', 'User and Groups'),
+				publicSharesLabel: t('core', 'Public Links'),
+				noSharingPlaceholder: t('core', 'Resharing is not allowed')
 			}));
 
 			var $shareField = this.$el.find('.shareWithField');
@@ -360,41 +396,23 @@
 					},
 					source: this.autocompleteHandler,
 					select: this._onSelectRecipient
-				}).data('ui-autocomplete')._renderItem = this.autocompleteRenderItem;
+				}).data('ui-autocomplete')._renderItem = _.bind(this.autocompleteRenderItem, this);
 			}
 
 			this.resharerInfoView.$el = this.$el.find('.resharerInfoView');
 			this.resharerInfoView.render();
 
-			this.linkShareView.$el = this.$el.find('.linkShareView');
-			this.linkShareView.render();
-
-			this.expirationView.$el = this.$el.find('.expirationView');
-			this.expirationView.render();
+			var resharingAllowed = this.model.sharePermissionPossible();
+			if (!resharingAllowed || !this.configModel.isShareWithLinkAllowed()) {
+				this.$('.tabHeaders, .linkShareView').remove();
+			}
 
 			this.shareeListView.$el = this.$el.find('.shareeListView');
 			this.shareeListView.render();
 
-			this.mailView.$el = this.$el.find('.mailView');
-			this.mailView.render();
-
-			this.socialView.$el = this.$el.find('.socialView');
-			this.socialView.render();
-
 			this.$el.find('.hasTooltip').tooltip();
 
 			return this;
-		},
-
-		/**
-		 * sets whether share by link should be displayed or not. Default is
-		 * true.
-		 *
-		 * @param {bool} showLink
-		 */
-		setShowLink: function(showLink) {
-			this._showLink = (typeof showLink === 'boolean') ? showLink : true;
-			this.linkShareView.showLink = this._showLink;
 		},
 
 		_renderRemoteShareInfoPart: function() {

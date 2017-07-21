@@ -9,7 +9,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -222,8 +222,8 @@ class Principal implements BackendInterface {
 		$email = $user->getEMailAddress();
 		if (!empty($email)) {
 			$principal['{http://sabredav.org/ns}email-address'] = $email;
-			return $principal;
 		}
+
 		return $principal;
 	}
 

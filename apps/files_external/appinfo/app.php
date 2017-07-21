@@ -9,7 +9,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -34,15 +34,17 @@ require_once __DIR__ . '/../3rdparty/autoload.php';
 \OC_Mount_Config::$app = new \OCA\Files_External\AppInfo\Application();
 $appContainer = \OC_Mount_Config::$app->getContainer();
 
-\OC_Mount_Config::$app->registerSettings();
-
-$l = \OC::$server->getL10N('files_external');
-
-\OCA\Files\App::getNavigationManager()->add([
-	"id" => 'extstoragemounts',
-	"appname" => 'files_external',
-	"script" => 'list.php',
-	"order" => 30,
-	"name" => $l->t('External storage')
-]);
+$config = \OC::$server->getConfig();
+if ($config->getAppValue('core', 'enable_external_storage', 'no') === 'yes') {
+	\OCA\Files\App::getNavigationManager()->add(function () {
+		$l = \OC::$server->getL10N('files_external');
+		return [
+			'id' => 'extstoragemounts',
+			'appname' => 'files_external',
+			'script' => 'list.php',
+			'order' => 30,
+			'name' => $l->t('External storage'),
+		];
+	});
+}
 

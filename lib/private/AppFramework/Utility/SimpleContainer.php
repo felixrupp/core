@@ -7,7 +7,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -107,9 +107,9 @@ class SimpleContainer extends Container implements IContainer {
 	 */
 	public function query($name) {
 		$name = $this->sanitizeName($name);
-		if ($this->offsetExists($name)) {
+		try {
 			return $this->offsetGet($name);
-		} else {
+		} catch (\InvalidArgumentException $ex) {
 			$object = $this->resolve($name);
 			$this->registerService($name, function () use ($object) {
 				return $object;

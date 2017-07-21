@@ -9,14 +9,17 @@
 namespace Test\Files\Config;
 
 use OC\DB\QueryBuilder\Literal;
+use OC\Files\Config\UserMountCache;
 use OC\Files\Mount\MountPoint;
 use OC\Log;
+use OC\User\Account;
+use OC\User\AccountMapper;
 use OC\User\Manager;
 use OCP\Files\Config\ICachedMountInfo;
+use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\IUserManager;
 use Test\TestCase;
-use Test\Util\User\Dummy;
 
 /**
  * @group DB
@@ -33,7 +36,7 @@ class UserMountCacheTest extends TestCase {
 	private $userManager;
 
 	/**
-	 * @var \OC\Files\Config\UserMountCache
+	 * @var UserMountCache
 	 */
 	private $cache;
 
@@ -42,12 +45,33 @@ class UserMountCacheTest extends TestCase {
 	public function setUp() {
 		$this->fileIds = [];
 		$this->connection = \OC::$server->getDatabaseConnection();
-		$this->userManager = new Manager(null);
-		$userBackend = new Dummy();
-		$userBackend->createUser('u1', '');
-		$userBackend->createUser('u2', '');
-		$this->userManager->registerBackend($userBackend);
-		$this->cache = new \OC\Files\Config\UserMountCache($this->connection, $this->userManager, $this->createMock('\OC\Log'));
+		/** @var IConfig $config */
+		$config = $this->createMock(IConfig::class);
+		/** @var AccountMapper | \PHPUnit_Framework_MockObject_MockObject $accountMapper */
+		$accountMapper = $this->createMock(AccountMapper::class);
+		$a1 = new Account();
+		$a1->setId(1);
+		$a1->setUserId('u1');
+		$a2 = new Account();
+		$a2->setId(2);
+		$a2->setUserId('u2');
+		$a3 = new Account();
+		$a3->setId(3);
+		$a3->setUserId('u3');
+
+		$accountMapper->expects($this->any())->method('getByUid')->willReturnMap([
+			['u1', $a1],
+			['u2', $a2],
+			['u3', $a3],
+		]);
+
+		/** @var Log $log */
+		$log = $this->createMock(Log::class);
+		$this->userManager = new Manager($config, $log, $accountMapper);
+		$this->cache = new UserMountCache($this->connection, $this->userManager, $log);
+
+		// hookup listener
+		$this->userManager->listen('\OC\User', 'postDelete', [$this->cache, 'removeUserMounts']);
 	}
 
 	public function tearDown() {
@@ -183,14 +207,18 @@ class UserMountCacheTest extends TestCase {
 	public function testGetMountsForUser() {
 		$user1 = $this->userManager->get('u1');
 		$user2 = $this->userManager->get('u2');
+		$user3 = $this->userManager->get('u3');
 
 		$mount1 = new MountPoint($this->getStorage(1, 2), '/foo/');
 		$mount2 = new MountPoint($this->getStorage(3, 4), '/bar/');
 
 		$this->cache->registerMounts($user1, [$mount1, $mount2]);
 		$this->cache->registerMounts($user2, [$mount2]);
+		$this->cache->registerMounts($user3, [$mount2]);
 
 		$this->clearCache();
+
+		$user3->delete();
 
 		$cachedMounts = $this->cache->getMountsForUser($user1);
 
@@ -204,6 +232,9 @@ class UserMountCacheTest extends TestCase {
 		$this->assertEquals($user1, $cachedMounts[1]->getUser());
 		$this->assertEquals(4, $cachedMounts[1]->getRootId());
 		$this->assertEquals(3, $cachedMounts[1]->getStorageId());
+
+		$cachedMounts = $this->cache->getMountsForUser($user3);
+		$this->assertEmpty($cachedMounts);
 	}
 
 	public function testGetMountsByStorageId() {
@@ -371,5 +402,23 @@ class UserMountCacheTest extends TestCase {
 		$cachedMounts = $this->cache->getMountsForFileId($fileId);
 
 		$this->assertCount(0, $cachedMounts);
+	}
+
+	public function testGetMountsForFileIdDeletedUser() {
+		$user1 = $this->userManager->get('u1');
+
+		$rootId = $this->createCacheEntry('', 2);
+
+		$mount1 = new MountPoint($this->getStorage(2, $rootId), '/foo/');
+
+		$this->cache->registerMounts($user1, [$mount1]);
+
+		$user1->delete();
+
+		$this->clearCache();
+
+		$cachedMounts = $this->cache->getMountsForFileId($rootId);
+
+		$this->assertEmpty($cachedMounts);
 	}
 }

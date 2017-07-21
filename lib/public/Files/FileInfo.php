@@ -7,7 +7,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -56,6 +56,12 @@ interface FileInfo {
 	 * @since 8.0.0
 	 */
 	const SPACE_UNLIMITED = -3;
+
+	/**
+	 * @const \OCP\Files\FileInfo::BLACKLIST_FILES_REGEX Return regular expression to test filenames against (blacklisting)
+	 * @since 9.1.0
+	 */
+	const BLACKLIST_FILES_REGEX = '\.(part|filepart)$';
 
 	/**
 	 * Get the Etag of the file or folder

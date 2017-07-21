@@ -4,16 +4,18 @@
  * @author Bart Visscher <bartv@thisnet.nl>
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Jakob Sack <mail@jakobsack.de>
+ * @author Joas Schilling <coding@schilljs.com>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Klaas Freitag <freitag@owncloud.com>
  * @author Markus Goetz <markus@woboq.com>
+ * @author Martin Mattel <martin.mattel@diemattels.at>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -211,6 +213,17 @@ abstract class Node implements \Sabre\DAV\INode {
 	}
 
 	/**
+	 * Returns the node's full id
+	 *
+	 * The full id is the numerical id padded with zeroes concatenated with
+	 * the instance id.
+	 *
+	 * Warning: Users of the full id may depend on its particular format, be
+	 * careful about changes.
+	 *
+	 * The contract is that taking the substring up until the first character
+	 * and converting to an integer yields the numerical id.
+	 *
 	 * @return string|null
 	 */
 	public function getFileId() {

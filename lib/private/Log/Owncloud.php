@@ -7,12 +7,11 @@
  * @author Michael Gapczynski <GapczynskiM@gmail.com>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Phiber2000 <phiber2000@gmx.de>
- * @author Robin Appelman <icewind@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -68,8 +67,9 @@ class Owncloud {
 	 * @param string $app
 	 * @param string $message
 	 * @param int $level
+	 * @param string conditionalLogFile
 	 */
-	public static function write($app, $message, $level) {
+	public static function write($app, $message, $level, $conditionalLogFile = null) {
 		$config = \OC::$server->getSystemConfig();
 
 		// default to ISO8601
@@ -101,18 +101,26 @@ class Owncloud {
 		}
 		$entry = compact(
 			'reqId',
-			'remoteAddr',
-			'app',
-			'message',
 			'level',
 			'time',
+			'remoteAddr',
+			'user',
+			'app',
 			'method',
 			'url',
-			'user'
+			'message'
 		);
 		$entry = json_encode($entry);
-		$handle = @fopen(self::$logFile, 'a');
-		@chmod(self::$logFile, 0640);
+		if (!is_null($conditionalLogFile)) {
+			if ($conditionalLogFile[0] !== '/') {
+				$conditionalLogFile = \OC::$server->getConfig()->getSystemValue('datadirectory') . "/" . $conditionalLogFile;
+			}
+			$handle = @fopen($conditionalLogFile, 'a');
+			@chmod($conditionalLogFile, 0640);
+		} else {
+			$handle = @fopen(self::$logFile, 'a');
+			@chmod(self::$logFile, 0640);
+		}
 		if ($handle) {
 			fwrite($handle, $entry."\n");
 			fclose($handle);

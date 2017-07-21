@@ -4,7 +4,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -28,6 +28,7 @@ use OC\DB\QueryBuilder\CompositeExpression;
 use OC\DB\QueryBuilder\Literal;
 use OC\DB\QueryBuilder\QueryFunction;
 use OC\DB\QueryBuilder\QuoteHelper;
+use OC\Diagnostics\Query;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\IDBConnection;
 
@@ -366,5 +367,15 @@ class ExpressionBuilder implements IExpressionBuilder {
 		return new QueryFunction(
 			$this->helper->quoteColumnName($column)
 		);
+	}
+
+	/**
+	 * Returns a query function to find the number of characters in a string column
+	 * @param string $column
+	 * @return string
+	 */
+	public function length($column) {
+		$column = $this->helper->quoteColumnName($column);
+		return new QueryFunction("LENGTH({$column})");
 	}
 }

@@ -1,12 +1,13 @@
 <?php
 /**
  * @author Joas Schilling <coding@schilljs.com>
+ * @author Markus Goetz <markus@woboq.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Stefan Weil <sw@weilnetz.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -31,6 +32,9 @@ use Sabre\DAV\PropPatch;
 use Sabre\HTTP\RequestInterface;
 use Sabre\HTTP\ResponseInterface;
 use Test\TestCase;
+use OCP\Files\FileInfo;
+use OCA\DAV\Upload\FutureFile;
+use OCA\DAV\Connector\Sabre\Directory;
 
 /**
  * Copyright (c) 2015 Vincent Petry <pvince81@owncloud.com>
@@ -94,6 +98,12 @@ class FilesPluginTest extends TestCase {
 			$this->config,
 			$this->request
 		);
+
+		$response = $this->getMockBuilder(ResponseInterface::class)
+				->disableOriginalConstructor()
+				->getMock();
+		$this->server->httpResponse = $response;
+
 		$this->plugin->initialize($this->server);
 	}
 
@@ -127,6 +137,15 @@ class FilesPluginTest extends TestCase {
 		$node->expects($this->any())
 			->method('getDavPermissions')
 			->will($this->returnValue('DWCKMSR'));
+
+		$fileInfo = $this->createMock(FileInfo::class);
+		$fileInfo->expects($this->any())
+			->method('isReadable')
+			->willReturn(true);
+
+		$node->expects($this->any())
+			->method('getFileInfo')
+			->willReturn($fileInfo);
 
 		return $node;
 	}
@@ -282,6 +301,15 @@ class FilesPluginTest extends TestCase {
 			->getMock();
 		$node->expects($this->any())->method('getPath')->willReturn('/');
 
+		$fileInfo = $this->createMock(FileInfo::class);
+		$fileInfo->expects($this->any())
+			->method('isReadable')
+			->willReturn(true);
+
+		$node->expects($this->any())
+			->method('getFileInfo')
+			->willReturn($fileInfo);
+
 		$propFind = new PropFind(
 			'/',
 			[
@@ -296,6 +324,39 @@ class FilesPluginTest extends TestCase {
 		);
 
 		$this->assertEquals('my_fingerprint', $propFind->get(self::DATA_FINGERPRINT_PROPERTYNAME));
+	}
+
+	/**
+	 * @expectedException \Sabre\DAV\Exception\NotFound
+	 */
+	public function testGetPropertiesWhenNoPermission() {
+		/** @var \OCA\DAV\Connector\Sabre\Directory | \PHPUnit_Framework_MockObject_MockObject $node */
+		$node = $this->getMockBuilder('\OCA\DAV\Connector\Sabre\Directory')
+			->disableOriginalConstructor()
+			->getMock();
+		$node->expects($this->any())->method('getPath')->willReturn('/');
+
+		$fileInfo = $this->createMock(FileInfo::class);
+		$fileInfo->expects($this->any())
+			->method('isReadable')
+			->willReturn(false);
+
+		$node->expects($this->any())
+			->method('getFileInfo')
+			->willReturn($fileInfo);
+
+		$propFind = new PropFind(
+			'/test',
+			[
+				self::DATA_FINGERPRINT_PROPERTYNAME,
+			],
+			0
+		);
+
+		$this->plugin->handleGetProperties(
+			$propFind,
+			$node
+		);
 	}
 
 	public function testUpdateProps() {
@@ -487,5 +548,60 @@ class FilesPluginTest extends TestCase {
 			->with('Content-Disposition', $contentDispositionHeader);
 
 		$this->plugin->httpGet($request, $response);
+	}
+
+	public function testBeforeMoveFutureFileSkip() {
+		$node = $this->createMock(Directory::class);
+
+		$this->tree->expects($this->any())
+			->method('getNodeForPath')
+			->with('source')
+			->will($this->returnValue($node));
+		$this->server->httpResponse->expects($this->never())
+			->method('setStatus');
+
+		$this->assertNull($this->plugin->beforeMoveFutureFile('source', 'target'));
+	}
+	
+	public function testBeforeMoveFutureFileSkipNonExisting() {
+		$sourceNode = $this->createMock(FutureFile::class);
+
+		$this->tree->expects($this->any())
+			->method('getNodeForPath')
+			->with('source')
+			->will($this->returnValue($sourceNode));
+		$this->tree->expects($this->any())
+			->method('nodeExists')
+			->with('target')
+			->will($this->returnValue(false));
+		$this->server->httpResponse->expects($this->never())
+			->method('setStatus');
+
+		$this->assertNull($this->plugin->beforeMoveFutureFile('source', 'target'));
+	}
+
+	public function testBeforeMoveFutureFileMoveIt() {
+		$sourceNode = $this->createMock(FutureFile::class);
+
+		$this->tree->expects($this->any())
+			->method('getNodeForPath')
+			->with('source')
+			->will($this->returnValue($sourceNode));
+		$this->tree->expects($this->any())
+			->method('nodeExists')
+			->with('target')
+			->will($this->returnValue(true));
+		$this->tree->expects($this->once())
+			->method('move')
+			->with('source', 'target');
+
+		$this->server->httpResponse->expects($this->once())
+			->method('setHeader')
+			->with('Content-Length', '0');
+		$this->server->httpResponse->expects($this->once())
+			->method('setStatus')
+			->with(204);
+
+		$this->assertFalse($this->plugin->beforeMoveFutureFile('source', 'target'));
 	}
 }

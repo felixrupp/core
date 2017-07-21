@@ -7,7 +7,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -355,7 +355,8 @@ class RequestHandlerTest extends TestCase {
 			'parent' => null,
 			'accepted' => '0',
 			'expiration' => null,
-			'mail_send' => '0'
+			'mail_send' => '0',
+			'share_name' => null,
 		];
 
 		$searchToken = $correctToken ? 'token' : 'wrongToken';

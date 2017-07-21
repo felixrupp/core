@@ -8,7 +8,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -89,24 +89,27 @@ interface IGroupManager {
 	 * @param string $search
 	 * @param int $limit
 	 * @param int $offset
+	 * @param string $scope
 	 * @return \OCP\IGroup[]
 	 * @since 8.0.0
 	 */
-	public function search($search, $limit = null, $offset = null);
+	public function search($search, $limit = null, $offset = null, $scope = null);
 
 	/**
 	 * @param \OCP\IUser|null $user
+	 * @param string $scope
 	 * @return \OCP\IGroup[]
 	 * @since 8.0.0
 	 */
-	public function getUserGroups($user);
+	public function getUserGroups($user, $scope = null);
 
 	/**
 	 * @param \OCP\IUser $user
+	 * @param string $scope
 	 * @return array with group names
 	 * @since 8.0.0
 	 */
-	public function getUserGroupIds($user);
+	public function getUserGroupIds($user, $scope = null);
 
 	/**
 	 * get a list of all display names in a group
@@ -119,6 +122,18 @@ interface IGroupManager {
 	 * @since 8.0.0
 	 */
 	public function displayNamesInGroup($gid, $search = '', $limit = -1, $offset = 0);
+
+	/**
+	 * search for users in a specific group
+	 *
+	 * @param string $gid
+	 * @param string $search
+	 * @param int $limit
+	 * @param int $offset
+	 * @return array an array of display names (value) and user objects
+	 * @since 10.0.1
+	 */
+	public function findUsersInGroup($gid, $search = '', $limit = -1, $offset = 0);
 
 	/**
 	 * Checks if a userId is in the admin group
@@ -136,4 +151,13 @@ interface IGroupManager {
 	 * @since 8.0.0
 	 */
 	public function isInGroup($userId, $group);
+
+	/**
+	 * Returns the sub admin manager
+	 *
+	 * @since 10.1.0
+	 * @return ISubAdminManager
+	 */
+	public function getSubAdmin();
 }
+

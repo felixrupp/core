@@ -5,9 +5,10 @@
     "Username" : "Benutzername",
     "Password" : "Passwort",
     "Apps" : "Apps",
+    "General" : "Allgemein",
+    "Search" : "Suche",
     "Help" : "Hilfe",
-    "Personal" : "Persönlich",
-    "Users" : "Benutzer",
-    "Admin" : "Administration"
+    "Settings" : "Einstellungen",
+    "Users" : "Benutzer"
 },"pluralForm" :"nplurals=2; plural=(n != 1);"
 }

@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -105,12 +105,25 @@ interface IShareProvider {
 	public function getSharesBy($userId, $shareType, $node, $reshares, $limit, $offset);
 
 	/**
+	 * Get all shares by the given user for specified shareTypes array
+	 *
+	 * @param string $userId
+	 * @param int[] $shareTypes
+	 * @param Node[] $nodeIDs
+	 * @param bool $reshares - Also get the shares where $user is the owner instead of just the shares where $user is the initiator
+	 * @return \OCP\Share\IShare[]
+	 * @since 10.0.0
+	 */
+	public function getAllSharesBy($userId, $shareTypes, $nodeIDs, $reshares);
+	
+	/**
 	 * Get share by id
 	 *
 	 * @param int $id
 	 * @param string|null $recipientId
 	 * @return \OCP\Share\IShare
 	 * @throws ShareNotFound
+	 * @throws ProviderException
 	 * @since 9.0.0
 	 */
 	public function getShareById($id, $recipientId = null);

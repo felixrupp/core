@@ -4,9 +4,10 @@
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -43,6 +44,7 @@ use OCP\Share\Exceptions\GenericShareException;
 use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\IManager;
 use OCP\Share\IProviderFactory;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 /**
  * This class is the communication hub for all sharing related operations.
@@ -150,6 +152,11 @@ class Manager implements IManager {
 		if (!$accepted) {
 			throw new \Exception($message);
 		}
+
+		\OC::$server->getEventDispatcher()->dispatch(
+			'OCP\Share::validatePassword',
+			new GenericEvent(null, ['password' => $password])
+		);
 	}
 
 	/**
@@ -241,11 +248,6 @@ class Manager implements IManager {
 		if ($share->getPermissions() & ~$permissions) {
 			$message_t = $this->l->t('Cannot increase permissions of %s', [$share->getNode()->getPath()]);
 			throw new GenericShareException($message_t, $message_t, 404);
-		}
-
-		// Check that read permissions are always set
-		if (($share->getPermissions() & \OCP\Constants::PERMISSION_READ) === 0) {
-			throw new \InvalidArgumentException('Shares need at least read permissions');
 		}
 
 		if ($share->getNode() instanceof \OCP\Files\File) {
@@ -762,6 +764,32 @@ class Manager implements IManager {
 		return $deletedShares;
 	}
 
+	protected static function formatUnshareHookParams(\OCP\Share\IShare $share) {
+		// Prepare hook
+		$shareType = $share->getShareType();
+		$sharedWith = '';
+		if ($shareType === \OCP\Share::SHARE_TYPE_USER) {
+			$sharedWith = $share->getSharedWith();
+		} else if ($shareType === \OCP\Share::SHARE_TYPE_GROUP) {
+			$sharedWith = $share->getSharedWith();
+		} else if ($shareType === \OCP\Share::SHARE_TYPE_REMOTE) {
+			$sharedWith = $share->getSharedWith();
+		}
+
+		$hookParams = [
+			'id'         => $share->getId(),
+			'itemType'   => $share->getNodeType(),
+			'itemSource' => $share->getNodeId(),
+			'shareType'  => $shareType,
+			'shareWith'  => $sharedWith,
+			'itemparent' => method_exists($share, 'getParent') ? $share->getParent() : '',
+			'uidOwner'   => $share->getSharedBy(),
+			'fileSource' => $share->getNodeId(),
+			'fileTarget' => $share->getTarget()
+		];
+		return $hookParams;
+	}
+
 	/**
 	 * Delete a share
 	 *
@@ -777,33 +805,7 @@ class Manager implements IManager {
 			throw new \InvalidArgumentException('Share does not have a full id');
 		}
 
-		$formatHookParams = function(\OCP\Share\IShare $share) {
-			// Prepare hook
-			$shareType = $share->getShareType();
-			$sharedWith = '';
-			if ($shareType === \OCP\Share::SHARE_TYPE_USER) {
-				$sharedWith = $share->getSharedWith();
-			} else if ($shareType === \OCP\Share::SHARE_TYPE_GROUP) {
-				$sharedWith = $share->getSharedWith();
-			} else if ($shareType === \OCP\Share::SHARE_TYPE_REMOTE) {
-				$sharedWith = $share->getSharedWith();
-			}
-
-			$hookParams = [
-				'id'         => $share->getId(),
-				'itemType'   => $share->getNodeType(),
-				'itemSource' => $share->getNodeId(),
-				'shareType'  => $shareType,
-				'shareWith'  => $sharedWith,
-				'itemparent' => method_exists($share, 'getParent') ? $share->getParent() : '',
-				'uidOwner'   => $share->getSharedBy(),
-				'fileSource' => $share->getNodeId(),
-				'fileTarget' => $share->getTarget()
-			];
-			return $hookParams;
-		};
-
-		$hookParams = $formatHookParams($share);
+		$hookParams = self::formatUnshareHookParams($share);
 
 		// Emit pre-hook
 		\OC_Hook::emit('OCP\Share', 'pre_unshare', $hookParams);
@@ -819,9 +821,7 @@ class Manager implements IManager {
 		$deletedShares[] = $share;
 
 		//Format hook info
-		$formattedDeletedShares = array_map(function($share) use ($formatHookParams) {
-			return $formatHookParams($share);
-		}, $deletedShares);
+		$formattedDeletedShares = array_map('self::formatUnshareHookParams', $deletedShares);
 
 		$hookParams['deletedShares'] = $formattedDeletedShares;
 
@@ -844,6 +844,15 @@ class Manager implements IManager {
 		$provider = $this->factory->getProvider($providerId);
 
 		$provider->deleteFromSelf($share, $recipientId);
+
+		// Emit post hook. The parameter data structure is slightly different
+		// from the post_unshare hook to maintain backward compatibility with
+		// Share 1.0: the array contains all the key-value pairs from the old
+		// library plus some new ones.
+		$hookParams = self::formatUnshareHookParams($share);
+		$hookParams['itemTarget'] = $hookParams['fileTarget'];
+		$hookParams['unsharedItems'] = [$hookParams];
+		\OC_Hook::emit('OCP\Share', 'post_unshareFromSelf', $hookParams);
 	}
 
 	/**
@@ -873,6 +882,54 @@ class Manager implements IManager {
 		$provider = $this->factory->getProvider($providerId);
 
 		$provider->move($share, $recipientId);
+	}
+
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getAllSharesBy($userId, $shareTypes, $nodeIDs, $reshares = false) {
+		// This function requires at least 1 node (parent folder)
+		if (empty($nodeIDs)) {
+			throw new \InvalidArgumentException('Array of nodeIDs empty');
+		}
+		// This will ensure that if there are multiple share providers for the same share type, we will execute it in batches
+		$shares = array();
+		$providerIdMap = array();
+		foreach ($shareTypes as $shareType) {
+			// Get provider and its ID, at this point provider is cached at IProviderFactory instance
+			$provider = $this->factory->getProviderForType($shareType);
+			$providerId = $provider->identifier();
+
+			// Create a key -> multi value map
+			if (!isset($providerIdMap[$providerId])) {
+				$providerIdMap[$providerId] = array();
+			}
+			array_push($providerIdMap[$providerId], $shareType);
+		}
+
+		$today = new \DateTime();
+		foreach ($providerIdMap as $providerId => $shareTypeArray) {
+			// Get provider from cache
+			$provider = $this->factory->getProvider($providerId);
+
+			$queriedShares = $provider->getAllSharesBy($userId, $shareTypeArray, $nodeIDs, $reshares);
+			foreach ($queriedShares as $queriedShare){
+				if ($queriedShare->getShareType() === \OCP\Share::SHARE_TYPE_LINK && $queriedShare->getExpirationDate() !== null &&
+					$queriedShare->getExpirationDate() <= $today
+				) {
+					try {
+						$this->deleteShare($queriedShare);
+					} catch (NotFoundException $e) {
+						//Ignore since this basically means the share is deleted
+					}
+					continue;
+				}
+				array_push($shares, $queriedShare);
+			}
+		}
+
+		return $shares;
 	}
 
 	/**

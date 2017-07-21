@@ -4,9 +4,10 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Robin Appelman <icewind@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -71,8 +72,9 @@ class Helper {
 				$timestamp = substr(pathinfo($parts[0], PATHINFO_EXTENSION), 1);
 			}
 			$originalPath = '';
-			if (isset($originalLocations[$id][$timestamp])) {
-				$originalPath = $originalLocations[$id][$timestamp];
+			$originalName = substr($entryName, 0, -strlen($timestamp)-2);
+			if (isset($originalLocations[$originalName][$timestamp])) {
+				$originalPath = $originalLocations[$originalName][$timestamp];
 				if (substr($originalPath, -1) === '/') {
 					$originalPath = substr($originalPath, 0, -1);
 				}
@@ -88,7 +90,7 @@ class Helper {
 				'permissions' => Constants::PERMISSION_ALL - Constants::PERMISSION_SHARE
 			];
 			if ($originalPath) {
-				$i['extraData'] = $originalPath . '/' . $id;
+				$i['extraData'] = $originalPath . '/' . $originalName;
 			}
 			$result[] = new FileInfo($absoluteDir . '/' . $i['name'], $storage, $internalPath . '/' . $i['name'], $i, $mount);
 		}
@@ -112,6 +114,7 @@ class Helper {
 			$entry['id'] = $id++;
 			$entry['etag'] = $entry['mtime']; // add fake etag, it is only needed to identify the preview image
 			$entry['permissions'] = \OCP\Constants::PERMISSION_READ;
+			$entry['mimetype'] = \OC::$server->getMimeTypeDetector()->detectPath($entry['name']);
 			$files[] = $entry;
 		}
 		return $files;

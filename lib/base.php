@@ -16,15 +16,19 @@
  * @author Joachim Bauch <bauch@struktur.de>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
+ * @author Juan Pablo Villafáñez <jvillafanez@solidgear.es>
  * @author Lukas Reschke <lukas@statuscode.ch>
+ * @author Martin Mattel <martin.mattel@diemattels.at>
  * @author Michael Gapczynski <GapczynskiM@gmail.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author neumann <node512@gmail.com>
  * @author Owen Winkler <a_github@midnightcircus.com>
  * @author Phil Davis <phil.davis@inf.org>
  * @author Ramiro Aparicio <rapariciog@gmail.com>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Roeland Jago Douma <rullzer@users.noreply.github.com>
  * @author scolebrook <scolebrook@mac.com>
  * @author Stefan Weil <sw@weilnetz.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
@@ -33,7 +37,7 @@
  * @author Vincent Petry <pvince81@owncloud.com>
  * @author Volkan Gezer <volkangezer@gmail.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -124,6 +128,8 @@ class OC {
 			self::$configDir = OC::$SERVERROOT . '/' . PHPUNIT_CONFIG_DIR . '/';
 		} elseif(defined('PHPUNIT_RUN') and PHPUNIT_RUN and is_dir(OC::$SERVERROOT . '/tests/config/')) {
 			self::$configDir = OC::$SERVERROOT . '/tests/config/';
+		} elseif($dir = getenv('OWNCLOUD_CONFIG_DIR')) {
+			self::$configDir = rtrim($dir, '/') . '/';
 		} else {
 			self::$configDir = OC::$SERVERROOT . '/config/';
 		}
@@ -325,7 +331,7 @@ class OC {
 	/**
 	 * Checks if the version requires an update and shows
 	 * @param bool $showTemplate Whether an update screen should get shown
-	 * @return bool|void
+	 * @return bool
 	 */
 	public static function checkUpgrade($showTemplate = true) {
 		if (\OCP\Util::needUpgrade()) {
@@ -353,9 +359,8 @@ class OC {
 			$tooBig = $apps->isInstalled('user_ldap') || $apps->isInstalled('user_shibboleth');
 			if (!$tooBig) {
 				// count users
-				$stats = \OC::$server->getUserManager()->countUsers();
-				$totalUsers = array_sum($stats);
-				$tooBig = ($totalUsers > 50);
+				$db = new \OC\User\Database();
+				$tooBig = ($db->countUsers() > 50);
 			}
 		}
 		if ($disableWebUpdater || $tooBig) {
@@ -387,6 +392,7 @@ class OC {
 		\OCP\Util::addScript('update');
 		\OCP\Util::addStyle('update');
 
+		/** @var \OC\App\AppManager $appManager */
 		$appManager = \OC::$server->getAppManager();
 
 		$tmpl = new OC_Template('', 'update.admin', 'guest');
@@ -396,7 +402,6 @@ class OC {
 		// get third party apps
 		$ocVersion = \OCP\Util::getVersion();
 		$tmpl->assign('appsToUpgrade', $appManager->getAppsNeedingUpgrade($ocVersion));
-		$tmpl->assign('incompatibleAppsList', $appManager->getIncompatibleApps($ocVersion));
 		$tmpl->assign('productName', 'ownCloud'); // for now
 		$tmpl->assign('oldTheme', $oldTheme);
 		$tmpl->printPage();
@@ -578,6 +583,11 @@ class OC {
 			self::initSession();
 		}
 		\OC::$server->getEventLogger()->end('init_session');
+
+		// incognito mode for now
+		$uid = \OC::$server->getSession()->get('user_id');
+		\OC::$server->getSession()->set('user_id', null);
+
 		self::checkConfig();
 		self::checkInstalled();
 
@@ -616,6 +626,10 @@ class OC {
 				\OC::$server->getConfig()->deleteAppValue('core', 'cronErrors');
 			}
 		}
+
+		// set back user
+		\OC::$server->getSession()->set('user_id', $uid);
+
 		//try to set the session lifetime
 		$sessionLifeTime = self::getSessionLifeTime();
 		@ini_set('gc_maxlifetime', (string)$sessionLifeTime);
@@ -623,12 +637,12 @@ class OC {
 		$systemConfig = \OC::$server->getSystemConfig();
 
 		// User and Groups
-		if (!$systemConfig->getValue("installed", false)) {
+		if ($systemConfig->getValue("installed", false)) {
+			OC_User::useBackend(new \OC\User\Database());
+			\OC::$server->getGroupManager()->addBackend(new \OC\Group\Database());
+		} else {
 			self::$server->getSession()->set('user_id', '');
 		}
-
-		OC_User::useBackend(new \OC\User\Database());
-		OC_Group::useBackend(new \OC\Group\Database());
 
 		// Subscribe to the hook
 		\OCP\Util::connectHook(
@@ -653,8 +667,10 @@ class OC {
 		}
 		self::registerShareHooks();
 		self::registerLogRotate();
-		self::registerEncryptionWrapper();
-		self::registerEncryptionHooks();
+		if ($systemConfig->getValue("installed", false)) {
+			self::registerEncryptionWrapper();
+			self::registerEncryptionHooks();
+		}
 
 		//make sure temporary files are cleaned up
 		$tmpManager = \OC::$server->getTempManager();
@@ -812,6 +828,22 @@ class OC {
 	}
 
 	/**
+	 * Enables the defaultEnabled app theme
+	 * __do not__ call this for every request, as this parses all apps info.xml
+	 * files in order to determine which app is a default enabled theme while
+	 * not accessing the database which might not be available.
+	 */
+	public static function loadDefaultEnabledAppTheme() {
+		$defaultEnabledAppTheme = \OC_App::getDefaultEnabledAppTheme();
+
+		if ($defaultEnabledAppTheme !== false) {
+			/** @var \OC\Theme\ThemeService $themeService */
+			$themeService = \OC::$server->query('ThemeService');
+			$themeService->setAppTheme($defaultEnabledAppTheme);
+		}
+	}
+
+	/**
 	 * Handle the request
 	 */
 	public static function handleRequest() {
@@ -828,6 +860,9 @@ class OC {
 			$setupHelper = new OC\Setup(\OC::$server->getConfig(), \OC::$server->getIniWrapper(),
 				\OC::$server->getL10N('lib'), new \OC_Defaults(), \OC::$server->getLogger(),
 				\OC::$server->getSecureRandom());
+
+			self::loadDefaultEnabledAppTheme();
+
 			$controller = new OC\Core\Controller\SetupController($setupHelper);
 			$controller->run($_POST);
 			exit();
@@ -838,6 +873,7 @@ class OC {
 		$isOccControllerRequested = preg_match('|/index\.php$|', $request->getScriptName()) === 1
 			&& strpos($request->getPathInfo(), '/occ/') === 0;
 
+		$needUpgrade = false;
 		$requestPath = $request->getRawPathInfo();
 		if (substr($requestPath, -3) !== '.js') { // we need these files during the upgrade
 			self::checkMaintenanceMode($request);
@@ -943,6 +979,9 @@ class OC {
 			return true;
 		}
 		if ($userSession->tryTokenLogin($request)) {
+			return true;
+		}
+		if ($userSession->tryAuthModuleLogin($request)) {
 			return true;
 		}
 		if ($userSession->tryBasicAuthLogin($request)) {

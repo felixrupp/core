@@ -56,7 +56,8 @@ module.exports = function(config) {
 					'apps/files_sharing/js/share.js',
 					'apps/files_sharing/js/external.js',
 					'apps/files_sharing/js/public.js',
-					'apps/files_sharing/js/sharetabview.js'
+					'apps/files_sharing/js/sharetabview.js',
+					'apps/files_sharing/js/PublicUploadView.js'
 				],
 				testFiles: ['apps/files_sharing/tests/js/*.js']
 			},
@@ -109,11 +110,9 @@ module.exports = function(config) {
 			{
 				name: 'settings',
 				srcFiles: [
-					'settings/js/apps.js',
 					'settings/js/users/deleteHandler.js'
 				],
 				testFiles: [
-					'settings/tests/js/appsSpec.js',
 					'settings/tests/js/users/deleteHandlerSpec.js'
 				]
 			}
@@ -155,9 +154,6 @@ module.exports = function(config) {
 		appsToTest.splice(index, 1);
 		testCore = true;
 	}
-
-	// extra test libs
-	files.push(corePath + 'tests/lib/sinon-1.15.4.js');
 
 	// core mocks
 	files.push(corePath + 'tests/specHelper.js');
@@ -230,7 +226,7 @@ module.exports = function(config) {
 		basePath: '..',
 
 		// frameworks to use
-		frameworks: ['jasmine'],
+		frameworks: ['jasmine', 'jasmine-sinon'],
 
 		// list of files / patterns to load in the browser
 		files: files,
@@ -292,6 +288,9 @@ module.exports = function(config) {
 		browsers: ['PhantomJS'],
 
 		// If browser does not capture in given timeout [ms], kill it
+		captureTimeout: 60000,
+		browserNoActivityTimeout: 60000,
+		browserDisconnectTimeout: 30000,
 		captureTimeout: 60000,
 
 		// Continuous Integration mode

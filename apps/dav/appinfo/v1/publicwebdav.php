@@ -9,7 +9,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -77,13 +77,18 @@ $server = $serverFactory->createServer($baseuri, $requestUri, $authBackend, func
 
 	OC_Util::setupFS($owner);
 	$ownerView = \OC\Files\Filesystem::getView();
-	$path = $ownerView->getPath($fileId);
+	try {
+		$path = $ownerView->getPath($fileId);
+	} catch (\OCP\Files\NotFoundException $e) {
+		throw new \Sabre\DAV\Exception\NotFound();
+	}
 	$fileInfo = $ownerView->getFileInfo($path);
 	$linkCheckPlugin->setFileInfo($fileInfo);
 
 	return new \OC\Files\View($ownerView->getAbsolutePath($path));
 });
 
+$server->addPlugin(new \OCA\DAV\Connector\Sabre\AutorenamePlugin());
 $server->addPlugin($linkCheckPlugin);
 
 // And off we go!

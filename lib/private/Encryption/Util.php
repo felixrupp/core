@@ -4,8 +4,9 @@
  * @author Jan-Christoph Borchardt <hey@jancborchardt.net>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,6 +33,7 @@ use OC\Files\View;
 use OCP\Encryption\IEncryptionModule;
 use OCP\Files\Storage;
 use OCP\IConfig;
+use OCP\IUser;
 
 class Util {
 
@@ -96,6 +98,8 @@ class Util {
 		$this->config = $config;
 
 		$this->excludedPaths[] = 'files_encryption';
+		// contains certificates
+		$this->excludedPaths[] = 'files_external';
 		$this->excludedPaths[] = 'avatars';
 		$this->excludedPaths[] = 'avatar.png';
 		$this->excludedPaths[] = 'avatar.jpg';
@@ -275,7 +279,13 @@ class Util {
 		} else {
 			$result = array_merge($result, $users);
 			foreach ($groups as $group) {
-				$result = array_merge($result, \OC_Group::usersInGroup($group));
+				$g = \OC::$server->getGroupManager()->get($group);
+				if (!is_null($g)) {
+					$users = array_values(array_map(function(IUser $u){
+						return $u->getUID();
+					}, $g->getUsers()));
+					$result = array_merge($result, $users);
+				}
 			}
 		}
 

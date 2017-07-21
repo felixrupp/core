@@ -7,7 +7,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -71,9 +71,9 @@ class ShareTest extends TestCase {
 
 	public function testUnshareFromSelf() {
 
-		\OC_Group::createGroup('testGroup');
-		\OC_Group::addToGroup(self::TEST_FILES_SHARING_API_USER2, 'testGroup');
-		\OC_Group::addToGroup(self::TEST_FILES_SHARING_API_USER3, 'testGroup');
+		$g = \OC::$server->getGroupManager()->createGroup('testGroup');
+		$g->addUser(\OC::$server->getUserManager()->get(self::TEST_FILES_SHARING_API_USER2));
+		$g->addUser(\OC::$server->getUserManager()->get(self::TEST_FILES_SHARING_API_USER3));
 
 		$share1 = $this->share(
 			\OCP\Share::SHARE_TYPE_USER,

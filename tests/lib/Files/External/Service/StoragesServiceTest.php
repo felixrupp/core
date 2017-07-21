@@ -23,6 +23,7 @@
  */
 namespace Test\Files\External\Service;
 
+use OC\Files\Cache\Storage;
 use OC\Files\Filesystem;
 use OC\Files\External\StorageConfig;
 use OC\Files\External\Service\StoragesService;
@@ -146,6 +147,7 @@ abstract class StoragesServiceTest extends TestCase {
 		if ($this->dbConfig) {
 			$this->dbConfig->clean();
 		}
+		parent::tearDown();
 	}
 
 	protected function getBackendMock($class = '\OCA\Files_External\Lib\Backend\SMB', $storageClass = '\OCA\Files_External\Lib\Storage\SMB') {
@@ -302,6 +304,7 @@ abstract class StoragesServiceTest extends TestCase {
 			->from('storages')
 			->where($qb->expr()->eq('numeric_id', $qb->expr()->literal($numericId)));
 		$this->assertCount($expectedCountAfterDeletion, $storageCheckQuery->execute()->fetchAll());
+		Storage::remove($rustyStorageId);
 	}
 
 	/**

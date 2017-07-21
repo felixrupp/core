@@ -10,12 +10,17 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Owen Winkler <a_github@midnightcircus.com>
+ * @author Philipp Schaffrath <github@philipp.schaffrath.email>
+ * @author phisch <git@philippschaffrath.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
+ * @author Timo Benk <benk@b1-systems.de>
  * @author Vincent Chan <plus.vincchan@gmail.com>
  * @author Vincent Petry <pvince81@owncloud.com>
+ * @author Felix Heidecke <felix@heidecke.me>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -65,7 +70,6 @@ $outgoingServer2serverShareEnabled = $config->getAppValue('files_sharing', 'outg
 $countOfDataLocation = 0;
 
 $value = $config->getAppValue('core', 'shareapi_enable_link_password_by_default', 'no');
-$enableLinkPasswordByDefault = ($value === 'yes') ? true : false;
 
 $dataLocation = str_replace(OC::$SERVERROOT .'/', '', $config->getSystemValue('datadirectory', ''), $countOfDataLocation);
 if($countOfDataLocation !== 1 || !OC_User::isAdminUser(OC_User::getUser())){
@@ -145,50 +149,40 @@ $array = [
 		]
 	),
 	"firstDay" => json_encode($l->l('firstday', null)) ,
-	"oc_config" => json_encode(
-		[
+	"oc_config" => [
 			'session_lifetime'	=> min(\OCP\Config::getSystemValue('session_lifetime', OC::$server->getIniWrapper()->getNumeric('session.gc_maxlifetime')), OC::$server->getIniWrapper()->getNumeric('session.gc_maxlifetime')),
 			'session_keepalive'	=> \OCP\Config::getSystemValue('session_keepalive', true),
-			'version'			=> implode('.', \OCP\Util::getVersion()),
-			'versionstring'		=> OC_Util::getVersionString(),
 			'enable_avatars'	=> \OC::$server->getConfig()->getSystemValue('enable_avatars', true) === true,
-			'lost_password_link'=> \OC::$server->getConfig()->getSystemValue('lost_password_link', null),
+			'lost_password_link'	=> \OC::$server->getConfig()->getSystemValue('lost_password_link', null),
 			'modRewriteWorking'	=> (getenv('front_controller_active') === 'true'),
-		]
-	),
-	"oc_appconfig" => json_encode(
-		[
+			'blacklist_files_regex'	=> \OCP\Files\FileInfo::BLACKLIST_FILES_REGEX
+		],
+	"oc_appconfig" => [
 			"core" => [
 				'defaultExpireDateEnabled' => $defaultExpireDateEnabled,
 				'defaultExpireDate' => $defaultExpireDate,
 				'defaultExpireDateEnforced' => $enforceDefaultExpireDate,
 				'enforcePasswordForPublicLink' => \OCP\Util::isPublicLinkPasswordRequired(),
-				'enableLinkPasswordByDefault' => $enableLinkPasswordByDefault,
 				'sharingDisabledForUser' => \OCP\Util::isSharingDisabledForUser(),
 				'resharingAllowed' => \OCP\Share::isResharingAllowed(),
 				'remoteShareAllowed' => $outgoingServer2serverShareEnabled,
-				'federatedCloudShareDoc' => \OC::$server->getURLGenerator()->linkToDocs('user-sharing-federated'),
 				'allowGroupSharing' => \OC::$server->getShareManager()->allowGroupSharing(),
 				'previewsEnabled' => \OC::$server->getConfig()->getSystemValue('enable_previews', true) === true,
+				'enabledPreviewProviders' => \OC::$server->getPreviewManager()->getSupportedMimes()
 			]
-		]
-	),
-	"oc_defaults" => json_encode(
-		[
+		],
+	"oc_defaults" => [
 			'entity' => $defaults->getEntity(),
 			'name' => $defaults->getName(),
 			'title' => $defaults->getTitle(),
 			'baseUrl' => $defaults->getBaseUrl(),
 			'syncClientUrl' => $defaults->getSyncClientUrl(),
-			'docBaseUrl' => $defaults->getDocBaseUrl(),
-			'docPlaceholderUrl' => $defaults->buildDocLinkToKey('PLACEHOLDER'),
 			'slogan' => $defaults->getSlogan(),
 			'logoClaim' => $defaults->getLogoClaim(),
 			'shortFooter' => $defaults->getShortFooter(),
 			'longFooter' => $defaults->getLongFooter(),
 			'folder' => OC_Util::getTheme()->getName()
-		]
-	),
+	],
 	'theme' => json_encode(
 		[
 			'name' => OC_Util::getTheme()->getName(),
@@ -196,6 +190,17 @@ $array = [
 		]
 	)
 ];
+
+if (\OC::$server->getUserSession() !== null && \OC::$server->getUserSession()->isLoggedIn()) {
+	$array['oc_appconfig']['federatedCloudShareDoc'] = \OC::$server->getURLGenerator()->linkToDocs('user-sharing-federated');
+	$array['oc_config']['version'] = implode('.', \OCP\Util::getVersion());
+	$array['oc_config']['versionstring'] = OC_Util::getVersionString();
+	$array['oc_defaults']['docBaseUrl'] = $defaults->getDocBaseUrl();
+	$array['oc_defaults']['docPlaceholderUrl'] = $defaults->buildDocLinkToKey('PLACEHOLDER');
+}
+$array['oc_appconfig'] = json_encode($array['oc_appconfig']);
+$array['oc_config'] = json_encode($array['oc_config']);
+$array['oc_defaults'] = json_encode($array['oc_defaults']);
 
 // Allow hooks to modify the output values
 OC_Hook::emit('\OCP\Config', 'js', ['array' => &$array]);

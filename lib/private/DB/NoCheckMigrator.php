@@ -3,7 +3,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,9 +30,4 @@ use Doctrine\DBAL\Schema\Schema;
  * @package OC\DB
  */
 class NoCheckMigrator extends Migrator {
-	/**
-	 * @param \Doctrine\DBAL\Schema\Schema $targetSchema
-	 * @throws \OC\DB\MigrationException
-	 */
-	public function checkMigrate(Schema $targetSchema) {}
 }

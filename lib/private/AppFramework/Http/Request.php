@@ -14,7 +14,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -455,6 +455,11 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 			return false;
 		}
 
+		// Is CSRF protection handled outside of ownCloud?
+		if ($this->config->getSystemValue('csrf.disabled', false)) {
+			return true;
+		}
+
 		if (isset($this->items['get']['requesttoken'])) {
 			$token = $this->items['get']['requesttoken'];
 		} elseif (isset($this->items['post']['requesttoken'])) {
@@ -472,16 +477,29 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 
 	/**
 	 * Returns an ID for the request, value is not guaranteed to be unique and is mostly meant for logging
+	 * If an X-Request-ID header is sent by the client this value will be taken.
 	 * If `mod_unique_id` is installed this value will be taken.
 	 * @return string
 	 */
 	public function getId() {
+		// allow clients to provide a request id
+		if(isset($this->server['HTTP_X_REQUEST_ID'])) {
+			$reqId = $this->server['HTTP_X_REQUEST_ID'];
+			if (strlen($reqId) > 19
+				&& strlen($reqId) < 200
+				&& preg_match('%^[a-zA-Z0-9-+/_=.:]+$%', $reqId)) {
+				return $this->server['HTTP_X_REQUEST_ID'];
+			} else {
+				throw new \InvalidArgumentException('X-Request-ID must be 20-200 bytes of chars, numbers and -+/_=.:');
+			}
+		}
 		if(isset($this->server['UNIQUE_ID'])) {
 			return $this->server['UNIQUE_ID'];
 		}
 
 		if(empty($this->requestId)) {
-			$this->requestId = $this->secureRandom->generate(20);
+			$validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+			$this->requestId = $this->secureRandom->generate(20, $validChars);
 		}
 
 		return $this->requestId;
@@ -751,7 +769,7 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 			return $host;
 		} else {
 			$trustedList = $this->config->getSystemValue('trusted_domains', []);
-			if(!empty($trustedList)) {
+			if (!empty($trustedList)) {
 				return $trustedList[0];
 			} else {
 				return '';

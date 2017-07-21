@@ -8,7 +8,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -51,13 +51,6 @@ return [
 		'password'=>'test',
 		'root'=>'',
 	],
-	'google'=> [
-		'run'=> false,
-		'configured' => 'true',
-		'client_id' => '',
-		'client_secret' => '',
-		'token' => '',
-	],
 	'swift' => [
 		'run' => false,
 		'user' => 'test',
@@ -89,15 +82,6 @@ return [
 		//'region' => 'eu-west-1',
 		//'test'=>'true',
 		//'timeout'=>20
-	],
-	'dropbox' => [
-		'run'=>false,
-		'root'=>'owncloud',
-		'configured' => 'true',
-		'app_key' => '',
-		'app_secret' => '',
-		'token' => '',
-		'token_secret' => ''
 	],
 	'sftp' => [
 		'run'=>false,

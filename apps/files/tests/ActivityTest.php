@@ -2,8 +2,9 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -117,6 +118,7 @@ class ActivityTest extends TestCase {
 		$this->assertArrayHasKey(Activity::TYPE_SHARE_CREATED, $result);
 		$this->assertArrayHasKey(Activity::TYPE_SHARE_CHANGED, $result);
 		$this->assertArrayHasKey(Activity::TYPE_FAVORITES, $result);
+		$this->assertEquals($result[Activity::TYPE_FAVORITES], 'Limit notifications about creation and changes to your <strong>favorite files</strong>');
 		$this->assertArrayHasKey(Activity::TYPE_SHARE_DELETED, $result);
 		$this->assertArrayHasKey(Activity::TYPE_SHARE_RESTORED, $result);
 	}

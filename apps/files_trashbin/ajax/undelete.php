@@ -8,7 +8,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -71,7 +71,7 @@ foreach ($list as $file) {
 
 	if ( !OCA\Files_Trashbin\Trashbin::restore($path, $filename, $timestamp) ) {
 		$error[] = $filename;
-		\OCP\Util::writeLog('trashbin', 'can\'t restore ' . $filename, \OCP\Util::ERROR);
+		\OCP\Util::writeLog('trashbin', 'can\'t restore ' . $filename, \OCP\Util::DEBUG);
 	} else {
 		$success[$i]['filename'] = $file;
 		$success[$i]['timestamp'] = $timestamp;

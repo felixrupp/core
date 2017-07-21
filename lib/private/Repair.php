@@ -10,7 +10,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -29,14 +29,13 @@
 
 namespace OC;
 
-use OC\Repair\AssetCache;
+use OC\Repair\Apps;
 use OC\Repair\AvatarPermissions;
 use OC\Repair\CleanTags;
 use OC\Repair\Collation;
 use OC\Repair\DropOldJobs;
 use OC\Repair\OldGroupMembershipShares;
 use OC\Repair\RemoveGetETagEntries;
-use OC\Repair\RemoveOldShares;
 use OC\Repair\RemoveRootShares;
 use OC\Repair\SharePropagation;
 use OC\Repair\SqliteAutoincrement;
@@ -54,6 +53,7 @@ use OCP\Migration\IRepairStep;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\GenericEvent;
 use OC\Repair\MoveAvatarOutsideHome;
+use OC\Repair\RepairDirectoryMimeType;
 
 class Repair implements IOutput{
 	/* @var IRepairStep[] */
@@ -127,7 +127,7 @@ class Repair implements IOutput{
 	public static function getRepairSteps() {
 		return [
 			new RepairMimeTypes(\OC::$server->getConfig()),
-			new AssetCache(),
+			new RepairDirectoryMimeType(\OC::$server->getDatabaseConnection(), \OC::$server->getMimeTypeLoader()),
 			new FillETags(\OC::$server->getDatabaseConnection()),
 			new CleanTags(\OC::$server->getDatabaseConnection(), \OC::$server->getUserManager()),
 			new DropOldTables(\OC::$server->getDatabaseConnection()),
@@ -136,7 +136,6 @@ class Repair implements IOutput{
 			new UpdateOutdatedOcsIds(\OC::$server->getConfig()),
 			new RepairInvalidShares(\OC::$server->getConfig(), \OC::$server->getDatabaseConnection()),
 			new SharePropagation(\OC::$server->getConfig()),
-			new RemoveOldShares(\OC::$server->getDatabaseConnection()),
 			new AvatarPermissions(\OC::$server->getDatabaseConnection()),
 			new MoveAvatarOutsideHome(
 				\OC::$server->getConfig(),
@@ -182,6 +181,7 @@ class Repair implements IOutput{
 			new Collation(\OC::$server->getConfig(), $connection),
 			new SqliteAutoincrement($connection),
 			new SearchLuceneTables(),
+			new Apps(\OC::$server->getAppManager(), \OC::$server->getEventDispatcher(), \OC::$server->getConfig()),
 		];
 
 		//There is no need to delete all previews on every single update

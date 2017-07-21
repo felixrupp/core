@@ -6,8 +6,9 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Laurens Post <lkpost@scept.re>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -94,6 +95,12 @@ class ResetPassword extends Command {
 			$q = new Question('<question>Enter a new password: </question>', false);
 			$q->setHidden(true);
 			$password = $dialog->ask($input, $output, $q);
+			if ($password === false) {
+				// When user presses RETURN key or no password characters are entered,
+				// $password gets a boolean value false.
+				$output->writeln("<error>Password cannot be empty!</error>");
+				return 1;
+			}
 			$q = new Question('<question>Confirm the new password: </question>', false);
 			$q->setHidden(true);
 			$confirm = $dialog->ask($input, $output, $q);

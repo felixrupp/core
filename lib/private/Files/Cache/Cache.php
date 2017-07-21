@@ -16,7 +16,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -135,12 +135,7 @@ class Cache implements ICache {
 		}
 
 		//merge partial data
-		if (!$data and is_string($file)) {
-			if (isset($this->partial[$file])) {
-				$data = $this->partial[$file];
-			}
-			return $data;
-		} else {
+		if($data) {
 			//fix types
 			$data['fileid'] = (int)$data['fileid'];
 			$data['parent'] = (int)$data['parent'];
@@ -157,6 +152,13 @@ class Cache implements ICache {
 			}
 			$data['permissions'] = (int)$data['permissions'];
 			return new CacheEntry($data);
+		} else if (!$data and is_string($file)) {
+			if (isset($this->partial[$file])) {
+				$data = $this->partial[$file];
+			}
+			return $data;
+		} else {
+			return false;
 		}
 	}
 
@@ -491,6 +493,7 @@ class Cache implements ICache {
 	 * @param string $sourcePath
 	 * @param string $targetPath
 	 * @throws \OC\DatabaseException
+	 * @throws \Exception if the given storages have an invalid id
 	 */
 	public function moveFromCache(ICache $sourceCache, $sourcePath, $targetPath) {
 		if ($sourceCache instanceof Cache) {
@@ -504,6 +507,13 @@ class Cache implements ICache {
 
 			list($sourceStorageId, $sourcePath) = $sourceCache->getMoveInfo($sourcePath);
 			list($targetStorageId, $targetPath) = $this->getMoveInfo($targetPath);
+
+			if (is_null($sourceStorageId) || $sourceStorageId === false) {
+				throw new \Exception('Invalid source storage id: ' . $sourceStorageId);
+			}
+			if (is_null($targetStorageId) || $targetStorageId === false) {
+				throw new \Exception('Invalid target storage id: ' . $targetStorageId);
+			}
 
 			// sql for final update
 			$moveSql = 'UPDATE `*PREFIX*filecache` SET `storage` =  ?, `path` = ?, `path_hash` = ?, `name` = ?, `parent` =? WHERE `fileid` = ?';
@@ -535,11 +545,7 @@ class Cache implements ICache {
 	 * remove all entries for files that are stored on the storage from the cache
 	 */
 	public function clear() {
-		$sql = 'DELETE FROM `*PREFIX*filecache` WHERE `storage` = ?';
-		$this->connection->executeQuery($sql, [$this->getNumericStorageId()]);
-
-		$sql = 'DELETE FROM `*PREFIX*storages` WHERE `id` = ?';
-		$this->connection->executeQuery($sql, [$this->storageId]);
+		Storage::remove($this->storageId);
 	}
 
 	/**

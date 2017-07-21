@@ -3,7 +3,7 @@
  * @author Achim Königs <garfonso@tratschtante.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@ namespace OCA\DAV\CalDAV;
 use Exception;
 use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\DAV\DAV\GroupPrincipalBackend;
+use Sabre\CalDAV\Xml\Property\SupportedCalendarComponentSet;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VCard;
 use Sabre\VObject\DateTimeParser;
@@ -106,7 +107,8 @@ class BirthdayService {
 		$this->calDavBackEnd->createCalendar($principal, self::BIRTHDAY_CALENDAR_URI, [
 			'{DAV:}displayname' => 'Contact birthdays',
 			'{http://apple.com/ns/ical/}calendar-color' => '#FFFFCA',
-			'components'   => 'VEVENT',
+			'{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set'   => new SupportedCalendarComponentSet(['VEVENT']),
+			'{http://apple.com/ns/ical/}calendar-order' => 100
 		]);
 
 		return $this->calDavBackEnd->getCalendarByUri($principal, self::BIRTHDAY_CALENDAR_URI);

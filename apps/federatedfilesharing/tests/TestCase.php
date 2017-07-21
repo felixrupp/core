@@ -1,8 +1,9 @@
 <?php
 /**
  * @author Björn Schießle <bjoern@schiessle.org>
+ * @author Joas Schilling <coding@schilljs.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,6 +24,7 @@ namespace OCA\FederatedFileSharing\Tests;
 
 use OC\Files\Filesystem;
 use OCA\Files\Share;
+use Test\Traits\UserTrait;
 
 /**
  * Class Test_Files_Sharing_Base
@@ -33,6 +35,8 @@ use OCA\Files\Share;
  */
 abstract class TestCase extends \Test\TestCase {
 
+	use UserTrait;
+
 	const TEST_FILES_SHARING_API_USER1 = "test-share-user1";
 	const TEST_FILES_SHARING_API_USER2 = "test-share-user2";
 
@@ -41,17 +45,14 @@ abstract class TestCase extends \Test\TestCase {
 
 		// reset backend
 		\OC_User::clearBackends();
-		\OC_Group::clearBackends();
-
-		// create users
-		$backend = new \Test\Util\User\Dummy();
-		\OC_User::useBackend($backend);
-		$backend->createUser(self::TEST_FILES_SHARING_API_USER1, self::TEST_FILES_SHARING_API_USER1);
-		$backend->createUser(self::TEST_FILES_SHARING_API_USER2, self::TEST_FILES_SHARING_API_USER2);
+		\OC::$server->getGroupManager()->clearBackends();
 	}
 
 	protected function setUp() {
 		parent::setUp();
+
+		$this->createUser(self::TEST_FILES_SHARING_API_USER1, self::TEST_FILES_SHARING_API_USER1);
+		$this->createUser(self::TEST_FILES_SHARING_API_USER2, self::TEST_FILES_SHARING_API_USER2);
 
 		//login as user1
 		self::loginHelper(self::TEST_FILES_SHARING_API_USER1);
@@ -75,35 +76,23 @@ abstract class TestCase extends \Test\TestCase {
 		// reset backend
 		\OC_User::clearBackends();
 		\OC_User::useBackend('database');
-		\OC_Group::clearBackends();
-		\OC_Group::useBackend(new \OC_Group_Database());
+		\OC::$server->getGroupManager()->clearBackends();
+		\OC::$server->getGroupManager()->addBackend(new \OC_Group_Database());
 
 		parent::tearDownAfterClass();
 	}
 
 	/**
 	 * @param string $user
-	 * @param bool $create
-	 * @param bool $password
 	 */
-	protected static function loginHelper($user, $create = false, $password = false) {
-
-		if ($password === false) {
-			$password = $user;
-		}
-
-		if ($create) {
-			\OC::$server->getUserManager()->createUser($user, $password);
-			\OC_Group::createGroup('group');
-			\OC_Group::addToGroup($user, 'group');
-		}
+	protected static function loginHelper($user) {
 
 		self::resetStorage();
 
 		\OC_Util::tearDownFS();
 		\OC::$server->getUserSession()->setUser(null);
 		\OC\Files\Filesystem::tearDown();
-		\OC::$server->getUserSession()->login($user, $password);
+		\OC::$server->getUserSession()->login($user, $user);
 		\OC::$server->getUserFolder($user);
 
 		\OC_Util::setupFS($user);

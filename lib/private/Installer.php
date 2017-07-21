@@ -16,11 +16,10 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
- * @author root <root@oc.(none)>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Thomas Tanghus <thomas@tanghus.net>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -45,6 +44,7 @@ use OC\App\CodeChecker\PrivateCheck;
 use OC_App;
 use OC_DB;
 use OC_Helper;
+use OCP\App\AppAlreadyInstalledException;
 
 /**
  * This class provides the functionality needed to install, update and remove plugins/apps
@@ -104,6 +104,7 @@ class Installer {
 		if(!empty($data['pretent'])) {
 			return false;
 		}
+		OC_App::clearAppCache($info['id']);
 
 		//copy the app to the correct place
 		if(@!mkdir($basedir)) {
@@ -125,10 +126,9 @@ class Installer {
 		OC_Helper::rmdirr($extractDir);
 
 		//install the database
-		if (isset($appData['use-migrations']) && $appData['use-migrations'] === 'true') {
-			$ms = new \OC\DB\MigrationService();
-			$mc = $ms->buildConfiguration($appId, \OC::$server->getDatabaseConnection());
-			$ms->migrate($mc);
+		if (isset($info['use-migrations']) && $info['use-migrations'] === 'true') {
+			$ms = new \OC\DB\MigrationService($appId, \OC::$server->getDatabaseConnection());
+			$ms->migrate();
 		} else {
 			if(is_file($basedir.'/appinfo/database.xml')) {
 				if (\OC::$server->getAppConfig()->getValue($info['id'], 'installed_version') === null) {
@@ -173,7 +173,7 @@ class Installer {
 	 *
 	 * Checks whether or not an app is installed, i.e. registered in apps table.
 	 */
-	public static function 	isInstalled( $app ) {
+	public static function isInstalled( $app ) {
 		return (\OC::$server->getConfig()->getAppValue($app, "installed_version", null) !== null);
 	}
 
@@ -223,6 +223,9 @@ class Installer {
 		if($currentDir !== false && is_writable($currentDir)) {
 			$basedir = $currentDir;
 		}
+		if(is_dir("$basedir/.git")) {
+			throw new AppAlreadyInstalledException("App <{$info['id']}> is a git clone - it will not be updated.");
+		}
 		if(is_dir($basedir)) {
 			OC_Helper::rmdirr($basedir);
 		}
@@ -237,36 +240,6 @@ class Installer {
 		OC_Helper::rmdirr($extractDir);
 
 		return OC_App::updateApp($info['id']);
-	}
-
-	/**
-	 * update an app by it's id
-	 *
-	 * @param integer $ocsId
-	 * @return bool
-	 * @throws \Exception
-	 */
-	public static function updateAppByOCSId($ocsId) {
-		$ocsClient = new OCSClient(
-			\OC::$server->getHTTPClientService(),
-			\OC::$server->getConfig(),
-			\OC::$server->getLogger()
-		);
-		$appData = $ocsClient->getApplication($ocsId, \OCP\Util::getVersion());
-		$download = $ocsClient->getApplicationDownload($ocsId, \OCP\Util::getVersion());
-
-		if (isset($download['downloadlink']) && trim($download['downloadlink']) !== '') {
-			$download['downloadlink'] = str_replace(' ', '%20', $download['downloadlink']);
-			$info = [
-				'source' => 'http',
-				'href' => $download['downloadlink'],
-				'appdata' => $appData
-			];
-		} else {
-			throw new \Exception('Could not fetch app info!');
-		}
-
-		return self::updateApp($info);
 	}
 
 	/**
@@ -365,7 +338,7 @@ class Installer {
 		// We can't trust the parsed info.xml file as it may have been tampered
 		// with by an attacker and thus we need to use the local data to check
 		// whether the application needs to be signed.
-		$appId = OC_App::cleanAppId($data['appdata']['id']);
+		$appId = OC_App::cleanAppId(isset($data['appdata']['id']) ? $data['appdata']['id'] : '');
 		$appBelongingToId = OC_App::getInternalAppIdByOcs($appId);
 		if(is_string($appBelongingToId)) {
 			$previouslySigned = \OC::$server->getConfig()->getAppValue($appBelongingToId, 'signed', 'false');
@@ -389,12 +362,6 @@ class Installer {
 			}
 		}
 
-		// check the code for not allowed calls
-		if(!$isShipped && !Installer::checkCode($extractDir)) {
-			OC_Helper::rmdirr($extractDir);
-			throw new \Exception($l->t("App can't be installed because of not allowed code in the App"));
-		}
-
 		// check if the app is compatible with this version of ownCloud
 		if(!OC_App::isAppCompatible(\OCP\Util::getVersion(), $info)) {
 			OC_Helper::rmdirr($extractDir);
@@ -416,52 +383,6 @@ class Installer {
 		}
 
 		return $info;
-	}
-
-	/**
-	 * Check if an update for the app is available
-	 * @param string $app
-	 * @return string|false false or the version number of the update
-	 *
-	 * The function will check if an update for a version is available
-	 */
-	public static function isUpdateAvailable( $app ) {
-		static $isInstanceReadyForUpdates = null;
-
-		if ($isInstanceReadyForUpdates === null) {
-			$installPath = OC_App::getInstallPath();
-			if ($installPath === false || $installPath === null) {
-				$isInstanceReadyForUpdates = false;
-			} else {
-				$isInstanceReadyForUpdates = true;
-			}
-		}
-
-		if ($isInstanceReadyForUpdates === false) {
-			return false;
-		}
-
-		$ocsid=\OC::$server->getAppConfig()->getValue( $app, 'ocsid', '');
-
-		if($ocsid<>'') {
-			$ocsClient = new OCSClient(
-				\OC::$server->getHTTPClientService(),
-				\OC::$server->getConfig(),
-				\OC::$server->getLogger()
-			);
-			$ocsdata = $ocsClient->getApplication($ocsid, \OCP\Util::getVersion());
-			$ocsversion= (string) $ocsdata['version'];
-			$currentversion=OC_App::getAppVersion($app);
-			if (version_compare($ocsversion, $currentversion, '>')) {
-				return($ocsversion);
-			}else{
-				return false;
-			}
-
-		}else{
-			return false;
-		}
-
 	}
 
 	/**
@@ -502,16 +423,21 @@ class Installer {
 	public static function removeApp($appId) {
 
 		if(Installer::isDownloaded( $appId )) {
-			$appDir=OC_App::getInstallPath() . '/' . $appId;
+			$appDir = OC_App::getAppPath($appId);
+			if ($appDir === false) {
+				return false;
+			}
+			if(is_dir("$appDir/.git")) {
+				throw new AppAlreadyInstalledException("App <$appId> is a git clone - it will not be deleted.");
+			}
+
 			OC_Helper::rmdirr($appDir);
 
 			return true;
-		}else{
-			\OCP\Util::writeLog('core', 'can\'t remove app '.$appId.'. It is not installed.', \OCP\Util::ERROR);
-
-			return false;
 		}
+		\OCP\Util::writeLog('core', 'can\'t remove app '.$appId.'. It is not installed.', \OCP\Util::ERROR);
 
+		return false;
 	}
 
 	/**
@@ -572,9 +498,8 @@ class Installer {
 		//install the database
 		$appPath = OC_App::getAppPath($app);
 		if (isset($info['use-migrations']) && $info['use-migrations'] === 'true') {
-			$ms = new \OC\DB\MigrationService();
-			$mc = $ms->buildConfiguration($app, \OC::$server->getDatabaseConnection());
-			$ms->migrate($mc);
+			$ms = new \OC\DB\MigrationService($app, \OC::$server->getDatabaseConnection());
+			$ms->migrate();
 		} else {
 			if(is_file($appPath.'/appinfo/database.xml')) {
 				OC_DB::createDbFromStructure($appPath . '/appinfo/database.xml');
@@ -610,24 +535,7 @@ class Installer {
 	}
 
 	/**
-	 * check the code of an app with some static code checks
-	 * @param string $folder the folder of the app to check
-	 * @return boolean true for app is o.k. and false for app is not o.k.
-	 */
-	public static function checkCode($folder) {
-		// is the code checker enabled?
-		if(!\OC::$server->getConfig()->getSystemValue('appcodechecker', false)) {
-			return true;
-		}
-
-		$codeChecker = new CodeChecker(new PrivateCheck(new EmptyCheck()));
-		$errors = $codeChecker->analyseFolder($folder);
-
-		return empty($errors);
-	}
-
-	/**
-	 * @param $basedir
+	 * @param $script
 	 */
 	private static function includeAppScript($script) {
 		if ( file_exists($script) ){

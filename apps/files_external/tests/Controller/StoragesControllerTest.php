@@ -2,9 +2,10 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -43,16 +44,32 @@ abstract class StoragesControllerTest extends \Test\TestCase {
 
 	public function setUp() {
 		\OC_Mount_Config::$skipTest = true;
+		\OC::$server->getSystemConfig()->setValue('files_external_allow_create_new_local', true);
 	}
 
 	public function tearDown() {
 		\OC_Mount_Config::$skipTest = false;
+		\OC::$server->getSystemConfig()->setValue('files_external_allow_create_new_local', false);
 	}
 
 	/**
 	 * @return \OCP\Files\External\Backend\Backend
 	 */
 	protected function getBackendMock($class = '\OCA\Files_External\Lib\Backend\SMB', $storageClass = '\OCA\Files_External\Lib\Storage\SMB') {
+		$backend = $this->getMockBuilder('\OCP\Files\External\Backend\Backend')
+			->disableOriginalConstructor()
+			->getMock();
+		$backend->method('getStorageClass')
+			->willReturn($storageClass);
+		$backend->method('getIdentifier')
+			->willReturn('identifier:'.$class);
+		return $backend;
+	}
+
+	/**
+	 * @return \OCP\Files\External\Backend\Backend
+	 */
+	protected function getBackendMockLocal($class = '\OCA\Files_External\Lib\Backend\Local', $storageClass = '\OC\Files\Storage\Local') {
 		$backend = $this->getMockBuilder('\OCP\Files\External\Backend\Backend')
 			->disableOriginalConstructor()
 			->getMock();
@@ -117,6 +134,41 @@ abstract class StoragesControllerTest extends \Test\TestCase {
 		$data = $response->getData();
 		$this->assertEquals(Http::STATUS_CREATED, $response->getStatus());
 		$this->assertEquals($storageConfig, $data);
+	}
+
+	public function testAddStorageWithoutConfig() {
+		\OC::$server->getSystemConfig()->setValue('files_external_allow_create_new_local', false);
+
+		$backend = $this->getBackendMockLocal();
+		$backend->method('validateStorage')
+			->willReturn(true);
+
+		$storageConfig = new StorageConfig(1);
+		$storageConfig->setMountPoint('Local');
+		$storageConfig->setBackend($backend);
+		$storageConfig->setBackendOptions([]);
+
+		$this->service
+			->method('createStorage')
+			->will($this->returnValue($storageConfig));
+		$this->service
+			->method('addStorage')
+			->will($this->returnValue($storageConfig));
+
+		$response = $this->controller->create(
+			'Local',
+			'local',
+			null,
+			[],
+			[],
+			[],
+			[],
+			null
+		);
+
+		$data = $response->getData();
+		$this->assertEquals(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertEquals(null, $data);
 	}
 
 	public function testUpdateStorage() {

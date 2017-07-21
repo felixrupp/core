@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -68,6 +68,8 @@ class Capabilities implements ICapability {
 
 				$public['send_mail'] = $this->config->getAppValue('core', 'shareapi_allow_public_notification', 'no') === 'yes';
 				$public['upload'] = $this->config->getAppValue('core', 'shareapi_allow_public_upload', 'yes') === 'yes';
+				$public['multiple'] = true;
+				$public['supports_upload_only'] = true;
 			}
 			$res["public"] = $public;
 

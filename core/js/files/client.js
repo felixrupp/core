@@ -16,8 +16,7 @@
 	 * @classdesc Client to access files on the server
 	 *
 	 * @param {Object} options
-	 * @param {String} options.host host name
-	 * @param {int} [options.port] port
+	 * @param {String} options.host host name including port
 	 * @param {boolean} [options.useHTTPS] whether to use https
 	 * @param {String} [options.root] root path
 	 * @param {String} [options.userName] user name
@@ -727,7 +726,7 @@
 		/**
 		 * Returns the dav.Client instance used internally
 		 *
-		 * @since 9.2
+		 * @since 10.0
 		 * @return {dav.Client}
 		 */
 		getClient: function() {
@@ -737,7 +736,7 @@
 		/**
 		 * Returns the user name
 		 *
-		 * @since 9.2
+		 * @since 10.0
 		 * @return {String} userName
 		 */
 		getUserName: function() {
@@ -747,7 +746,7 @@
 		/**
 		 * Returns the password
 		 *
-		 * @since 9.2
+		 * @since 10.0
 		 * @return {String} password
 		 */
 		getPassword: function() {
@@ -757,7 +756,7 @@
 		/**
 		 * Returns the base URL
 		 *
-		 * @since 9.2
+		 * @since 10.0
 		 * @return {String} base URL
 		 */
 		getBaseUrl: function() {
@@ -800,7 +799,7 @@
 		var client = new OC.Files.Client({
 			host: OC.getHost(),
 			port: OC.getPort(),
-			root: OC.linkToRemoteBase('webdav'),
+			root: OC.linkToRemoteBase('dav') + '/files/' + encodeURIComponent(OC.getCurrentUser().uid) + '/',
 			useHTTPS: OC.getProtocol() === 'https'
 		});
 		OC.Files._defaultClient = client;

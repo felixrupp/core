@@ -7,13 +7,14 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Pascal de Bruijn <pmjdebruijn@pcode.nl>
+ * @author Philipp Schaffrath <github@philippschaffrath.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author scolebrook <scolebrook@mac.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Volkan Gezer <volkangezer@gmail.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -66,10 +67,9 @@ class OC_Defaults {
 		$this->defaultLogoClaim = '';
 		$this->defaultMailHeaderColor = '#1d2d44'; /* header color of mail notifications */
 
-
 		$themePath = OC_Util::getTheme()->getDirectory();
 
-		$defaultsPath = OC::$SERVERROOT . '/' .$themePath . 'defaults.php';
+		$defaultsPath = OC::$SERVERROOT . '/' . $themePath . '/defaults.php';
 		if (file_exists($defaultsPath)) {
 			// prevent defaults.php from printing output
 			ob_start();

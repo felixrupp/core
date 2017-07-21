@@ -6,7 +6,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 
 namespace OCP\AppFramework\Db;
 
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IDb;
 
@@ -227,7 +228,7 @@ abstract class Mapper {
 	 * @return \PDOStatement the database query result
 	 * @since 7.0.0
 	 */
-	protected function execute($sql, array $params=[], $limit=null, $offset=null){
+	protected function execute($sql, array $params=[], $limit=null, $offset=null) {
 		if ($this->db instanceof IDb) {
 			$query = $this->db->prepareQuery($sql, $limit, $offset);
 		} else {
@@ -276,8 +277,13 @@ abstract class Mapper {
 	 * @return array the result as row
 	 * @since 7.0.0
 	 */
-	protected function findOneQuery($sql, array $params=[], $limit=null, $offset=null){
-		$stmt = $this->execute($sql, $params, $limit, $offset);
+	protected function findOneQuery($sql, array $params=[], $limit=null, $offset=null) {
+
+		if ($sql instanceof IQueryBuilder) {
+			$stmt = $sql->execute();
+		} else {
+			$stmt = $this->execute($sql, $params, $limit, $offset);
+		}
 		$row = $stmt->fetch();
 
 		if($row === false || $row === null){
@@ -328,6 +334,7 @@ abstract class Mapper {
 	 * @since 7.0.0
 	 */
 	protected function mapRowToEntity($row) {
+		unset($row['DOCTRINE_ROWNUM']); // Remove oracle workaround for limit
 		return call_user_func($this->entityClass .'::fromRow', $row);
 	}
 

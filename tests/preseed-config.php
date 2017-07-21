@@ -1,6 +1,5 @@
 <?php
 $CONFIG = [
-	'appstoreenabled' => false,
 	'apps_paths' => [
 		[
 			'path'		=> OC::$SERVERROOT . '/apps',
@@ -8,6 +7,7 @@ $CONFIG = [
 			'writable'	=> true,
 		],
 	],
+	'default_language' => 'en',
 ];
 
 if (is_dir(OC::$SERVERROOT.'/apps2')) {
@@ -20,4 +20,8 @@ if (is_dir(OC::$SERVERROOT.'/apps2')) {
 
 if (substr(strtolower(PHP_OS), 0, 3) === 'win') {
 	$CONFIG['openssl'] = ['config' => OC::$SERVERROOT . '/tests/data/openssl.cnf'];
+}
+
+if (getenv("TC") === "selenium") {
+	$CONFIG['skeletondirectory'] = OC::$SERVERROOT . '/tests/ui/skeleton';
 }

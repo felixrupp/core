@@ -8,7 +8,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -64,10 +64,6 @@ class OC_DB_StatementWrapper {
 	 * @return \OC_DB_StatementWrapper|int
 	 */
 	public function execute($input= []) {
-		if(\OC::$server->getSystemConfig()->getValue( "log_query", false)) {
-			$params_str = str_replace("\n", " ", var_export($input, true));
-			\OCP\Util::writeLog('core', 'DB execute with arguments : '.$params_str, \OCP\Util::DEBUG);
-		}
 		$this->lastArguments = $input;
 		if (count($input) > 0) {
 			$result = $this->statement->execute($input);

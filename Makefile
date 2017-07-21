@@ -24,11 +24,12 @@
 #      - testing targets
 
 # Detailed documentation in https://github.com/owncloud/documentation:
-#      - https://doc.owncloud.org/server/9.2/developer_manual/general/devenv.html#check-out-the-code
-#      - https://doc.owncloud.org/server/9.2/developer_manual/core/unit-testing.html#running-unit-tests-for-the-owncloud-core-project
+#      - https://doc.owncloud.org/server/latest/developer_manual/general/devenv.html#check-out-the-code
+#      - https://doc.owncloud.org/server/latest/developer_manual/core/unit-testing.html#running-unit-tests-for-the-owncloud-core-project
 #
 
 NODE_PREFIX=build
+SHELL=/bin/bash
 
 #
 # Define NPM and check if it is available on the system.
@@ -59,6 +60,7 @@ core_vendor=core/vendor
 core_doc_files=AUTHORS COPYING README.md
 core_src_files=$(wildcard *.php) index.html db_structure.xml .htaccess .user.ini
 core_src_dirs=apps core l10n lib occ ocs ocs-provider resources settings themes
+core_test_dirs=tests
 core_all_src=$(core_src_files) $(core_src_dirs) $(core_doc_files)
 dist_dir=build/dist
 
@@ -66,10 +68,44 @@ dist_dir=build/dist
 # Catch-all rules
 #
 .PHONY: all
-all: $(composer_dev_deps) $(core_vendor) $(nodejs_deps)
+all: help-hint $(composer_dev_deps) $(core_vendor) $(nodejs_deps)
 
 .PHONY: clean
-clean: clean-composer-deps clean-nodejs-deps clean-js-deps clean-test-results clean-dist
+clean: clean-composer-deps clean-nodejs-deps clean-js-deps clean-test clean-dist
+
+.PHONY: help-hint
+help-hint:
+	@echo "Building core"
+	@echo
+	@echo "Note: You can type 'make help' for more targets"
+	@echo
+
+.PHONY: help
+help:
+	@echo "Please use 'make <target>' where <target> is one of the following:"
+	@echo
+	@echo -e "Dependencies:\n"
+	@echo -e "make clean\t\t\tclean everything"
+	@echo -e "make install-composer-deps\tinstall composer dependencies"
+	@echo -e "make update-composer\t\tupdate composer.lock"
+	@echo -e "make install-js-deps\t\tinstall Javascript dependencies"
+	@echo
+	@echo -e "Note that running 'make' without arguments already installs all required dependencies"
+	@echo
+	@echo -e "Testing:\n"
+	@echo -e "make test\t\t\trun all tests"
+	@echo -e "make test-php\t\t\trun all PHP tests"
+	@echo -e "make test-js\t\t\trun Javascript tests"
+	@echo -e "make test-js-debug\t\trun Javascript tests in debug mode (continuous)"
+	@echo -e "make test-integration\t\trun integration tests"
+	@echo -e "make clean-test\t\t\tclean test results"
+	@echo
+	@echo It is also possible to run individual PHP test files with the following command:
+	@echo -e "make test-php TEST_DATABASE=mysql TEST_PHP_SUITE=path/to/testfile.php"
+	@echo
+	@echo -e "Tools:\n"
+	@echo -e "make update-php-license-header\tUpdate license headers"
+	
 
 #
 # Basic required tools
@@ -150,9 +186,16 @@ test-external: $(composer_dev_deps)
 test-js: $(nodejs_deps) $(js_deps) $(core_vendor)
 	NODE_PATH='$(NODE_PREFIX)/node_modules' $(KARMA) start tests/karma.config.js --single-run
 
+.PHONY: test-js-debug
+test-js-debug: $(nodejs_deps) $(js_deps) $(core_vendor)
+	NODE_PATH='$(NODE_PREFIX)/node_modules' $(KARMA) start tests/karma.config.js
+
 .PHONY: test-integration
 test-integration: $(composer_dev_deps)
-	$(MAKE) -C build/integration OC_TEST_ALT_HOME=$(OC_TEST_ALT_HOME) OC_TEST_ENCRYPTION_ENABLED=$(OC_TEST_ENCRYPTION_ENABLED)
+	$(MAKE) -C tests/integration \
+		OC_TEST_ALT_HOME=$(OC_TEST_ALT_HOME) \
+		OC_TEST_ENCRYPTION_ENABLED=$(OC_TEST_ENCRYPTION_ENABLED) \
+		OC_TEST_ENCRYPTION_MASTER_KEY_ENABLED=$(OC_TEST_ENCRYPTION_MASTER_KEY_ENABLED)
 
 .PHONY: test-php-lint
 test-php-lint: $(composer_dev_deps)
@@ -163,12 +206,15 @@ test: test-php-lint test-php test-js test-integration
 
 .PHONY: clean-test-integration
 clean-test-integration:
-	$(MAKE) -C build/integration clean
+	$(MAKE) -C tests/integration clean
 
 .PHONY: clean-test-results
 clean-test-results:
 	rm -Rf tests/autotest-*results*.xml
-	$(MAKE) -C build/integration clean-test-results
+	$(MAKE) -C tests/integration clean
+
+.PHONY: clean-test
+clean-test: clean-test-integration clean-test-results
 
 #
 # Documentation
@@ -186,9 +232,9 @@ clean-docs:
 
 #
 # Build distribution
-
+#
 $(dist_dir)/owncloud: $(composer_deps) $(core_vendor) $(core_all_src)
-	rm -Rf $$@; mkdir -p $@/config
+	rm -Rf $@; mkdir -p $@/config
 	cp -R $(core_all_src) $@
 	cp -R config/config.sample.php $@/config
 	rm -Rf $(dist_dir)/owncloud/apps/testing
@@ -234,6 +280,47 @@ dist-dir: $(dist_dir)/owncloud
 .PHONY: clean-dist
 clean-dist:
 	rm -Rf $(dist_dir)
+
+#
+# Build qa distribution
+#
+$(dist_dir)/qa/owncloud: $(composer_dev_deps) $(core_vendor) $(core_all_src) $(core_test_dirs)
+	rm -Rf $@; mkdir -p $@/config
+	cp -R $(core_all_src) $@
+	cp -R $(core_test_dirs) $@
+	cp -R config/config.sample.php $@/config
+	find $@ -name .gitkeep -delete
+	find $@ -name .gitignore -delete
+	find $@ -name no-php -delete
+	rm -Rf $@/core/vendor/*/{.bower.json,bower.json,package.json,testem.json}
+	find $@/{core/,l10n/} -iname \*.sh -delete
+	find $@/{apps/,lib/composer/,core/vendor/} \( \
+		-name test -o \
+		-name examples -o \
+		-name demo -o \
+		-name demos -o \
+		-name doc -o \
+		-name travis -o \
+		-iname \*.sh \
+		\) -print | xargs rm -Rf
+	find $@/{apps/,lib/composer/} -iname \*.exe -delete
+	# Set build
+	$(eval _BUILD="$(shell date -u --iso-8601=seconds) $(shell git rev-parse HEAD)")
+	# Replace channel in version.php
+	sed -i \
+		-e 's/$$OC_Channel.*$$/$$OC_Channel = '"'"$(RELEASE_CHANNEL)"'"';/g' \
+		-e 's/$$OC_Build.*$$/$$OC_Build = '"'"$(_BUILD)"'"';/g' \
+		$(dist_dir)/qa/owncloud/version.php
+
+$(dist_dir)/owncloud-qa-core.tar.bz2: $(dist_dir)/qa/owncloud
+	cd $(dist_dir)/qa && tar cjf owncloud-qa-core.tar.bz2 owncloud --format=gnu
+
+.PHONY: dist-qa
+dist-qa: $(dist_dir)/owncloud-qa-core.tar.bz2
+
+.PHONY: dist-dir-qa
+dist-dir-qa: $(dist_dir)/qa/owncloud
+
 #
 # Miscellaneous tools
 #

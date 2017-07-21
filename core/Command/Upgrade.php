@@ -10,7 +10,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -85,12 +85,6 @@ class Upgrade extends Command {
 	 */
 	protected function execute(InputInterface $input, OutputInterface $output) {
 
-		$skip3rdPartyAppsDisable = false;
-
-		if ($input->getOption('no-app-disable')) {
-			$skip3rdPartyAppsDisable = true;
-		}
-
 		if(\OC::checkUpgrade(false)) {
 			if (OutputInterface::VERBOSITY_NORMAL < $output->getVerbosity()) {
 				// Prepend each line with a little timestamp
@@ -105,7 +99,6 @@ class Upgrade extends Command {
 					$this->logger
 			);
 
-			$updater->setSkip3rdPartyAppsDisable($skip3rdPartyAppsDisable);
 			$dispatcher = \OC::$server->getEventDispatcher();
 			$progress = new ProgressBar($output);
 			$progress->setFormat(" %message%\n %current%/%max% [%bar%] %percent:3s%%");
@@ -218,9 +211,6 @@ class Upgrade extends Command {
 			});
 			$updater->listen('\OC\Updater', 'incompatibleAppDisabled', function ($app) use($output) {
 				$output->writeln('<info>Disabled incompatible app: ' . $app . '</info>');
-			});
-			$updater->listen('\OC\Updater', 'thirdPartyAppDisabled', function ($app) use ($output) {
-				$output->writeln('<info>Disabled 3rd-party app: ' . $app . '</info>');
 			});
 			$updater->listen('\OC\Updater', 'upgradeAppStoreApp', function ($app) use($output) {
 				$output->writeln('<info>Update 3rd-party app: ' . $app . '</info>');

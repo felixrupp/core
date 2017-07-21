@@ -10,10 +10,11 @@
  * @author Owen Winkler <a_github@midnightcircus.com>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Semih Serhat Karakaya <karakayasemi@itu.edu.tr>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -33,6 +34,7 @@
 namespace OCA\DAV\Connector\Sabre;
 
 use OC\Files\Filesystem;
+use OC\Files\Storage\Storage;
 use OCA\DAV\Connector\Sabre\Exception\EntityTooLarge;
 use OCA\DAV\Connector\Sabre\Exception\FileLocked;
 use OCA\DAV\Connector\Sabre\Exception\Forbidden as DAVForbiddenException;
@@ -53,9 +55,29 @@ use Sabre\DAV\Exception\Forbidden;
 use Sabre\DAV\Exception\NotImplemented;
 use Sabre\DAV\Exception\ServiceUnavailable;
 use Sabre\DAV\IFile;
+use Sabre\DAV\Exception\NotFound;
+use OC\AppFramework\Http\Request;
 
 class File extends Node implements IFile {
 
+	protected $request;
+	
+	/**
+	 * Sets up the node, expects a full path name
+	 *
+	 * @param \OC\Files\View $view
+	 * @param \OCP\Files\FileInfo $info
+	 * @param \OCP\Share\IManager $shareManager
+	 */
+	public function __construct($view, $info, $shareManager = null, Request $request = null) {
+		if (isset($request)) {
+			$this->request = $request;
+		} else {
+			$this->request = \OC::$server->getRequest();
+		}
+		parent::__construct($view, $info, $shareManager);
+	}
+	
 	/**
 	 * Updates the data
 	 *
@@ -132,6 +154,10 @@ class File extends Node implements IFile {
 			list($count, $result) = \OC_Helper::streamCopy($data, $target);
 			fclose($target);
 
+			if (!self::isChecksumValid($partStorage, $internalPartPath)) {
+				throw new BadRequest('The computed checksum does not match the one received from the client.');
+			}
+
 			if ($result === false) {
 				$expected = -1;
 				if (isset($_SERVER['CONTENT_LENGTH'])) {
@@ -203,9 +229,11 @@ class File extends Node implements IFile {
 			}
 
 			// allow sync clients to send the mtime along in a header
-			$request = \OC::$server->getRequest();
-			if (isset($request->server['HTTP_X_OC_MTIME'])) {
-				if ($this->fileView->touch($this->path, $request->server['HTTP_X_OC_MTIME'])) {
+			if (isset($this->request->server['HTTP_X_OC_MTIME'])) {
+				$mtime = $this->sanitizeMtime(
+					$this->request->server ['HTTP_X_OC_MTIME']
+				);
+				if ($this->fileView->touch($this->path, $mtime)) {
 					header('X-OC-MTime: accepted');
 				}
 			}
@@ -215,16 +243,6 @@ class File extends Node implements IFile {
 			}
 			
 			$this->refreshInfo();
-
-			if (isset($request->server['HTTP_OC_CHECKSUM'])) {
-				$checksum = trim($request->server['HTTP_OC_CHECKSUM']);
-				$this->fileView->putFileInfo($this->path, ['checksum' => $checksum]);
-				$this->refreshInfo();
-			} else if ($this->getChecksum() !== null && $this->getChecksum() !== '') {
-				$this->fileView->putFileInfo($this->path, ['checksum' => '']);
-				$this->refreshInfo();
-			}
-
 		} catch (StorageNotAvailableException $e) {
 			throw new ServiceUnavailable("Failed to check file size: " . $e->getMessage());
 		}
@@ -301,6 +319,10 @@ class File extends Node implements IFile {
 	public function get() {
 		//throw exception if encryption is disabled but files are still encrypted
 		try {
+			if (!$this->info->isReadable()) {
+				// do a if the file did not exist
+				throw new NotFound();
+			}
 			$res = $this->fileView->fopen(ltrim($this->path, '/'), 'rb');
 			if ($res === false) {
 				throw new ServiceUnavailable("Could not open file");
@@ -435,6 +457,10 @@ class File extends Node implements IFile {
 
 					$chunk_handler->file_assemble($partStorage, $partInternalPath);
 
+					if (!self::isChecksumValid($partStorage, $partInternalPath)) {
+						throw new BadRequest('The computed checksum does not match the one received from the client.');
+					}
+
 					// here is the final atomic rename
 					$renameOkay = $targetStorage->moveFromStorage($partStorage, $partInternalPath, $targetInternalPath);
 					$fileExists = $targetStorage->file_exists($targetInternalPath);
@@ -456,9 +482,11 @@ class File extends Node implements IFile {
 				}
 
 				// allow sync clients to send the mtime along in a header
-				$request = \OC::$server->getRequest();
-				if (isset($request->server['HTTP_X_OC_MTIME'])) {
-					if ($targetStorage->touch($targetInternalPath, $request->server['HTTP_X_OC_MTIME'])) {
+				if (isset($this->request->server['HTTP_X_OC_MTIME'])) {
+					$mtime = $this->sanitizeMtime(
+						$this->request->server ['HTTP_X_OC_MTIME']
+					);
+					if ($targetStorage->touch($targetInternalPath, $mtime)) {
 						header('X-OC-MTime: accepted');
 					}
 				}
@@ -473,12 +501,19 @@ class File extends Node implements IFile {
 				// FIXME: should call refreshInfo but can't because $this->path is not the of the final file
 				$info = $this->fileView->getFileInfo($targetPath);
 
-				if (isset($request->server['HTTP_OC_CHECKSUM'])) {
-					$checksum = trim($request->server['HTTP_OC_CHECKSUM']);
-					$this->fileView->putFileInfo($targetPath, ['checksum' => $checksum]);
-				} else if ($info->getChecksum() !== null && $info->getChecksum() !== '') {
-					$this->fileView->putFileInfo($this->path, ['checksum' => '']);
+
+				if (isset($partStorage) && isset($partInternalPath)) {
+					$checksums = $partStorage->getMetaData($partInternalPath)['checksum'];
+				} else {
+					$checksums = $targetStorage->getMetaData($targetInternalPath)['checksum'];
 				}
+
+				$this->fileView->putFileInfo(
+					$targetPath,
+					['checksum' => $checksums]
+				);
+
+				$this->refreshInfo();
 
 				$this->fileView->unlockFile($targetPath, ILockingProvider::LOCK_SHARED);
 
@@ -495,6 +530,29 @@ class File extends Node implements IFile {
 	}
 
 	/**
+	 * will return true if checksum was not provided in request
+	 *
+	 * @param Storage $storage
+	 * @param $path
+	 * @return bool
+	 */
+	private static function isChecksumValid(Storage $storage, $path) {
+		$meta = $storage->getMetaData($path);
+		$request = \OC::$server->getRequest();
+
+		if (!isset($request->server['HTTP_OC_CHECKSUM']) || !isset($meta['checksum'])) {
+			// No comparison possible, skip the check
+			return true;
+		}
+
+		$expectedChecksum = trim($request->server['HTTP_OC_CHECKSUM']);
+		$computedChecksums = $meta['checksum'];
+
+		return strpos($computedChecksums, $expectedChecksum) !== false;
+
+	}
+
+	/**
 	 * Returns whether a part file is needed for the given storage
 	 * or whether the file can be assembled/uploaded directly on the
 	 * target storage.
@@ -506,7 +564,8 @@ class File extends Node implements IFile {
 		// TODO: in the future use ChunkHandler provided by storage
 		// and/or add method on Storage called "needsPartFile()"
 		return !$storage->instanceOfStorage('OCA\Files_Sharing\External\Storage') &&
-		!$storage->instanceOfStorage('OC\Files\Storage\OwnCloud');
+			!$storage->instanceOfStorage('OC\Files\Storage\OwnCloud') &&
+			!$storage->instanceOfStorage('OC\Files\ObjectStore\ObjectStoreStorage');
 	}
 
 	/**
@@ -556,12 +615,41 @@ class File extends Node implements IFile {
 		throw new \Sabre\DAV\Exception($e->getMessage(), 0, $e);
 	}
 
+	private function sanitizeMtime ($mtimeFromRequest) {
+		$mtime = (float) $mtimeFromRequest;
+		if ($mtime >= PHP_INT_MAX) {
+			$mtime = PHP_INT_MAX;
+		} elseif ($mtime <= (PHP_INT_MAX*-1)) {
+			$mtime = (PHP_INT_MAX*-1);
+		} else {
+			$mtime = (int) $mtimeFromRequest;
+		}
+		return $mtime;
+	}
+
 	/**
-	 * Get the checksum for this file
-	 *
+	 * Set $algo to get a specific checksum, leave null to get all checksums
+	 * (space seperated)
+	 * @param null $algo
 	 * @return string
 	 */
-	public function getChecksum() {
-		return $this->info->getChecksum();
+	public function getChecksum($algo = null) {
+		$allChecksums = $this->info->getChecksum();
+
+		if (!$algo) {
+			return $allChecksums;
+		}
+
+		$checksums = explode(' ', $allChecksums);
+		$algoPrefix = strtoupper($algo) . ':';
+
+		foreach ($checksums as $checksum) {
+			// starts with $algoPrefix
+			if (substr($checksum, 0, strlen($algoPrefix)) === $algoPrefix) {
+				return $checksum;
+			}
+		}
+
+		return '';
 	}
 }

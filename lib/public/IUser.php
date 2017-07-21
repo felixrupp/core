@@ -6,7 +6,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -199,4 +199,22 @@ interface IUser {
 	 * @since 9.0.0
 	 */
 	public function setQuota($quota);
+
+	/**
+	 * set the users' search terms
+	 *
+	 * @param array $terms
+	 * @return void
+	 * @since 10.0.1
+	 */
+	public function setSearchTerms(array $terms);
+
+	/**
+	 * get the users' search terms
+	 *
+	 * @return array
+	 * @since 10.0.1
+	 */
+	public function getSearchTerms();
+
 }

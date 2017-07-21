@@ -3,6 +3,7 @@
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
+ * @author Michael Jobst <mjobst+github@tecratech.de>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
@@ -10,7 +11,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -45,6 +46,7 @@ use OCP\IConfig;
 use OCP\IRequest;
 use Sabre\DAV\Exception\BadRequest;
 use OCA\DAV\Connector\Sabre\Directory;
+use OCA\DAV\Upload\FutureFile;
 
 class FilesPlugin extends ServerPlugin {
 
@@ -165,6 +167,7 @@ class FilesPlugin extends ServerPlugin {
 			}
 		});
 		$this->server->on('beforeMove', [$this, 'checkMove']);
+		$this->server->on('beforeMove', [$this, 'beforeMoveFutureFile']);
 	}
 
 	/**
@@ -251,7 +254,7 @@ class FilesPlugin extends ServerPlugin {
 		if ($node instanceof \OCA\DAV\Connector\Sabre\File) {
 			//Add OC-Checksum header
 			/** @var $node File */
-			$checksum = $node->getChecksum();
+			$checksum = $node->getChecksum('sha1');
 			if ($checksum !== null && $checksum !== '') {
 				$response->addHeader('OC-Checksum', $checksum);
 			}
@@ -270,6 +273,10 @@ class FilesPlugin extends ServerPlugin {
 		$httpRequest = $this->server->httpRequest;
 
 		if ($node instanceof \OCA\DAV\Connector\Sabre\Node) {
+			if (!$node->getFileInfo()->isReadable()) {
+				// avoid detecting files through this means
+				throw new NotFound();
+			}
 
 			$propFind->handle(self::FILEID_PROPERTYNAME, function() use ($node) {
 				return $node->getFileId();
@@ -361,24 +368,21 @@ class FilesPlugin extends ServerPlugin {
 	 * @return void
 	 */
 	public function handleUpdateProperties($path, PropPatch $propPatch) {
-		$propPatch->handle(self::LASTMODIFIED_PROPERTYNAME, function($time) use ($path) {
+		$node = $this->tree->getNodeForPath($path);
+		if (!($node instanceof \OCA\DAV\Connector\Sabre\Node)) {
+			return;
+		}
+
+		$propPatch->handle(self::LASTMODIFIED_PROPERTYNAME, function($time) use ($node) {
 			if (empty($time)) {
 				return false;
-			}
-			$node = $this->tree->getNodeForPath($path);
-			if (is_null($node)) {
-				return 404;
 			}
 			$node->touch($time);
 			return true;
 		});
-		$propPatch->handle(self::GETETAG_PROPERTYNAME, function($etag) use ($path) {
+		$propPatch->handle(self::GETETAG_PROPERTYNAME, function($etag) use ($node) {
 			if (empty($etag)) {
 				return false;
-			}
-			$node = $this->tree->getNodeForPath($path);
-			if (is_null($node)) {
-				return 404;
 			}
 			if ($node->setEtag($etag) !== -1) {
 				return true;
@@ -414,4 +418,43 @@ class FilesPlugin extends ServerPlugin {
 			}
 		}
 	}
+
+	/**
+	 * Move handler for future file.
+	 *
+	 * This overrides the default move behavior to prevent Sabre
+	 * to delete the target file before moving. Because deleting would
+	 * lose the file id and metadata.
+	 *
+	 * @param string $path source path
+	 * @param string $destination destination path
+	 * @return bool|void false to stop handling, void to skip this handler
+	 */
+	public function beforeMoveFutureFile($path, $destination) {
+		$sourceNode = $this->tree->getNodeForPath($path);
+		if (!$sourceNode instanceof FutureFile) {
+			// skip handling as the source is not a chunked FutureFile
+			return;
+		}
+
+		if (!$this->tree->nodeExists($destination)) {
+			// skip and let the default handler do its work
+			return;
+		}
+
+		// do a move manually, skipping Sabre's default "delete" for existing nodes
+		$this->tree->move($path, $destination);
+
+		// trigger all default events (copied from CorePlugin::move)
+		$this->server->emit('afterMove', [$path, $destination]);
+		$this->server->emit('afterUnbind', [$path]);
+		$this->server->emit('afterBind', [$destination]);
+
+		$response = $this->server->httpResponse;
+		$response->setHeader('Content-Length', '0');
+		$response->setStatus(204);
+
+		return false;
+	}
+
 }

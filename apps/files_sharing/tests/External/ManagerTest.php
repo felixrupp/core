@@ -5,7 +5,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -62,7 +62,7 @@ class ManagerTest extends TestCase {
 		parent::setUp();
 
 		$this->uid = $this->getUniqueID('user');
-		$this->createUser($this->uid, '');
+		$this->createUser($this->uid);
 		$this->user = \OC::$server->getUserManager()->get($this->uid);
 		$this->mountManager = new \OC\Files\Mount\Manager();
 		$this->httpHelper = $httpHelper = $this->getMockBuilder('\OC\HTTPHelper')->disableOriginalConstructor()->getMock();

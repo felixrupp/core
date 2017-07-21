@@ -8,8 +8,10 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Piotr Filiciak <piotr@filiciak.pl>
  * @author Robin Appelman <icewind@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,11 +34,15 @@ OCP\User::checkLoggedIn();
 
 // files can be an array with multiple "files[]=one.txt&files[]=two.txt" or a single file with "files=filename.txt"
 $files_list = isset($_GET['files']) ? $_GET['files'] : '';
-$dir = isset($_GET['dir']) ? (string)$_GET['dir'] : '';
+$dir = isset($_GET['dir']) ? $_GET['dir']: '';
 
 // in case we get only a single file
 if (!is_array($files_list)) {
-	$files_list = [(string)$files_list];
+	$files_list = [$files_list];
+} else {
+	$files_list = array_map(function($file) {
+		return $file;
+	}, $files_list);
 }
 
 /**

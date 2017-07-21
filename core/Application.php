@@ -4,11 +4,12 @@
  * @author Christoph Wurst <christoph@owncloud.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Peter Prochaska <info@peter-prochaska.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -164,9 +165,6 @@ class Application extends App {
 		});
 		$container->registerService('UserSession', function(SimpleContainer $c) {
 			return $c->query('ServerContainer')->getUserSession();
-		});
-		$container->registerService('Session', function(SimpleContainer $c) {
-			return $c->query('ServerContainer')->getSession();
 		});
 		$container->registerService('Cache', function(SimpleContainer $c) {
 			return $c->query('ServerContainer')->getCache();

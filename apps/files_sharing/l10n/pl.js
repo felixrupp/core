@@ -10,6 +10,7 @@ OC.L10N.register(
     "Shared with you" : "Współdzielony z Tobą",
     "Shared with others" : "Współdzielony z innymi",
     "Shared by link" : "Współdzielony linkiem",
+    "Uploading..." : "Wgrywanie....",
     "Nothing shared with you yet" : "Nie masz jeszcze nic udostępnionego",
     "Files and folders others share with you will show up here" : "Pliki i foldery udostępnione Tobie przez innych wyświetlą się tutaj",
     "Nothing shared yet" : "Jeszcze nic nie udostępniono",
@@ -33,6 +34,7 @@ OC.L10N.register(
     "Could not delete share" : "Nie można usunąć zasobu",
     "Please specify a file or folder path" : "Wskaż ścieżkę pliku lub folderu",
     "Wrong path, file/folder doesn't exist" : "Nieprawidłowa ścieżka, plik/folder nie istnieje",
+    "Cannot remove all permissions" : "Nie można usunąć wszystkich uprawnień",
     "Please specify a valid user" : "Proszę określ prawidłowego użytkownika ",
     "Group sharing is disabled by the administrator" : "Udostępnianie linków publicznych zostało zablokowane przez twojego administratora",
     "Please specify a valid group" : "Określ prawidłową grupę",
@@ -52,6 +54,10 @@ OC.L10N.register(
     "You shared %1$s via link" : "Udostępniasz %1$s przez link",
     "%2$s shared %1$s with you" : "%2$s współdzieli %1$s z Tobą",
     "%2$s removed the share for %1$s" : "%2$s usunął udział dla %1$s",
+    "Downloaded via public link" : "Pobrano poprzez odnośnik publiczny",
+    "Shared via public link" : "Udostępniono poprzez publiczny odnośnik",
+    "Removed public link" : "Usunięto publiczny odnośnik",
+    "Public link expired" : "Publiczny odnośnik wygasł",
     "Shares" : "Udziały",
     "This share is password-protected" : "Udział ten jest chroniony hasłem",
     "The password is wrong. Try again." : "To hasło jest niewłaściwe. Spróbuj ponownie.",
@@ -71,4 +77,4 @@ OC.L10N.register(
     "Download %s" : "Pobierz %s",
     "Direct link" : "Bezpośredni link"
 },
-"nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);");
+"nplurals=4; plural=(n==1 ? 0 : (n%10>=2 && n%10<=4) && (n%100<12 || n%100>14) ? 1 : n!=1 && (n%10>=0 && n%10<=1) || (n%10>=5 && n%10<=9) || (n%100>=12 && n%100<=14) ? 2 : 3);");

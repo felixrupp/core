@@ -80,13 +80,14 @@ class ViewTest extends TestCase {
 		parent::setUp();
 		\OC_Hook::clear();
 
-		\OC_User::clearBackends();
-		\OC_User::useBackend(new \Test\Util\User\Dummy());
-
 		//login
 		$userManager = \OC::$server->getUserManager();
 		$groupManager = \OC::$server->getGroupManager();
 		$this->user = 'test';
+		if ($userManager->userExists('test')) {
+			$this->userObject = $userManager->get('test');
+			$this->userObject->delete();
+		}
 		$this->userObject = $userManager->createUser('test', 'test');
 
 		$this->groupObject = $groupManager->createGroup('group1');
@@ -114,12 +115,17 @@ class ViewTest extends TestCase {
 
 		$this->logout();
 
-		$this->userObject->delete();
-		$this->groupObject->delete();
+		if ($this->userObject !== null) {
+			$this->userObject->delete();
+		}
+		if ($this->groupObject !== null) {
+			$this->groupObject->delete();
+		}
 
 		$mountProviderCollection = \OC::$server->getMountProviderCollection();
 		TestCase::invokePrivate($mountProviderCollection, 'providers', [[]]);
 
+		\OC::$server->getLockingProvider()->releaseAll();
 		parent::tearDown();
 	}
 
@@ -514,6 +520,30 @@ class ViewTest extends TestCase {
 
 		$this->assertFalse($rootView->file_exists('foo.txt'));
 		$this->assertFalse($rootView->file_exists('substorage/bar.txt'));
+	}
+
+	public function rmdirOrUnlinkDataProvider() {
+		return [['rmdir'], ['unlink']];
+	}
+
+	/**
+	 * @dataProvider rmdirOrUnlinkDataProvider
+	 */
+	public function testRmdir($method) {
+		$storage1 = $this->getTestStorage();
+		$storage2 = $this->getTestStorage();
+		Filesystem::mount($storage1, [], '/');
+
+		$rootView = new View('');
+		$rootView->mkdir('sub');
+		$rootView->mkdir('sub/deep');
+		$rootView->file_put_contents('/sub/deep/foo.txt', 'asd');
+
+		$this->assertTrue($rootView->file_exists('sub/deep/foo.txt'));
+
+		$this->assertTrue($rootView->$method('sub'));
+
+		$this->assertFalse($rootView->file_exists('sub'));
 	}
 
 	/**
@@ -1699,6 +1729,8 @@ class ViewTest extends TestCase {
 				ILockingProvider::LOCK_SHARED,
 				ILockingProvider::LOCK_SHARED,
 				null,
+				// shared lock stays until fclose
+				ILockingProvider::LOCK_SHARED,
 			],
 			[
 				'opendir',
@@ -1773,19 +1805,23 @@ class ViewTest extends TestCase {
 		$storage->expects($this->once())
 			->method($operation)
 			->will($this->returnCallback(
-				function () use ($view, $lockedPath, &$lockTypeDuring) {
+				function () use ($view, $lockedPath, &$lockTypeDuring, $operation) {
 					$lockTypeDuring = $this->getFileLockType($view, $lockedPath);
 
+					if ($operation === 'fopen') {
+						return fopen('data://text/plain,test', 'r');
+					}
 					return true;
 				}
 			));
 
-		$this->assertNull($this->getFileLockType($view, $lockedPath), 'File not locked before operation');
+		$lp = get_class(\OC::$server->getLockingProvider());
+		$this->assertNull($this->getFileLockType($view, $lockedPath), "File not locked before operation ($lp)");
 
 		$this->connectMockHooks($hookType, $view, $lockedPath, $lockTypePre, $lockTypePost);
 
 		// do operation
-		call_user_func_array([$view, $operation], $operationArgs);
+		$result = call_user_func_array([$view, $operation], $operationArgs);
 
 		if ($hookType !== null) {
 			$this->assertEquals($expectedLockBefore, $lockTypePre, 'File locked properly during pre-hook');
@@ -1796,6 +1832,13 @@ class ViewTest extends TestCase {
 		}
 
 		$this->assertEquals($expectedStrayLock, $this->getFileLockType($view, $lockedPath));
+
+		if (is_resource($result)) {
+			fclose($result);
+
+			// lock is cleared after fclose
+			$this->assertNull($this->getFileLockType($view, $lockedPath));
+		}
 	}
 
 	/**
@@ -2423,24 +2466,49 @@ class ViewTest extends TestCase {
 		$this->assertEquals($expected, $files);
 	}
 
+	private function calculateChecksums($data) {
+		// Get hashing algorithms and calculate checksum for given data
+		$checksumString = '';
+		$checksums['sha1'] = hash('sha1', $data);
+		$checksums['md5'] = hash('md5', $data);
+		$checksums['adler32'] = hash('adler32', $data);
+		foreach ($checksums as $algo => $checksum) {
+			$checksumString .= sprintf('%s:%s ', strtoupper($algo), $checksum);
+		}
+		return rtrim($checksumString);
+	}
+
 	public function testFilePutContentsClearsChecksum() {
 		$storage = new Temporary([]);
 		$scanner = $storage->getScanner();
-		$storage->file_put_contents('foo.txt', 'bar');
-		Filesystem::mount($storage, [], '/test/');
+		$storage->mkdir('files');
+		$storage->file_put_contents('files/foo.txt', 'bar');
+		Filesystem::mount($storage, [], '/files');
 		$scanner->scan('');
 
-		$view = new View('/test/foo.txt');
-		$view->putFileInfo('.', ['checksum' => '42']);
+		// Obtain view on the file and check content + checksum
+		// If we insert file using $storage->file_put_contents checksum is not being calculated (null)
+		$view = new View('/files');
+		$this->assertEquals('bar', $view->file_get_contents('files/foo.txt'));
+		$data = $view->getFileInfo('files/foo.txt');
+		$this->assertNull($data->getChecksum());
 
-		$this->assertEquals('bar', $view->file_get_contents(''));
+		// Force some checksum in the file and verify
+		$view->putFileInfo('files/foo.txt', ['checksum' => '42']);
+		$data = $view->getFileInfo('files/foo.txt');
+		$checksum = $data->getChecksum();
+		$this->assertEquals('42', $checksum);
+
+		// Now use Wrapper/Checksum to calculate checksum for us (normal PUT case)
 		$fh = tmpfile();
 		fwrite($fh, 'fooo');
 		rewind($fh);
-		$view->file_put_contents('', $fh);
-		$this->assertEquals('fooo', $view->file_get_contents(''));
-		$data = $view->getFileInfo('.');
-		$this->assertEquals('', $data->getChecksum());
+		$view->file_put_contents('files/foo.txt', $fh);
+		$this->assertEquals('fooo', $view->file_get_contents('files/foo.txt'));
+		$data = $view->getFileInfo('files/foo.txt');
+		$checksum = $data->getChecksum();
+		$expectedChecksum = $this->calculateChecksums('fooo');
+		$this->assertEquals($expectedChecksum, $checksum);
 	}
 
 	public function testDeleteGhostFile() {
@@ -2490,5 +2558,24 @@ class ViewTest extends TestCase {
 		$this->assertFalse($cache->inCache('foo/foo.txt'));
 		$this->assertNotEquals($rootInfo->getEtag(), $newInfo->getEtag());
 		$this->assertEquals(0, $newInfo->getSize());
+	}
+
+	public function testFopenFail() {
+		// since stream wrappers influence the streams,
+		// this test makes sure that all stream wrappers properly return a failure
+		// to the caller instead of wrapping the boolean
+		/** @var Temporary | \PHPUnit_Framework_MockObject_MockObject $storage */
+		$storage = $this->getMockBuilder(Temporary::class)
+			->setMethods(['fopen'])
+			->getMock();
+
+		$storage->expects($this->once())
+			->method('fopen')
+			->willReturn(false);
+
+		Filesystem::mount($storage, [], '/');
+		$view = new View('/files');
+		$result = $view->fopen('unexist.txt', 'r');
+		$this->assertFalse($result);
 	}
 }

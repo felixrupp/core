@@ -3,10 +3,13 @@
  * @author Bart Visscher <bartv@thisnet.nl>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
+ * @author Michael Jobst <mjobst+github@tecratech.de>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Philipp Schaffrath <github@philippschaffrath.de>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -82,13 +85,13 @@ abstract class ResourceLocator {
 				$this->logger->error('Could not find resource file "' . $e->getResourcePath() . '"', ['app' => $resourceApp]);
 			}
 		}
-		if (!empty($this->theme)) {
+		if (!empty($this->theme->getName())) {
 			foreach ($resources as $resource) {
 				try {
 					$this->doFindTheme($resource);
 				} catch (ResourceNotFoundException $e) {
 					$resourceApp = substr($resource, 0, strpos($resource, '/'));
-					$this->logger->error('Could not find resource file "' . $e->getResourcePath() . '"', ['app' => $resourceApp]);
+					$this->logger->error('Could not find resource file in theme "' . $e->getResourcePath() . '"', ['app' => $resourceApp]);
 				}
 			}
 		}
@@ -103,7 +106,7 @@ abstract class ResourceLocator {
 	 * @return bool True if the resource was found, false otherwise
 	 */
 	protected function appendOnceIfExist($root, $file, $webRoot = null) {
-
+		$file = ltrim($file, '/');
 		$path = $this->buildPath([$root, $file]);
 		
 		if (!isset( $this->resources[$path] ) && is_file($path)) {

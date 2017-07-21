@@ -25,6 +25,7 @@
 namespace Test\AppFramework\Controller;
 
 use OC\AppFramework\Http\Request;
+use OC\OCS\Result;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IConfig;
@@ -135,8 +136,11 @@ class OCSControllerTest extends TestCase {
 		$this->assertEquals($expected, $out);
 	}
 
-
-	public function testJSON() {
+	/**
+	 * @dataProvider providesData
+	 * @param $params
+	 */
+	public function testJSON($params) {
 		$controller = new ChildOCSController('app', new Request(
 			[
 				'urlParams' => [
@@ -152,16 +156,51 @@ class OCSControllerTest extends TestCase {
 		));
 		$expected = '{"ocs":{"meta":{"status":"failure","statuscode":400,"message":"OK",' .
 		            '"totalitems":"","itemsperpage":""},"data":{"test":"hi"}}}';
-		$params = [
-			'data' => [
-				'test' => 'hi'
-			],
-			'statuscode' => 400
-		];
 
 		$out = $controller->buildResponse($params, 'json')->render();
 		$this->assertEquals($expected, $out);
 	}
 
+	public function providesData() {
+		return [
+			'array' => [[
+				'data' => [
+					'test' => 'hi'
+				],
+				'statuscode' => 400]
+			],
+			'ocs-resuls' => [new Result([
+				'test' => 'hi'
+			], 400, 'OK')]
+		];
+	}
 
+	public function testStatusCodeMapping() {
+		$configMock = $this->createMock(IConfig::class);
+		$configMock->method('getSystemValue')->willReturn('');
+		$controller = new ChildOCSController('app', new Request(
+			[
+				'urlParams' => [
+					'format' => 'json',
+				],
+				'server' => [
+					'SCRIPT_NAME' => '/ocs/v2.php',
+					'SCRIPT_FILENAME' => 'v2.php',
+				],
+			],
+			$this->createMock(ISecureRandom::class),
+			$configMock
+		));
+		$expected = '{"ocs":{"meta":{"status":"failure","statuscode":200,"message":"OK",' .
+		            '"totalitems":"","itemsperpage":""},"data":{"test":"hi"}}}';
+		$params = [
+			'data' => [
+				'test' => 'hi'
+			],
+			'statuscode' => 100
+		];
+
+		$out = $controller->buildResponse($params, 'json')->render();
+		$this->assertEquals($expected, $out);
+	}
 }

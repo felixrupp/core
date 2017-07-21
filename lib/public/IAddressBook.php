@@ -5,7 +5,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -55,10 +55,12 @@ namespace OCP {
 		 * @param string $pattern which should match within the $searchProperties
 		 * @param array $searchProperties defines the properties within the query pattern should match
 		 * @param array $options - for future use. One should always have options!
+		 * @param int $limit
+		 * @param int $offset
 		 * @return array an array of contacts which are arrays of key-value-pairs
 		 * @since 5.0.0
 		 */
-		public function search($pattern, $searchProperties, $options);
+		public function search($pattern, $searchProperties, $options, $limit = null, $offset = null);
 		//	// dummy results
 		//	return array(
 		//		array('id' => 0, 'FN' => 'Thomas Müller', 'EMAIL' => 'a@b.c', 'GEO' => '37.386013;-122.082932'),

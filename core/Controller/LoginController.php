@@ -3,9 +3,10 @@
  * @author Christoph Wurst <christoph@owncloud.com>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
+ * @author Semih Serhat Karakaya <karakayasemi@itu.edu.tr>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -144,9 +145,16 @@ class LoginController extends Controller {
 					$parameters['canResetPassword'] = $userObj->canChangePassword();
 				}
 			}
+		} elseif ($parameters['resetPasswordLink'] === 'disabled') {
+			$parameters['canResetPassword'] = false;
 		}
 
-		$parameters['alt_login'] = OC_App::getAlternativeLogIns();
+		$altLogins = OC_App::getAlternativeLogIns();
+		$altLogins2 = $this->config->getSystemValue('login.alternatives');
+		if (is_array($altLogins2) && !empty($altLogins2)) {
+			$altLogins = array_merge($altLogins, $altLogins2);
+		}
+		$parameters['alt_login'] = $altLogins;
 		$parameters['rememberLoginAllowed'] = OC_Util::rememberLoginAllowed();
 		$parameters['rememberLoginState'] = !empty($remember_login) ? $remember_login : 0;
 
@@ -175,17 +183,16 @@ class LoginController extends Controller {
 	public function tryLogin($user, $password, $redirect_url) {
 		$originalUser = $user;
 		// TODO: Add all the insane error handling
-		/* @var $loginResult IUser */
-		$loginResult = $this->userManager->checkPassword($user, $password);
-		if ($loginResult === false) {
+		$loginResult = $this->userSession->login($user, $password);
+		if ($loginResult !== true) {
 			$users = $this->userManager->getByEmail($user);
 			// we only allow login by email if unique
 			if (count($users) === 1) {
 				$user = $users[0]->getUID();
-				$loginResult = $this->userManager->checkPassword($user, $password);
+				$loginResult = $this->userSession->login($user, $password);
 			}
 		}
-		if ($loginResult === false) {
+		if ($loginResult !== true) {
 			$this->session->set('loginMessages', [
 				['invalidpassword'], []
 			]);
@@ -193,9 +200,10 @@ class LoginController extends Controller {
 			$args = !is_null($user) ? ['user' => $originalUser] : [];
 			return new RedirectResponse($this->urlGenerator->linkToRoute('core.login.showLoginForm', $args));
 		}
+		/* @var $loginResult IUser */
+		$loginResult = $this->userManager->get($user);
 		// TODO: remove password checks from above and let the user session handle failures
 		// requires https://github.com/owncloud/core/pull/24616
-		$this->userSession->login($user, $password);
 		$this->userSession->createSessionToken($this->request, $loginResult->getUID(), $user, $password);
 
 		// User has successfully logged in, now remove the password reset link, when it is available

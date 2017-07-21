@@ -10,7 +10,7 @@
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -167,9 +167,6 @@ if (OC::checkUpgrade(false)) {
 	});
 	$updater->listen('\OC\Updater', 'incompatibleAppDisabled', function ($app) use (&$incompatibleApps) {
 		$incompatibleApps[]= $app;
-	});
-	$updater->listen('\OC\Updater', 'thirdPartyAppDisabled', function ($app) use (&$disabledThirdPartyApps) {
-		$disabledThirdPartyApps[]= $app;
 	});
 	$updater->listen('\OC\Updater', 'failure', function ($message) use ($eventSource, $config) {
 		$eventSource->send('failure', $message);

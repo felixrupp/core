@@ -4,7 +4,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -57,6 +57,9 @@ class CustomPropertiesBackendTest extends \Test\TestCase {
 	 * @var \OCP\IUser
 	 */
 	private $user;
+	
+	/** @var int */
+	private $maxId;
 
 	public function setUp() {
 		parent::setUp();
@@ -77,17 +80,27 @@ class CustomPropertiesBackendTest extends \Test\TestCase {
 			\OC::$server->getDatabaseConnection(),
 			$this->user
 		);
+		
+		
+		$connection = \OC::$server->getDatabaseConnection();
+		$qb = $connection->getQueryBuilder();
+		$maxFunction = $qb->createFunction(
+				"MAX(`id`)"
+			);
+		$this->maxId = (int) $qb->select($maxFunction)
+			->from('properties')
+			->execute()->fetchColumn();
 	}
 
 	public function tearDown() {
 		$connection = \OC::$server->getDatabaseConnection();
 		$deleteStatement = $connection->prepare(
 			'DELETE FROM `*PREFIX*properties`' .
-			' WHERE `userid` = ?'
+			' WHERE `id` > ?'
 		);
 		$deleteStatement->execute(
 			[
-				$this->user->getUID(),
+				$this->maxId,
 			]
 		);
 		$deleteStatement->closeCursor();

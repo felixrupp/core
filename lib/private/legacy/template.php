@@ -2,7 +2,6 @@
 /**
  * @author Adam Williamson <awilliam@redhat.com>
  * @author Bart Visscher <bartv@thisnet.nl>
- * @author Björn Schießle <bjoern@schiessle.org>
  * @author Brice Maron <brice@bmaron.net>
  * @author Frank Karlitschek <frank@karlitschek.de>
  * @author Hendrik Leppelsack <hendrik@leppelsack.de>
@@ -13,13 +12,14 @@
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author phisch <git@philippschaffrath.de>
  * @author Raghu Nayyar <hey@raghunayyar.com>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -189,7 +189,7 @@ class OC_Template extends \OC\Template\Base {
 	 */
 	protected function findTemplate($theme, $app, $name) {
 		// Check if it is a app template or not.
-		if( $app !== '' ) {
+		if( $app !== '' && $app !== 'core' ) {
 			$dirs = $this->getAppTemplateDirs($theme, $app, OC::$SERVERROOT, OC_App::getAppPath($app));
 		} else {
 			$dirs = $this->getCoreTemplateDirs($theme, OC::$SERVERROOT);
@@ -218,7 +218,9 @@ class OC_Template extends \OC\Template\Base {
 
 	/**
 	 * Process the template
-	 * @return boolean|string
+	 *
+	 * @param array|null $additionalParams
+	 * @return bool|string This function process the template. If $this->renderAs is set, it
 	 *
 	 * This function process the template. If $this->renderAs is set, it
 	 * will produce a full page.
@@ -316,8 +318,9 @@ class OC_Template extends \OC\Template\Base {
 		* Print a fatal error page and terminates the script
 		* @param string $error_msg The error message to show
 		* @param string $hint An optional hint message - needs to be properly escaped
+		* @param int HTTP Status Code
 		*/
-	public static function printErrorPage( $error_msg, $hint = '' ) {
+	public static function printErrorPage( $error_msg, $hint = '', $httpStatusCode = null ) {
 		if ($error_msg === $hint) {
 			// If the hint is the same as the message there is no need to display it twice.
 			$hint = '';
@@ -325,8 +328,11 @@ class OC_Template extends \OC\Template\Base {
 
 		try {
 			$content = new \OC_Template( '', 'error', 'error', false );
-			$errors = [['error' => $error_msg, 'hint' => $hint]];
+			$errors = [['error' => \OCP\Util::sanitizeHTML($error_msg), 'hint' => \OCP\Util::sanitizeHTML($hint)]];
 			$content->assign( 'errors', $errors );
+			if ($httpStatusCode !== null) {
+				http_response_code((int)$httpStatusCode);
+			}
 			$content->printPage();
 		} catch (\Exception $e) {
 			$logger = \OC::$server->getLogger();
@@ -398,46 +404,5 @@ class OC_Template extends \OC\Template\Base {
 			return $claimedProtocol;
 		}
 		return 'HTTP/1.1';
-	}
-
-	/**
-	 * @return bool
-	 */
-	public static function isAssetPipelineEnabled() {
-		try {
-			if (\OCP\Util::needUpgrade()) {
-				// Don't use the compiled asset when we need to do an update
-				return false;
-			}
-		} catch (\Exception $e) {
-			// Catch any exception, because this code is also called when displaying
-			// an exception error page.
-			return false;
-		}
-
-		// asset management enabled?
-		$config = \OC::$server->getConfig();
-		$useAssetPipeline = $config->getSystemValue('asset-pipeline.enabled', false);
-		if (!$useAssetPipeline) {
-			return false;
-		}
-
-		// assets folder exists?
-		$assetDir = $config->getSystemValue('assetdirectory', \OC::$SERVERROOT) . '/assets';
-		if (!is_dir($assetDir)) {
-			if (!mkdir($assetDir)) {
-				\OCP\Util::writeLog('assets',
-					"Folder <$assetDir> does not exist and/or could not be generated.", \OCP\Util::ERROR);
-				return false;
-			}
-		}
-
-		// assets folder can be accessed?
-		if (!touch($assetDir."/.oc")) {
-			\OCP\Util::writeLog('assets',
-				"Folder <$assetDir> could not be accessed.", \OCP\Util::ERROR);
-			return false;
-		}
-		return $useAssetPipeline;
 	}
 }

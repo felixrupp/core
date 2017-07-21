@@ -7,7 +7,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,8 +32,9 @@ use OCP\IUserManager;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IDBConnection;
+use OCP\ISubAdminManager;
 
-class SubAdmin extends PublicEmitter {
+class SubAdmin extends PublicEmitter implements ISubAdminManager {
 
 	/** @var IUserManager */
 	private $userManager;

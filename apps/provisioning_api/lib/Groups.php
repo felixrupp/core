@@ -6,7 +6,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -71,7 +71,7 @@ class Groups{
 			$offset = (int)$offset;
 		}
 
-		$groups = $this->groupManager->search($search, $limit, $offset);
+		$groups = $this->groupManager->search($search, $limit, $offset, 'management');
 		$groups = array_map(function($group) {
 			/** @var IGroup $group */
 			return $group->getGID();

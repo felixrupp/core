@@ -15,7 +15,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -201,8 +201,6 @@ class Scanner extends BasicEmitter implements IScanner {
 					$fileId = -1;
 				}
 				if (!empty($newData)) {
-					// Reset the checksum if the data has changed
-					$newData['checksum'] = '';
 					$data['fileid'] = $this->addToCache($file, $newData, $fileId);
 				}
 				if (isset($cacheData['size'])) {

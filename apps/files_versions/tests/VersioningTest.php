@@ -13,7 +13,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -35,6 +35,7 @@ namespace OCA\Files_Versions\Tests;
 require_once __DIR__ . '/../appinfo/app.php';
 
 use OC\Files\Storage\Temporary;
+use Test\TestCase;
 
 /**
  * Class Test_Files_versions
@@ -42,7 +43,7 @@ use OC\Files\Storage\Temporary;
  *
  * @group DB
  */
-class VersioningTest extends \Test\TestCase {
+class VersioningTest extends TestCase {
 
 	const TEST_VERSIONS_USER = 'test-versions-user';
 	const TEST_VERSIONS_USER2 = 'test-versions-user2';
@@ -115,6 +116,57 @@ class VersioningTest extends \Test\TestCase {
 		\OC_Hook::clear();
 
 		parent::tearDown();
+	}
+
+
+	public function testMoveFileIntoSharedFolderAsRecipient() {
+
+		\OC\Files\Filesystem::mkdir('folder1');
+		$fileInfo = \OC\Files\Filesystem::getFileInfo('folder1');
+
+		$node = \OC::$server->getUserFolder(self::TEST_VERSIONS_USER)->get('folder1');
+		$share = \OC::$server->getShareManager()->newShare();
+		$share->setNode($node)
+			->setShareType(\OCP\Share::SHARE_TYPE_USER)
+			->setSharedBy(self::TEST_VERSIONS_USER)
+			->setSharedWith(self::TEST_VERSIONS_USER2)
+			->setPermissions(\OCP\Constants::PERMISSION_ALL);
+		$share = \OC::$server->getShareManager()->createShare($share);
+
+		self::loginHelper(self::TEST_VERSIONS_USER2);
+		$versionsFolder2 = '/' . self::TEST_VERSIONS_USER2 . '/files_versions';
+		\OC\Files\Filesystem::file_put_contents('test.txt', 'test file');
+
+		$t1 = time();
+		// second version is two weeks older, this way we make sure that no
+		// version will be expired
+		$t2 = $t1 - 60 * 60 * 24 * 14;
+
+		$this->rootView->mkdir($versionsFolder2);
+		// create some versions
+		$v1 = $versionsFolder2 . '/test.txt.v' . $t1;
+		$v2 = $versionsFolder2 . '/test.txt.v' . $t2;
+
+		$this->rootView->file_put_contents($v1, 'version1');
+		$this->rootView->file_put_contents($v2, 'version2');
+
+		// move file into the shared folder as recipient
+		\OC\Files\Filesystem::rename('/test.txt', '/folder1/test.txt');
+
+		$this->assertFalse($this->rootView->file_exists($v1));
+		$this->assertFalse($this->rootView->file_exists($v2));
+
+		self::loginHelper(self::TEST_VERSIONS_USER);
+
+		$versionsFolder1 = '/' . self::TEST_VERSIONS_USER . '/files_versions';
+
+		$v1Renamed = $versionsFolder1 . '/folder1/test.txt.v' . $t1;
+		$v2Renamed = $versionsFolder1 . '/folder1/test.txt.v' . $t2;
+
+		$this->assertTrue($this->rootView->file_exists($v1Renamed));
+		$this->assertTrue($this->rootView->file_exists($v2Renamed));
+
+		\OC::$server->getShareManager()->deleteShare($share);
 	}
 
 	/**
@@ -377,56 +429,6 @@ class VersioningTest extends \Test\TestCase {
 		$this->assertTrue($this->rootView->file_exists($v2Renamed));
 	}
 
-
-	public function testMoveFileIntoSharedFolderAsRecipient() {
-
-		\OC\Files\Filesystem::mkdir('folder1');
-		$fileInfo = \OC\Files\Filesystem::getFileInfo('folder1');
-
-		$node = \OC::$server->getUserFolder(self::TEST_VERSIONS_USER)->get('folder1');
-		$share = \OC::$server->getShareManager()->newShare();
-		$share->setNode($node)
-			->setShareType(\OCP\Share::SHARE_TYPE_USER)
-			->setSharedBy(self::TEST_VERSIONS_USER)
-			->setSharedWith(self::TEST_VERSIONS_USER2)
-			->setPermissions(\OCP\Constants::PERMISSION_ALL);
-		$share = \OC::$server->getShareManager()->createShare($share);
-
-		self::loginHelper(self::TEST_VERSIONS_USER2);
-		$versionsFolder2 = '/' . self::TEST_VERSIONS_USER2 . '/files_versions';
-		\OC\Files\Filesystem::file_put_contents('test.txt', 'test file');
-
-		$t1 = time();
-		// second version is two weeks older, this way we make sure that no
-		// version will be expired
-		$t2 = $t1 - 60 * 60 * 24 * 14;
-
-		$this->rootView->mkdir($versionsFolder2);
-		// create some versions
-		$v1 = $versionsFolder2 . '/test.txt.v' . $t1;
-		$v2 = $versionsFolder2 . '/test.txt.v' . $t2;
-
-		$this->rootView->file_put_contents($v1, 'version1');
-		$this->rootView->file_put_contents($v2, 'version2');
-
-		// move file into the shared folder as recipient
-		\OC\Files\Filesystem::rename('/test.txt', '/folder1/test.txt');
-
-		$this->assertFalse($this->rootView->file_exists($v1));
-		$this->assertFalse($this->rootView->file_exists($v2));
-
-		self::loginHelper(self::TEST_VERSIONS_USER);
-
-		$versionsFolder1 = '/' . self::TEST_VERSIONS_USER . '/files_versions';
-
-		$v1Renamed = $versionsFolder1 . '/folder1/test.txt.v' . $t1;
-		$v2Renamed = $versionsFolder1 . '/folder1/test.txt.v' . $t2;
-
-		$this->assertTrue($this->rootView->file_exists($v1Renamed));
-		$this->assertTrue($this->rootView->file_exists($v2Renamed));
-
-		\OC::$server->getShareManager()->deleteShare($share);
-	}
 
 	public function testMoveFolderIntoSharedFolderAsRecipient() {
 
@@ -886,9 +888,7 @@ class VersioningTest extends \Test\TestCase {
 	public static function loginHelper($user, $create = false) {
 
 		if ($create) {
-			$backend  = new \Test\Util\User\Dummy();
-			$backend->createUser($user, $user);
-			\OC::$server->getUserManager()->registerBackend($backend);
+			\OC::$server->getUserManager()->createUser($user, $user);
 		}
 
 		$storage = new \ReflectionClass('\OCA\Files_Sharing\SharedStorage');

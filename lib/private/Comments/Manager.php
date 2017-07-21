@@ -4,7 +4,7 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -181,11 +181,10 @@ class Manager implements ICommentsManager {
 	 * @throws \InvalidArgumentException
 	 */
 	protected function checkRoleParameters($role, $type, $id) {
-		if(
-			   !is_string($type) || empty($type)
-			|| !is_string($id) || empty($id)
+		if (!is_string($type) || empty($type) ||
+		    !is_string($id) || ($id === '')
 		) {
-			throw new \InvalidArgumentException($role . ' parameters must be string and not empty');
+			throw new \InvalidArgumentException($role . ' parameters must be a non-blank string');
 		}
 	}
 
@@ -366,6 +365,57 @@ class Manager implements ICommentsManager {
 		$resultStatement->closeCursor();
 
 		return $comments;
+	}
+
+	/**
+	 * Returns number of unread messages for specified nodeIDs, if there are any unread comments. For more details refer to interface description
+	 *
+	 * @param string $objectType string the object type
+	 * @param int[] $objectIds NodeIDs that may be returned
+	 * @param IUser $user
+	 * @return int[] $unreadCountsForNodes hash table
+	 * @since 10.0.0
+	 */
+	public function getNumberOfUnreadCommentsForNodes($objectType, $objectIds, IUser $user) {
+		$qbMain = $this->dbConn->getQueryBuilder();
+		$qbSup = $this->dbConn->getQueryBuilder();
+		
+		$unreadCountsForNodes = array();
+		$objectIdChunks = array_chunk($objectIds, 100);
+		foreach ($objectIdChunks as $objectIdChunk) {
+			// Fetch only records from oc_comments which are in specified int[] NodeIDs array and satisfy specified $objectType
+			$qbMain->selectAlias('object_id', 'id')->selectAlias($qbMain->createFunction('COUNT(`object_id`)'), 'count')
+				->from('comments', 'c')
+				->where($qbMain->expr()->eq('object_type', $qbMain->createParameter('type')))
+				->andWhere($qbMain->expr()->in('object_id', $qbMain->createParameter('object_ids')))
+				->setParameter('type', $objectType)
+				->setParameter('object_ids', $objectIdChunk, IQueryBuilder::PARAM_INT_ARRAY);
+
+			// For those found object_id, find all records from oc_comments which are not existing in oc_comments_read_markers or
+			// if matched, its timestamp is lower then the one in oc_comments_read_markers
+			// This query will find all unread comments for user oc_comments_read_markers.user_id $user
+			$qbSup->select('object_id')
+				->from('comments_read_markers', 'crm')
+				->where($qbMain->expr()->eq('crm.user_id', $qbMain->createParameter('crm_user_id')))
+				->andWhere($qbMain->expr()->gte('crm.marker_datetime', 'c.creation_timestamp'))
+				->andWhere($qbMain->expr()->eq('c.object_id', 'crm.object_id'));
+			$qbMain->setParameter('crm_user_id', $user->getUID(), IQueryBuilder::PARAM_STR);
+
+			// Add Inner Select into the main query in NOT IN() clause
+			$qbMain->andWhere($qbMain->expr()->notIn('object_id', $qbMain->createFunction($qbSup->getSQL())));
+
+			// We need groupby for count function
+			$qbMain->groupBy('object_id');
+
+			$cursor = $qbMain->execute();
+
+			while ($data = $cursor->fetch()) {
+				$unreadCountsForNodes[$data['id']] = intval($data['count']);
+			}
+			$cursor->closeCursor();
+		}
+
+		return $unreadCountsForNodes;
 	}
 
 	/**

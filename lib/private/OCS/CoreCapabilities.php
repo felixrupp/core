@@ -3,7 +3,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ namespace OC\OCS;
 
 use OCP\Capabilities\ICapability;
 use OCP\IConfig;
+use OCP\Util;
 
 /**
  * Class Capabilities
@@ -52,6 +53,7 @@ class CoreCapabilities implements ICapability {
 			'core' => [
 				'pollinterval' => $this->config->getSystemValue('pollinterval', 60),
 				'webdav-root' => $this->config->getSystemValue('webdav-root', 'remote.php/webdav'),
+				'status' => Util::getStatusInfo(true),
 			]
 		];
 	}

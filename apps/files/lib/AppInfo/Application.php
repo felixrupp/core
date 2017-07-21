@@ -2,10 +2,11 @@
 /**
  * @author Christoph Wurst <christoph@owncloud.com>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tobias Kaminsky <tobias@kaminsky.me>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,10 +25,10 @@
 namespace OCA\Files\AppInfo;
 
 use OCA\Files\Controller\ApiController;
+use OCA\Files\Controller\ViewController;
 use OCP\AppFramework\App;
 use \OCA\Files\Service\TagService;
 use \OCP\IContainer;
-use OCA\Files\Controller\ViewController;
 
 class Application extends App {
 	public function __construct(array $urlParams= []) {
@@ -55,7 +56,6 @@ class Application extends App {
 				$c->query('AppName'),
 				$c->query('Request'),
 				$server->getURLGenerator(),
-				$server->getNavigationManager(),
 				$c->query('L10N'),
 				$server->getConfig(),
 				$server->getEventDispatcher(),

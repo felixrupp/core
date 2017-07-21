@@ -3,7 +3,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author scolebrook <scolebrook@mac.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -61,6 +61,7 @@ class Mode extends Command {
 		if ($input->getOption('on')) {
 			$this->config->setSystemValue('maintenance', true);
 			$output->writeln('Maintenance mode enabled');
+			$output->writeln('Please also consider to stop the web server on all ownCloud instances');
 		} elseif ($input->getOption('off')) {
 			$this->config->setSystemValue('maintenance', false);
 			$output->writeln('Maintenance mode disabled');

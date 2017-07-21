@@ -3,9 +3,10 @@
  * @author Christoph Wurst <christoph@owncloud.com>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,7 +33,6 @@ use Test\TestCase;
 use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\AppFramework\Http\RedirectResponse;
-use OCP\INavigationManager;
 use OCP\IL10N;
 use OCP\IConfig;
 use OCP\IUserSession;
@@ -50,8 +50,6 @@ class ViewControllerTest extends TestCase {
 	private $request;
 	/** @var IURLGenerator | \PHPUnit_Framework_MockObject_MockObject */
 	private $urlGenerator;
-	/** @var INavigationManager */
-	private $navigationManager;
 	/** @var IL10N */
 	private $l10n;
 	/** @var IConfig | \PHPUnit_Framework_MockObject_MockObject */
@@ -73,7 +71,6 @@ class ViewControllerTest extends TestCase {
 		parent::setUp();
 		$this->request = $this->createMock('\OCP\IRequest');
 		$this->urlGenerator = $this->createMock('\OCP\IURLGenerator');
-		$this->navigationManager = $this->createMock('\OCP\INavigationManager');
 		$this->l10n = $this->createMock('\OCP\IL10N');
 		$this->config = $this->createMock('\OCP\IConfig');
 		$this->eventDispatcher = $this->createMock('\Symfony\Component\EventDispatcher\EventDispatcherInterface');
@@ -92,7 +89,6 @@ class ViewControllerTest extends TestCase {
 			'files',
 			$this->request,
 			$this->urlGenerator,
-			$this->navigationManager,
 			$this->l10n,
 			$this->config,
 			$this->eventDispatcher,
@@ -246,7 +242,7 @@ class ViewControllerTest extends TestCase {
 				'name' => new \OC_L10N_String(\OC::$server->getL10NFactory()->get('files_trashbin'), 'Deleted files', []),
 				'active' => false,
 				'icon' => '',
-				],
+			],
 		]);
 
 		$expected = new Http\TemplateResponse(

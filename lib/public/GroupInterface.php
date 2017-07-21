@@ -3,8 +3,9 @@
  * @author Arthur Schiwon <blizzz@arthur-schiwon.de>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -114,5 +115,15 @@ interface GroupInterface {
 	 * @since 4.5.0
 	 */
 	public function usersInGroup($gid, $search = '', $limit = -1, $offset = 0);
+
+	/**
+	 * Returns whether the groups are visible for a given scope.
+	 *
+	 * @param string|null $scope scope string
+	 * @return bool true if searchable, false otherwise
+	 *
+	 * @since 10.0.0
+	 */
+	public function isVisibleForScope($scope);
 
 }

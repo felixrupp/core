@@ -8,11 +8,11 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Piotr Filiciak <piotr@filiciak.pl>
  * @author Robin Appelman <icewind@owncloud.com>
- * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -329,20 +329,26 @@ class ShareController extends Controller {
 
 			$maxUploadFilesize = $freeSpace;
 
-			$folder = new Template('files', 'list', '');
-			$folder->assign('dir', $rootFolder->getRelativePath($path->getPath()));
-			$folder->assign('dirToken', $token);
-			$folder->assign('permissions', \OCP\Constants::PERMISSION_READ);
-			$folder->assign('isPublic', true);
-			$folder->assign('publicUploadEnabled', 'no');
-			$folder->assign('uploadMaxFilesize', $maxUploadFilesize);
-			$folder->assign('uploadMaxHumanFilesize', OCP\Util::humanFileSize($maxUploadFilesize));
-			$folder->assign('freeSpace', $freeSpace);
-			$folder->assign('usedSpacePercent', 0);
-			$folder->assign('trash', false);
-			$shareTmpl['folder'] = $folder->fetchPage();
+			if ($share->getPermissions() & \OCP\Constants::PERMISSION_READ > 0) {
+				$folder = new Template('files', 'list', '');
+				$folder->assign('dir', $rootFolder->getRelativePath($path->getPath()));
+				$folder->assign('dirToken', $token);
+				$folder->assign('permissions', \OCP\Constants::PERMISSION_READ);
+				$folder->assign('isPublic', true);
+				$folder->assign('publicUploadEnabled', 'no');
+				$folder->assign('uploadMaxFilesize', $maxUploadFilesize);
+				$folder->assign('uploadMaxHumanFilesize', OCP\Util::humanFileSize($maxUploadFilesize));
+				$folder->assign('freeSpace', $freeSpace);
+				$folder->assign('usedSpacePercent', 0);
+				$folder->assign('trash', false);
+				$shareTmpl['folder'] = $folder->fetchPage();
+			} else {
+				$folder = new Template('files_sharing', 'upload', '');
+				$shareTmpl['folder'] = $folder->fetchPage();
+			}
 		}
 
+		$shareTmpl['canDownload'] = !!($share->getPermissions() & \OCP\Constants::PERMISSION_READ > 0);
 		$shareTmpl['downloadURL'] = $this->urlGenerator->linkToRouteAbsolute('files_sharing.sharecontroller.downloadShare', ['token' => $token]);
 		$shareTmpl['shareUrl'] = $this->urlGenerator->linkToRouteAbsolute('files_sharing.sharecontroller.showShare', ['token' => $token]);
 		$shareTmpl['maxSizeAnimateGif'] = $this->config->getSystemValue('max_filesize_animated_gifs_public_sharing', 10);
@@ -385,6 +391,10 @@ class ShareController extends Controller {
 		if ($share->getPassword() !== null && !$this->linkShareAuth($share)) {
 			return new RedirectResponse($this->urlGenerator->linkToRoute('files_sharing.sharecontroller.authenticate',
 				['token' => $token]));
+		}
+
+		if (($share->getPermissions() & \OCP\Constants::PERMISSION_READ) === 0) {
+			throw new NotFoundException();
 		}
 
 		$files_list = $files;

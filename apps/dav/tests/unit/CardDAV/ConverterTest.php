@@ -1,10 +1,9 @@
 <?php
 /**
  * @author Joas Schilling <coding@schilljs.com>
- * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -46,10 +45,10 @@ class ConverterTest extends  TestCase {
 
 	public function providesNewUsers() {
 		return [
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n"],
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:Dr. Foo Bar\r\nN:Bar;Dr.;Foo;;\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n", "Dr. Foo Bar"],
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:Dr. Foo Bar\r\nN:Bar;Dr.;Foo;;\r\nEMAIL;TYPE=OTHER:foo@bar.net\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n", "Dr. Foo Bar", "foo@bar.net"],
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:Dr. Foo Bar\r\nN:Bar;Dr.;Foo;;\r\nCLOUD:foo@bar.net\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n", "Dr. Foo Bar", null, "foo@bar.net"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:Dr. Foo Bar\r\nN:Bar;Dr.;Foo;;\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n", "Dr. Foo Bar"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:Dr. Foo Bar\r\nN:Bar;Dr.;Foo;;\r\nEMAIL;TYPE=OTHER:foo@bar.net\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n", "Dr. Foo Bar", "foo@bar.net"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:Dr. Foo Bar\r\nN:Bar;Dr.;Foo;;\r\nCLOUD:foo@bar.net\r\nPHOTO;ENCODING=b;TYPE=JPEG:MTIzNDU2Nzg5\r\nEND:VCARD\r\n", "Dr. Foo Bar", null, "foo@bar.net"],
 		];
 	}
 
@@ -93,9 +92,9 @@ class ConverterTest extends  TestCase {
 
 	public function providesUsersForUpdateOfRemovedElement() {
 		return [
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nEND:VCARD\r\n", "Dr. Foo Bar"],
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nEND:VCARD\r\n", "Dr. Foo Bar", "foo@bar.net"],
-				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.1//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nEND:VCARD\r\n", "Dr. Foo Bar", null, "foo@bar.net"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nEND:VCARD\r\n", "Dr. Foo Bar"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nEND:VCARD\r\n", "Dr. Foo Bar", "foo@bar.net"],
+				["BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Sabre//Sabre VObject 4.1.2//EN\r\nUID:12345\r\nFN:12345\r\nN:12345;;;;\r\nEND:VCARD\r\n", "Dr. Foo Bar", null, "foo@bar.net"],
 		];
 	}
 

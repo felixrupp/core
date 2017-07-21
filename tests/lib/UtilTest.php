@@ -10,6 +10,9 @@ namespace Test;
 
 use OC_Util;
 
+/**
+ * @group DB
+ */
 class UtilTest extends \Test\TestCase {
 	public function testGetVersion() {
 		$version = \OCP\Util::getVersion();
@@ -24,6 +27,9 @@ class UtilTest extends \Test\TestCase {
 		$this->assertTrue(is_string($version));
 	}
 
+	/**
+	* code identical used in firstrunwizard: tests/lib/utiltest.php
+	*/
 	public function testGetEditionString() {
 		$edition = \OC_Util::getEditionString();
 		$this->assertTrue(is_string($edition));
@@ -231,6 +237,13 @@ class UtilTest extends \Test\TestCase {
 			['.. ', false],
 			['. ', false],
 			[' .', false],
+			// part files not allowed
+			['.part', false],
+			['notallowed.part', false],
+			['neither.filepart', false],
+			// part in the middle is ok
+			['super movie part one.mkv', true],
+			['super.movie.part.mkv', true],
 		];
 	}
 

@@ -6,11 +6,12 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
+ * @author Sergio Bertolín <sbertolin@solidgear.es>
  * @author Stefan Weil <sw@weilnetz.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -260,7 +261,7 @@ class OC_Response {
 		if(getenv('modHeadersAvailable') !== 'true') {
 			header('X-XSS-Protection: 1; mode=block'); // Enforce browser based XSS filters
 			header('X-Content-Type-Options: nosniff'); // Disable sniffing the content type for IE
-			header('X-Frame-Options: Sameorigin'); // Disallow iFraming from other domains
+			header('X-Frame-Options: SAMEORIGIN'); // Disallow iFraming from other domains
 			header('X-Robots-Tag: none'); // https://developers.google.com/webmasters/control-crawl-index/docs/robots_meta_tag
 			header('X-Download-Options: noopen'); // https://msdn.microsoft.com/en-us/library/jj542450(v=vs.85).aspx
 			header('X-Permitted-Cross-Domain-Policies: none'); // https://www.adobe.com/devnet/adobe-media-server/articles/cross-domain-xml-for-streaming.html

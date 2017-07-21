@@ -6,7 +6,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -153,23 +153,25 @@ class NavigationManager implements INavigationManager {
 			$route = $this->urlGenerator->linkToRoute($nav['route']);
 			$name = isset($nav['name']) ? $nav['name'] : ucfirst($app);
 			$icon = isset($nav['icon']) ? $nav['icon'] : 'app.svg';
+			$iconPath = null;
 			foreach ([$icon, "$app.svg"] as $i) {
 				try {
-					$icon = $this->urlGenerator->imagePath($app, $i);
+					$iconPath = $this->urlGenerator->imagePath($app, $i);
 					break;
 				} catch (\RuntimeException $ex) {
 					// no icon? - ignore it then
 				}
 			}
-			if (is_null($icon)) {
-				$icon = $this->urlGenerator->imagePath('core', 'default-app-icon');
+
+			if (is_null($iconPath)) {
+				$iconPath = $this->urlGenerator->imagePath('core', 'default-app-icon');
 			}
 
 			$this->add([
 				'id' => $app,
 				'order' => $order,
 				'href' => $route,
-				'icon' => $icon,
+				'icon' => $iconPath,
 				'name' => $l->t($name),
 			]);
 		}

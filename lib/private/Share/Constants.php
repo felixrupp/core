@@ -3,8 +3,9 @@
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Christopher Schäpers <kondou@ts.unde.re>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -28,7 +29,7 @@ class Constants {
 	const SHARE_TYPE_USER = 0;
 	const SHARE_TYPE_GROUP = 1;
 	const SHARE_TYPE_LINK = 3;
-	const SHARE_TYPE_EMAIL = 4;   // ToDo Check if it is still in use otherwise remove it
+	const SHARE_TYPE_GUEST = 4;
 	const SHARE_TYPE_CONTACT = 5; // ToDo Check if it is still in use otherwise remove it
 	const SHARE_TYPE_REMOTE = 6;  // ToDo Check if it is still in use otherwise remove it
 

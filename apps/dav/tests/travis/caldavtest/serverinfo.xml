@@ -1,7 +1,6 @@
 <?xml version="1.0" standalone="no"?>
 
-<!DOCTYPE serverinfo SYSTEM
-		"/home/deepdiver/Development/ownCloud/master/apps/dav/tests/travis/caldavtest/serverinfo.dtd">
+<!DOCTYPE serverinfo SYSTEM "serverinfo.dtd">
 
 <!--
  Copyright (c) 2006-2015 Apple Inc. All rights reserved.
@@ -21,7 +20,7 @@
 
 <serverinfo>
 	<host>localhost</host>
-	<nonsslport>8888</nonsslport>
+	<nonsslport>8889</nonsslport>
 	<authtype>basic</authtype>
 	<!-- <unix>/tmp/caldavd_requests/unsecured.sock</unix> -->
 

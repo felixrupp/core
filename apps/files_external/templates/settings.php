@@ -1,7 +1,6 @@
 <?php
 	use \OCP\Files\External\Backend\Backend;
 	use \OCP\Files\External\Auth\AuthMechanism;
-	use \OCP\Files\External\DefinitionParameter;
 	use \OCP\Files\External\IStoragesBackendService;
 
 	$l->t("Enable encryption");
@@ -19,7 +18,12 @@
 		/** @var Backend $backend */
 		$scripts = $backend->getCustomJs();
 		foreach ($scripts as $script) {
-			script('files_external', $script);
+			if (is_array($script)) {
+				list($appName, $script) = $script;
+			} else {
+				$appName = 'files_external';
+			}
+			script($appName, $script);
 		}
 	}
 	foreach ($_['authMechanisms'] as $authMechanism) {
@@ -30,62 +34,25 @@
 		}
 	}
 
-	function writeParameterInput($parameter, $options, $classes = []) {
-		$value = '';
-		if (isset($options[$parameter->getName()])) {
-			$value = $options[$parameter->getName()];
-		}
-		$placeholder = $parameter->getText();
-		$is_optional = $parameter->isFlagSet(DefinitionParameter::FLAG_OPTIONAL);
-
-		switch ($parameter->getType()) {
-		case DefinitionParameter::VALUE_PASSWORD: ?>
-			<?php if ($is_optional) { $classes[] = 'optional'; } ?>
-			<input type="password"
-				<?php if (!empty($classes)): ?> class="<?php p(implode(' ', $classes)); ?>"<?php endif; ?>
-				data-parameter="<?php p($parameter->getName()); ?>"
-				value="<?php p($value); ?>"
-				placeholder="<?php p($placeholder); ?>"
-			/>
-			<?php
-			break;
-		case DefinitionParameter::VALUE_BOOLEAN: ?>
-			<?php $checkboxId = uniqid("checkbox_"); ?>
-			<div>
-			<label>
-			<input type="checkbox"
-				id="<?php p($checkboxId); ?>"
-				<?php if (!empty($classes)): ?> class="checkbox <?php p(implode(' ', $classes)); ?>"<?php endif; ?>
-				data-parameter="<?php p($parameter->getName()); ?>"
-				<?php if ($value === true): ?> checked="checked"<?php endif; ?>
-			/>
-			<?php p($placeholder); ?>
-			</label>
-			</div>
-			<?php
-			break;
-		case DefinitionParameter::VALUE_HIDDEN: ?>
-			<input type="hidden"
-				<?php if (!empty($classes)): ?> class="<?php p(implode(' ', $classes)); ?>"<?php endif; ?>
-				data-parameter="<?php p($parameter->getName()); ?>"
-				value="<?php p($value); ?>"
-			/>
-			<?php
-			break;
-		default: ?>
-			<?php if ($is_optional) { $classes[] = 'optional'; } ?>
-			<input type="text"
-				<?php if (!empty($classes)): ?> class="<?php p(implode(' ', $classes)); ?>"<?php endif; ?>
-				data-parameter="<?php p($parameter->getName()); ?>"
-				value="<?php p($value); ?>"
-				placeholder="<?php p($placeholder); ?>"
-			/>
-			<?php
-		}
-	}
 ?>
 <form id="files_external" class="section" data-encryption-enabled="<?php echo $_['encryptionEnabled']?'true': 'false'; ?>">
-	<h2><?php p($l->t('External Storage')); ?></h2>
+	<h2 class="app-name"><?php p($l->t('External Storage')); ?></h2>
+
+	<?php if ($_['visibilityType'] === IStoragesBackendService::VISIBILITY_ADMIN): ?>
+	<p>
+		<input type="checkbox" name="enableExternalStorage" id="enableExternalStorageCheckbox" class="checkbox"
+			   value="1" <?php if ($_['enableExternalStorage']) print_unescaped('checked="checked"'); ?> />
+		<label for="enableExternalStorageCheckbox">
+			<?php p($l->t('Enable external storage'));?>
+		</label>
+	</p>
+	<?php endif; ?>
+	<?php if (!$_['enableExternalStorage']): ?>
+	<p><?php p($l->t('External storage has been disabled by the administrator')); ?></p>
+	<?php endif; ?>
+
+	<div id="files_external_settings" class=" <?php if (!$_['enableExternalStorage']) print('hidden'); ?>">
+
 	<?php if (isset($_['dependencies']) and ($_['dependencies']<>'')) print_unescaped(''.$_['dependencies'].''); ?>
 	<table id="externalStorage" class="grid" data-admin='<?php print_unescaped(json_encode($_['visibilityType'] === IStoragesBackendService::VISIBILITY_ADMIN)); ?>'>
 		<thead>
@@ -126,8 +93,12 @@
 								return strcasecmp($a->getText(), $b->getText());
 							});
 						?>
+						<?php
+							$canCreateNewLocalStorage = \OC::$server->getConfig()->getSystemValue('files_external_allow_create_new_local', false);
+						?>
 						<?php foreach ($sortedBackends as $backend): ?>
 							<?php if ($backend->getDeprecateTo()) continue; // ignore deprecated backends ?>
+							<?php if (!$canCreateNewLocalStorage && $backend->getIdentifier() == "local") continue; // if the "files_external_allow_create_new_local" config param isn't set to to true ?>
 							<option value="<?php p($backend->getIdentifier()); ?>"><?php p($backend->getText()); ?></option>
 						<?php endforeach; ?>
 					</select>
@@ -183,4 +154,5 @@
 			<?php endforeach; ?>
 		</p>
 	<?php endif; ?>
+	</div>
 </form>

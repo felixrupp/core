@@ -21,7 +21,7 @@ ADMINLOGIN=admin$EXECUTOR_NUMBER
 BASEDIR=$PWD
 
 PRIMARY_STORAGE_CONFIGS="local swift"
-DBCONFIGS="sqlite mysql mariadb pgsql oci"
+DBCONFIGS="sqlite mysql mariadb pgsql oci mysqlmb4"
 
 # $PHP_EXE is run through 'which' and as such e.g. 'php' or 'hhvm' is usually
 # sufficient. Due to the behaviour of 'which', $PHP_EXE may also be a path
@@ -33,6 +33,10 @@ PHP=$(which "$PHP_EXE")
 
 if test -z "$PHPUNIT"; then
 	PHPUNIT=$(which phpunit)
+fi
+
+if [ -z "$SQLPLUS" ]; then
+	SQLPLUS=$(which sqlplus 2>/dev/null)
 fi
 
 set -e
@@ -125,8 +129,8 @@ function cleanup_config {
 
 	if [ ! -z "$DOCKER_CONTAINER_ID" ]; then
 		echo "Kill the docker $DOCKER_CONTAINER_ID"
-		docker stop "$DOCKER_CONTAINER_ID"
-		docker rm -f "$DOCKER_CONTAINER_ID"
+		docker stop "$DOCKER_CONTAINER_ID" || true
+		docker rm -f "$DOCKER_CONTAINER_ID" || true
 	fi
 
 	cd "$BASEDIR"
@@ -146,6 +150,8 @@ function cleanup_config {
 	if [ -f config/autotest-storage-swift.config.php ]; then
 		rm config/autotest-storage-swift.config.php
 	fi
+	# Remove mysqlmb4.config.php
+	rm -f config/mysqlmb4.config.php
 }
 
 # restore config on exit
@@ -211,6 +217,31 @@ function execute_tests {
 			mysql -u "$DATABASEUSER" -powncloud -e "DROP DATABASE IF EXISTS $DATABASENAME" -h $DATABASEHOST || true
 		fi
 	fi
+	if [ "$DB" == "mysqlmb4" ] ; then
+		echo "Fire up the mysql docker"
+		DOCKER_CONTAINER_ID=$(docker run \
+			-v $BASEDIR/tests/docker/mysqlmb4:/etc/mysql/conf.d \
+			-e MYSQL_ROOT_PASSWORD=owncloud \
+			-e MYSQL_USER="$DATABASEUSER" \
+			-e MYSQL_PASSWORD=owncloud \
+			-e MYSQL_DATABASE="$DATABASENAME" \
+			-d mysql:5.7)
+
+		DATABASEHOST=$(docker inspect --format="{{.NetworkSettings.IPAddress}}" "$DOCKER_CONTAINER_ID")
+
+		echo "Waiting for MySQL(utf8mb4) initialisation ..."
+
+		if ! apps/files_external/tests/env/wait-for-connection $DATABASEHOST 3306 600; then
+			echo "[ERROR] Waited 600 seconds, no response" >&2
+			exit 1
+		fi
+		sleep 1
+
+		echo "MySQL(utf8mb4)  is up."
+		_DB="mysql"
+
+		cp tests/docker/mysqlmb4.config.php config
+	fi
 	if [ "$DB" == "mariadb" ] ; then
 		if [ ! -z "$USEDOCKER" ] ; then
 			echo "Fire up the mariadb docker"
@@ -266,14 +297,19 @@ function execute_tests {
 
 		echo "Waiting for Oracle initialization ... "
 
-		# Try to connect to the OCI host via sqlplus to ensure that the connection is already running
+		if [ ! -z "$SQLPLUS" ]; then
+			# Try to connect to the OCI host via sqlplus to ensure that the connection is already running
       		for i in {1..48}
                 do
-                        if sqlplus "autotest/owncloud@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(Host=$DATABASEHOST)(Port=1521))(CONNECT_DATA=(SID=XE)))" < /dev/null | grep 'Connected to'; then
+                        if "$SQLPLUS" "autotest/owncloud@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(Host=$DATABASEHOST)(Port=1521))(CONNECT_DATA=(SID=XE)))" < /dev/null | grep 'Connected to'; then
                                 break;
                         fi
                         sleep 5
                 done
+		else
+			echo "sqlplus not found, using sleep to wait for Oracle initialization"
+			sleep 120
+		fi
 
 		DATABASEUSER=autotest
 		DATABASENAME='XE'
@@ -315,13 +351,6 @@ function execute_tests {
 		echo "Kill the swift docker"
 		tests/objectstore/stop-swift-ceph.sh
 	fi
-
-	if [ ! -z "$DOCKER_CONTAINER_ID" ] ; then
-		echo "Kill the docker $DOCKER_CONTAINER_ID"
-		docker stop $DOCKER_CONTAINER_ID
-		docker rm -f $DOCKER_CONTAINER_ID
-		unset DOCKER_CONTAINER_ID
-	fi
 }
 
 #
@@ -354,12 +383,14 @@ fi
 #
 # NOTES on pgsql:
 #  - su - postgres
-#  - createuser -P oc_autotest (enter password and enable superuser)
+#  - createuser -P oc_autotest (enter password "owncloud")
+#  - psql -c 'ALTER USER oc_autotest CREATEDB;' (to give the user the priveleged to create databases)
 #  - to enable dropdb I decided to add following line to pg_hba.conf (this is not the safest way but I don't care for the testing machine):
 # local	all	all	trust
 #
 #  - for parallel executor support with EXECUTOR_NUMBER=0:
-#  - createuser -P oc_autotest0 (enter password and enable superuser)
+#  - createuser -P oc_autotest0 (enter password "owncloud")
+#  - psql -c 'ALTER USER oc_autotest0 CREATEDB;' (to give the user the priveleged to create databases)
 #
 # NOTES on oci:
 #  - it's a pure nightmare to install Oracle on a Linux-System

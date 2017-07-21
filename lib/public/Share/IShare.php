@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -323,4 +323,20 @@ interface IShare {
 	 * @since 9.0.0
 	 */
 	public function getMailSend();
+
+	/**
+	 * Set a user-defined name for this share
+	 *
+	 * @param string $name
+	 * @since 10.0.0
+	 */
+	public function setName($name);
+
+	/**
+	 * Get user-defined name for this share
+	 *
+	 * @return string $name
+	 * @since 10.0.0
+	 */
+	public function getName();
 }

@@ -1,11 +1,13 @@
 <?php
 /**
+ * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -109,6 +111,17 @@ interface IUserManager {
 	public function search($pattern, $limit = null, $offset = null);
 
 	/**
+	 * find a user account by checking user_id, display name and email fields
+	 *
+	 * @param string $pattern
+	 * @param int $limit
+	 * @param int $offset
+	 * @return \OCP\IUser[]
+	 * @since 10.0.1
+	 */
+	public function find($pattern, $limit = null, $offset = null);
+
+	/**
 	 * search by displayName
 	 *
 	 * @param string $pattern
@@ -147,14 +160,13 @@ interface IUserManager {
 	 * returns how many users have logged in once
 	 *
 	 * @return int
-	 * @since 9.2.0
+	 * @since 10.0
 	 */
 	public function countSeenUsers();
 
 	/**
 	 * @param \Closure $callback
-	 * @param string $search
-	 * @since 9.2.0
+	 * @since 10.0
 	 */
 	public function callForSeenUsers (\Closure $callback);
 
@@ -164,4 +176,13 @@ interface IUserManager {
 	 * @since 9.1.0
 	 */
 	public function getByEmail($email);
+
+	/**
+	 * @param string $uid
+	 * @param string $password
+	 * @param UserInterface $backend
+	 * @return IUser | null
+	 * @since 10.0
+	 */
+	public function createUserFromBackend($uid, $password, $backend);
 }

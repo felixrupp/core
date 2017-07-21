@@ -5,8 +5,9 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -146,24 +147,16 @@ class CheckSetupController extends Controller {
 	 * @return string
 	 */
 	private function isUsedTlsLibOutdated() {
-		// Appstore is disabled by default in EE
-		$appStoreDefault = false;
-		if (\OC_Util::getEditionString() === '') {
-			$appStoreDefault = true;
-		}
-
 		// Don't run check when:
 		// 1. Server has `has_internet_connection` set to false
 		// 2. AppStore AND S2S is disabled
 		if(!$this->config->getSystemValue('has_internet_connection', true)) {
 			return '';
 		}
-		if(!$this->config->getSystemValue('appstoreenabled', $appStoreDefault)
-			&& $this->config->getAppValue('files_sharing', 'outgoing_server2server_share_enabled', 'yes') === 'no'
+		if($this->config->getAppValue('files_sharing', 'outgoing_server2server_share_enabled', 'yes') === 'no'
 			&& $this->config->getAppValue('files_sharing', 'incoming_server2server_share_enabled', 'yes') === 'no') {
 			return '';
 		}
-
 		$versionString = $this->getCurlVersion();
 		if(isset($versionString['ssl_version'])) {
 			$versionString = $versionString['ssl_version'];
@@ -171,10 +164,7 @@ class CheckSetupController extends Controller {
 			return '';
 		}
 
-		$features = (string)$this->l10n->t('installing and updating apps via the app store or Federated Cloud Sharing');
-		if(!$this->config->getSystemValue('appstoreenabled', $appStoreDefault)) {
-			$features = (string)$this->l10n->t('Federated Cloud Sharing');
-		}
+		$features = (string)$this->l10n->t('installing and updating apps via the market or Federated Cloud Sharing');
 
 		// Check if at least OpenSSL after 1.01d or 1.0.2b
 		if(strpos($versionString, 'OpenSSL/') === 0) {
@@ -257,7 +247,7 @@ class CheckSetupController extends Controller {
 	public function rescanFailedIntegrityCheck() {
 		$this->checker->runInstanceVerification();
 		return new RedirectResponse(
-			$this->urlGenerator->linkToRoute('settings_admin')
+			$this->urlGenerator->linkToRoute('settings.SettingsPage.getAdmin')
 		);
 	}
 

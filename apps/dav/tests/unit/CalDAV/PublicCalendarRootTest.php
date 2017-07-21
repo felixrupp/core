@@ -1,8 +1,28 @@
 <?php
-
+/**
+ * @author Thomas Citharel <tcit@tcit.fr>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
+ *
+ * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @license AGPL-3.0
+ *
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License, version 3,
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
+ */
 namespace OCA\DAV\Tests\unit\CalDAV;
 
 use OCA\DAV\CalDAV\Calendar;
+use OCA\DAV\Connector\Sabre\Principal;
 use OCP\IL10N;
 use OCA\DAV\CalDAV\CalDavBackend;
 use OCA\DAV\CalDAV\PublicCalendarRoot;
@@ -32,6 +52,7 @@ class PublicCalendarRootTest extends TestCase {
 	/** var IConfig */
 	protected $config;
 
+	/** @var Principal */
 	private $principal;
 
 	/** @var ISecureRandom */
@@ -41,7 +62,7 @@ class PublicCalendarRootTest extends TestCase {
 		parent::setUp();
 
 		$db = \OC::$server->getDatabaseConnection();
-		$this->principal = $this->getMockBuilder('OCA\DAV\Connector\Sabre\Principal')
+		$this->principal = $this->getMockBuilder(Principal::class)
 			->disableOriginalConstructor()
 			->getMock();
 		$this->config = \OC::$server->getConfig();
@@ -86,11 +107,22 @@ class PublicCalendarRootTest extends TestCase {
 		$this->assertEquals($calendar, $calendarResult);
 	}
 
+	/**
+	 * @expectedException \Sabre\DAV\Exception\MethodNotAllowed
+	 */
 	public function testGetChildren() {
+		$this->createPublicCalendar();
+
+		$this->publicCalendarRoot->disableListing = true;
+		$this->publicCalendarRoot->getChildren();
+	}
+
+	public function testGetChildrenWhenListingIsAllowed() {
 		$this->createPublicCalendar();
 
 		$publicCalendars = $this->backend->getPublicCalendars();
 
+		$this->publicCalendarRoot->disableListing = false;
 		$calendarResults = $this->publicCalendarRoot->getChildren();
 
 		$this->assertEquals(1, count($calendarResults));

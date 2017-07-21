@@ -2,7 +2,7 @@
 /**
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -158,11 +158,15 @@ class Loader implements IMimeTypeLoader {
 	 * @return int number of changed rows
 	 */
 	public function updateFilecache($ext, $mimetypeId) {
+		$is_folderId = $this->getId('httpd/unix-directory');
 		$update = $this->dbConnection->getQueryBuilder();
 		$update->update('filecache')
 			->set('mimetype', $update->createNamedParameter($mimetypeId))
 			->where($update->expr()->neq(
 				'mimetype', $update->createNamedParameter($mimetypeId)
+			))
+			->andwhere($update->expr()->neq(
+				'mimetype', $update->createNamedParameter($is_folderId)
 			))
 			->andWhere($update->expr()->like(
 				$update->createFunction('LOWER(`name`)'), $update->createNamedParameter($ext)

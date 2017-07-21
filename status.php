@@ -5,11 +5,15 @@
  * @author Frank Karlitschek <frank@karlitschek.de>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
+ * @author Kristof Provost <github@sigsegv.be>
  * @author Lukas Reschke <lukas@statuscode.ch>
+ * @author martin.mattel@diemattels.at <martin.mattel@diemattels.at>
  * @author Masaki Kawabata Neto <masaki.kawabata@gmail.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Philipp Schaffrath <github@philippschaffrath.de>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,21 +34,8 @@ try {
 
 	require_once __DIR__ . '/lib/base.php';
 
-	$systemConfig = \OC::$server->getSystemConfig();
+	$values = \OCP\Util::getStatusInfo();
 
-	$installed = (bool) $systemConfig->getValue('installed', false);
-	$maintenance = (bool) $systemConfig->getValue('maintenance', false);
-	# see core/lib/private/legacy/defaults.php and core/themes/example/defaults.php
-	# for description and defaults
-	$defaults = new \OCP\Defaults();
-	$values= [
-		'installed'=>$installed,
-		'maintenance' => $maintenance,
-		'needsDbUpgrade' => \OCP\Util::needUpgrade(),
-		'version'=>implode('.', \OCP\Util::getVersion()),
-		'versionstring'=>OC_Util::getVersionString(),
-		'edition'=>OC_Util::getEditionString(),
-		'productname'=>$defaults->getName()];
 	if (OC::$CLI) {
 		print_r($values);
 	} else {

@@ -10,7 +10,8 @@
 namespace Test\App;
 
 use OC\Group\Group;
-use OC\User\User;
+use OCP\IUser;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Test\TestCase;
 
 /**
@@ -61,25 +62,25 @@ class ManagerTest extends TestCase {
 		return $config;
 	}
 
-	/** @var \OCP\IUserSession */
+	/** @var \OCP\IUserSession | \PHPUnit_Framework_MockObject_MockObject */
 	protected $userSession;
 
-	/** @var \OCP\IGroupManager */
+	/** @var \OCP\IGroupManager | \PHPUnit_Framework_MockObject_MockObject */
 	protected $groupManager;
 
 	/** @var \OCP\IAppConfig */
 	protected $appConfig;
 
-	/** @var \OCP\ICache */
+	/** @var \OCP\ICache | \PHPUnit_Framework_MockObject_MockObject */
 	protected $cache;
 
-	/** @var \OCP\ICacheFactory */
+	/** @var \OCP\ICacheFactory | \PHPUnit_Framework_MockObject_MockObject */
 	protected $cacheFactory;
 
 	/** @var \OCP\App\IAppManager */
 	protected $manager;
 
-	/** @var  \Symfony\Component\EventDispatcher\EventDispatcherInterface */
+	/** @var  EventDispatcherInterface | \PHPUnit_Framework_MockObject_MockObject */
 	protected $eventDispatcher;
 
 	protected function setUp() {
@@ -106,14 +107,27 @@ class ManagerTest extends TestCase {
 
 	public function testEnableApp() {
 		$this->expectClearCache();
-		$this->manager->enableApp('test');
-		$this->assertEquals('yes', $this->appConfig->getValue('test', 'enabled', 'no'));
+		// making sure "files_trashbin" is disabled
+		if ($this->manager->isEnabledForUser('files_trashbin')) {
+			$this->manager->disableApp('files_trashbin');
+		}
+		$this->manager->enableApp('files_trashbin');
+		$this->assertEquals('yes', $this->appConfig->getValue('files_trashbin', 'enabled', 'no'));
 	}
 
 	public function testDisableApp() {
 		$this->expectClearCache();
-		$this->manager->disableApp('test');
-		$this->assertEquals('no', $this->appConfig->getValue('test', 'enabled', 'no'));
+		$this->manager->disableApp('files_trashbin');
+		$this->assertEquals('no', $this->appConfig->getValue('files_trashbin', 'enabled', 'no'));
+	}
+	/**
+	 * @expectedException \Exception
+	 */
+	public function testNotEnableIfNotInstalled() {
+		$this->manager->enableApp('some_random_name_which_i_hope_is_not_an_app');
+		$this->assertEquals('no', $this->appConfig->getValue(
+			'some_random_name_which_i_hope_is_not_an_app', 'enabled', 'no'
+		));
 	}
 
 	public function testEnableAppForGroups() {
@@ -230,18 +244,18 @@ class ManagerTest extends TestCase {
 
 	public function testIsEnabledForUserEnabled() {
 		$this->appConfig->setValue('test', 'enabled', 'yes');
-		$user = new User('user1', null);
+		$user = $this->createMock(IUser::class);
 		$this->assertTrue($this->manager->isEnabledForUser('test', $user));
 	}
 
 	public function testIsEnabledForUserDisabled() {
 		$this->appConfig->setValue('test', 'enabled', 'no');
-		$user = new User('user1', null);
+		$user = $this->createMock(IUser::class);
 		$this->assertFalse($this->manager->isEnabledForUser('test', $user));
 	}
 
 	public function testIsEnabledForUserEnabledForGroup() {
-		$user = new User('user1', null);
+		$user = $this->createMock(IUser::class);
 		$this->groupManager->expects($this->once())
 			->method('getUserGroupIds')
 			->with($user)
@@ -252,7 +266,7 @@ class ManagerTest extends TestCase {
 	}
 
 	public function testIsEnabledForUserDisabledForGroup() {
-		$user = new User('user1', null);
+		$user = $this->createMock(IUser::class);
 		$this->groupManager->expects($this->once())
 			->method('getUserGroupIds')
 			->with($user)
@@ -268,7 +282,7 @@ class ManagerTest extends TestCase {
 	}
 
 	public function testIsEnabledForUserLoggedIn() {
-		$user = new User('user1', null);
+		$user = $this->createMock(IUser::class);
 
 		$this->userSession->expects($this->once())
 			->method('getUser')
@@ -286,11 +300,18 @@ class ManagerTest extends TestCase {
 		$this->appConfig->setValue('test1', 'enabled', 'yes');
 		$this->appConfig->setValue('test2', 'enabled', 'no');
 		$this->appConfig->setValue('test3', 'enabled', '["foo"]');
-		$this->assertEquals(['dav', 'federatedfilesharing', 'files', 'test1', 'test3'], $this->manager->getInstalledApps());
+		$this->assertEquals([
+			'dav',
+			'federatedfilesharing',
+			'files',
+		   	'files_external',
+		   	'test1',
+			'test3'
+		], $this->manager->getInstalledApps());
 	}
 
 	public function testGetAppsForUser() {
-		$user = new User('user1', null);
+		$user = $this->createMock(IUser::class);
 		$this->groupManager->expects($this->any())
 			->method('getUserGroupIds')
 			->with($user)
@@ -300,7 +321,14 @@ class ManagerTest extends TestCase {
 		$this->appConfig->setValue('test2', 'enabled', 'no');
 		$this->appConfig->setValue('test3', 'enabled', '["foo"]');
 		$this->appConfig->setValue('test4', 'enabled', '["asd"]');
-		$this->assertEquals(['dav', 'federatedfilesharing', 'files', 'test1', 'test3'], $this->manager->getEnabledAppsForUser($user));
+		$this->assertEquals([
+			'dav',
+		   	'federatedfilesharing',
+		   	'files',
+			'files_external',
+		   	'test1',
+			'test3'
+		], $this->manager->getEnabledAppsForUser($user));
 	}
 
 	public function testGetAppsNeedingUpgrade() {
@@ -312,6 +340,7 @@ class ManagerTest extends TestCase {
 		$appInfos = [
 			'dav' => ['id' => 'dav'],
 			'files' => ['id' => 'files'],
+		   	'files_external' => ['id' => 'files_external'],
 			'federatedfilesharing' => ['id' => 'federatedfilesharing'],
 			'test1' => ['id' => 'test1', 'version' => '1.0.1', 'requiremax' => '9.0.0'],
 			'test2' => ['id' => 'test2', 'version' => '1.0.0', 'requiremin' => '8.2.0'],
@@ -353,6 +382,7 @@ class ManagerTest extends TestCase {
 		$appInfos = [
 			'dav' => ['id' => 'dav'],
 			'files' => ['id' => 'files'],
+		   	'files_external' => ['id' => 'files_external'],
 			'federatedfilesharing' => ['id' => 'federatedfilesharing'],
 			'test1' => ['id' => 'test1', 'version' => '1.0.1', 'requiremax' => '8.0.0'],
 			'test2' => ['id' => 'test2', 'version' => '1.0.0', 'requiremin' => '8.2.0'],

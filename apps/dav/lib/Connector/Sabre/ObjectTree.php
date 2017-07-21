@@ -2,12 +2,13 @@
 /**
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Joas Schilling <coding@schilljs.com>
+ * @author Martin Mattel <martin.mattel@diemattels.at>
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -99,6 +100,22 @@ class ObjectTree extends \Sabre\DAV\Tree {
 	}
 
 	/**
+	 * This function allows you to check if a node exists.
+	 *
+	 * @param string $path
+	 * @return bool
+	 */
+	function nodeExists($path) {
+		$path = trim($path, '/');
+		if (isset($this->cache[$path]) && $this->cache[$path] === false){
+			// Node is not existing, as it was explicitely set in the cache
+			// Next call to getNodeForPath will create cache instance and unset the cached value
+			return false;
+		}
+		return parent::nodeExists($path);
+	}
+
+	/**
 	 * Returns the INode object for the requested path
 	 *
 	 * @param string $path
@@ -121,7 +138,7 @@ class ObjectTree extends \Sabre\DAV\Tree {
 
 		$path = trim($path, '/');
 
-		if (isset($this->cache[$path])) {
+		if (isset($this->cache[$path]) && $this->cache[$path] !== false) {
 			return $this->cache[$path];
 		}
 
@@ -178,6 +195,7 @@ class ObjectTree extends \Sabre\DAV\Tree {
 		}
 
 		if (!$info) {
+			$this->cache[$path] = false;
 			throw new \Sabre\DAV\Exception\NotFound('File with name ' . $path . ' could not be located');
 		}
 
@@ -189,90 +207,6 @@ class ObjectTree extends \Sabre\DAV\Tree {
 
 		$this->cache[$path] = $node;
 		return $node;
-
-	}
-
-	/**
-	 * Moves a file from one location to another
-	 *
-	 * @param string $sourcePath The path to the file which should be moved
-	 * @param string $destinationPath The full destination path, so not just the destination parent node
-	 * @throws \Sabre\DAV\Exception\BadRequest
-	 * @throws \Sabre\DAV\Exception\ServiceUnavailable
-	 * @throws \Sabre\DAV\Exception\Forbidden
-	 * @return int
-	 */
-	public function move($sourcePath, $destinationPath) {
-		if (!$this->fileView) {
-			throw new \Sabre\DAV\Exception\ServiceUnavailable('filesystem not setup');
-		}
-
-		# check the destination path, for source see below
-		if (\OC\Files\Filesystem::isForbiddenFileOrDir($destinationPath)) {
-			throw new \Sabre\DAV\Exception\Forbidden();
-		}
-
-		$targetNodeExists = $this->nodeExists($destinationPath);
-
-		// at getNodeForPath we also check the path for isForbiddenFileOrDir
-		// with that we have covered both source and destination
-		$sourceNode = $this->getNodeForPath($sourcePath);
-		if ($sourceNode instanceof \Sabre\DAV\ICollection && $targetNodeExists) {
-			throw new \Sabre\DAV\Exception\Forbidden('Could not copy directory ' . $sourceNode->getName() . ', target exists');
-		}
-		list($sourceDir,) = \Sabre\HTTP\URLUtil::splitPath($sourcePath);
-		list($destinationDir,) = \Sabre\HTTP\URLUtil::splitPath($destinationPath);
-
-		$isMovableMount = false;
-		$sourceMount = $this->mountManager->find($this->fileView->getAbsolutePath($sourcePath));
-		$internalPath = $sourceMount->getInternalPath($this->fileView->getAbsolutePath($sourcePath));
-		if ($sourceMount instanceof MoveableMount && $internalPath === '') {
-			$isMovableMount = true;
-		}
-
-		try {
-			$sameFolder = ($sourceDir === $destinationDir);
-			// if we're overwriting or same folder
-			if ($targetNodeExists || $sameFolder) {
-				// note that renaming a share mount point is always allowed
-				if (!$this->fileView->isUpdatable($destinationDir) && !$isMovableMount) {
-					throw new \Sabre\DAV\Exception\Forbidden();
-				}
-			} else {
-				if (!$this->fileView->isCreatable($destinationDir)) {
-					throw new \Sabre\DAV\Exception\Forbidden();
-				}
-			}
-
-			if (!$sameFolder) {
-				// moving to a different folder, source will be gone, like a deletion
-				// note that moving a share mount point is always allowed
-				if (!$this->fileView->isDeletable($sourcePath) && !$isMovableMount) {
-					throw new \Sabre\DAV\Exception\Forbidden();
-				}
-			}
-
-			$fileName = basename($destinationPath);
-			try {
-				$this->fileView->verifyPath($destinationDir, $fileName);
-			} catch (\OCP\Files\InvalidPathException $ex) {
-				throw new InvalidPath($ex->getMessage());
-			}
-
-			$renameOkay = $this->fileView->rename($sourcePath, $destinationPath);
-			if (!$renameOkay) {
-				throw new \Sabre\DAV\Exception\Forbidden('');
-			}
-		} catch (StorageNotAvailableException $e) {
-			throw new \Sabre\DAV\Exception\ServiceUnavailable($e->getMessage());
-		} catch (ForbiddenException $ex) {
-			throw new Forbidden($ex->getMessage(), $ex->getRetry());
-		} catch (LockedException $e) {
-			throw new FileLocked($e->getMessage(), $e->getCode(), $e);
-		}
-
-		$this->markDirty($sourceDir);
-		$this->markDirty($destinationDir);
 
 	}
 
@@ -325,5 +259,9 @@ class ObjectTree extends \Sabre\DAV\Tree {
 
 		list($destinationDir,) = \Sabre\HTTP\URLUtil::splitPath($destination);
 		$this->markDirty($destinationDir);
+	}
+
+	public function getView() {
+		return $this->fileView;
 	}
 }

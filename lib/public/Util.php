@@ -23,7 +23,7 @@
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -702,5 +702,39 @@ class Util {
 			self::$needUpgradeCache=\OC_Util::needUpgrade(\OC::$server->getConfig());
 		}		
 		return self::$needUpgradeCache;
+	}
+
+	/**
+	 * Collects all status infos.
+	 *
+	 * @param bool $includeVersion
+	 * @return array
+	 * @since 10.0
+	 */
+	public static function getStatusInfo($includeVersion = false) {
+		$systemConfig = \OC::$server->getSystemConfig();
+
+		$installed = (bool) $systemConfig->getValue('installed', false);
+		$maintenance = (bool) $systemConfig->getValue('maintenance', false);
+		# see core/lib/private/legacy/defaults.php and core/themes/example/defaults.php
+		# for description and defaults
+		$defaults = new \OCP\Defaults();
+		$values = [
+			'installed'=> $installed ? 'true' : 'false',
+			'maintenance' => $maintenance ? 'true' : 'false',
+			'needsDbUpgrade' => self::needUpgrade() ? 'true' : 'false',
+			'version' => '',
+			'versionstring' => '',
+			'edition' => '',
+			'productname' => ''];
+
+		if ($includeVersion || (bool) $systemConfig->getValue('version.hide', false) === false) {
+			$values['version'] = implode('.', self::getVersion());
+			$values['versionstring'] = \OC_Util::getVersionString();
+			$values['edition'] = \OC_Util::getEditionString();
+			$values['productname'] = $defaults->getName();
+		}
+
+		return $values;
 	}
 }

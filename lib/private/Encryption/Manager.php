@@ -5,7 +5,7 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -89,7 +89,8 @@ class Manager implements IManager {
 		}
 
 		$enabled = $this->config->getAppValue('core', 'encryption_enabled', 'no');
-		return $enabled === 'yes';
+		$masterKeyEnabled = $this->config->getAppValue('encryption', 'useMasterKey', 0);
+		return ($enabled === 'yes' or (bool)$masterKeyEnabled);
 	}
 
 	/**

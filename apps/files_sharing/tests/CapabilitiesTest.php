@@ -4,7 +4,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -297,4 +297,13 @@ class CapabilitiesTest extends \Test\TestCase {
 		$this->assertFalse($result['federation']['outgoing']);
 	}
 
+	public function testMultipleLinkShares() {
+		$map = [
+			['core', 'shareapi_enabled', 'yes', 'yes'],
+			['core', 'shareapi_allow_links', 'yes', 'yes'],
+		];
+		$result = $this->getResults($map);
+		$this->assertArrayHasKey('public', $result);
+		$this->assertTrue($result['public']['multiple']);
+	}
 }

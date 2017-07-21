@@ -278,7 +278,49 @@ class LostControllerTest extends \PHPUnit_Framework_TestCase {
 		$this->assertSame($expectedResponse, $response);
 	}
 
+	public function testSpamEmail() {
+		$user = 'ExistingUser';
+		$this->userManager
+			->expects($this->once())
+			->method('userExists')
+			->with($user)
+			->will($this->returnValue(true));
+		$this->userManager
+			->expects($this->once())
+			->method('get')
+			->with($user)
+			->will($this->returnValue($this->existingUser));
+		$this->config
+			->expects($this->once())
+			->method('getUserValue')
+			->with('ExistingUser', 'owncloud', 'lostpassword')
+			->will($this->returnValue('12000:AVerySecretToken'));
+		$this->timeFactory
+			->expects($this->any())
+			->method('getTime')
+			->willReturnOnConsecutiveCalls(12001, 12348);
+
+		$this->logger
+			->expects($this->any())
+			->method('alert')
+			->with('The email is not sent because a password reset email was sent recently.');
+		$expectedResponse = [
+			'status' => 'success'
+		];
+		$response = $this->lostController->email($user);
+		$this->assertSame($expectedResponse, $response);
+	}
+
 	public function testEmailSuccessful() {
+		$this->config
+			->expects($this->once())
+			->method('getUserValue')
+			->with('ExistingUser', 'owncloud', 'lostpassword')
+			->will($this->returnValue('12000:AVerySecretToken'));
+		$this->timeFactory
+			->expects($this->any())
+			->method('getTime')
+			->willReturnOnConsecutiveCalls(12301, 12348);
 		$this->secureRandom
 			->expects($this->once())
 			->method('generate')
@@ -294,10 +336,7 @@ class LostControllerTest extends \PHPUnit_Framework_TestCase {
 				->method('get')
 				->with('ExistingUser')
 				->willReturn($this->existingUser);
-		$this->timeFactory
-			->expects($this->once())
-			->method('getTime')
-			->will($this->returnValue(12348));
+
 		$this->config
 			->expects($this->once())
 			->method('setUserValue')
@@ -440,7 +479,7 @@ class LostControllerTest extends \PHPUnit_Framework_TestCase {
 			->with('NewPassword')
 			->will($this->returnValue(true));
 		$this->userManager
-			->expects($this->exactly(2))
+			->expects($this->exactly(3))
 			->method('get')
 			->with('ValidTokenUser')
 			->will($this->returnValue($user));
@@ -448,6 +487,38 @@ class LostControllerTest extends \PHPUnit_Framework_TestCase {
 			->expects($this->once())
 			->method('getTime')
 			->will($this->returnValue(12348));
+		$user
+			->expects($this->once())
+			->method('getEMailAddress')
+			->will($this->returnValue('test@example.com'));
+
+		$message = $this->getMockBuilder('\OC\Mail\Message')
+			->disableOriginalConstructor()->getMock();
+		$message
+			->expects($this->at(0))
+			->method('setTo')
+			->with(['test@example.com' => 'ValidTokenUser']);
+		$message
+			->expects($this->at(1))
+			->method('setSubject')
+			->with(' password changed successfully');
+		$message
+			->expects($this->at(2))
+			->method('setPlainBody')
+			->with('Password changed successfully');
+		$message
+			->expects($this->at(3))
+			->method('setFrom')
+			->with(['lostpassword-noreply@localhost' => null]);
+		$this->mailer
+			->expects($this->at(0))
+			->method('createMessage')
+			->will($this->returnValue($message));
+		$this->mailer
+			->expects($this->at(1))
+			->method('send')
+			->with($message);
+
 
 		$response = $this->lostController->setPassword('TheOnlyAndOnlyOneTokenToResetThePassword', 'ValidTokenUser', 'NewPassword', true);
 		$expectedResponse = ['status' => 'success'];

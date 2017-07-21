@@ -6,8 +6,9 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -75,7 +76,7 @@ class Factory implements IFactory {
 	 */
 	public function __construct(IConfig $config,
 								IRequest $request,
-								IUserSession $userSession,
+								IUserSession $userSession = null,
 								$serverRoot) {
 		$this->config = $config;
 		$this->request = $request;
@@ -127,7 +128,7 @@ class Factory implements IFactory {
 		 *
 		 * @link https://github.com/owncloud/core/issues/21955
 		 */
-		if($this->config->getSystemValue('installed', false)) {
+		if(!is_null($this->userSession) && $this->config->getSystemValue('installed', false)) {
 			$userId = !is_null($this->userSession->getUser()) ? $this->userSession->getUser()->getUID() :  null;
 			if(!is_null($userId)) {
 				$userLang = $this->config->getUserValue($userId, 'core', 'lang', null);

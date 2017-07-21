@@ -16,13 +16,23 @@ timestampedNode('SLAVE') {
 
     stage 'PHPUnit 7.1/sqlite'
         executeAndReport('tests/autotest-results-sqlite.xml') {
-            sh '''
-            export NOCOVERAGE=1
-            unset USEDOCKER
-            phpenv local 7.1
-            make test-php TEST_DATABASE=sqlite
-            '''
-        }
+	        sh '''
+        	export NOCOVERAGE=1
+        	unset USEDOCKER
+        	phpenv local 7.1
+		make test-php TEST_DATABASE=sqlite
+        	'''
+	}
+
+    stage 'phpunit/7.0/mysqlmb4'
+        executeAndReport('tests/autotest-results-sqlite.xml') {
+	        sh '''
+        	export NOCOVERAGE=1
+        	unset USEDOCKER
+        	phpenv local 7.0
+		make test-php TEST_DATABASE=mysqlmb4
+        	'''
+	}
 
     stage 'PHPUnit 7.0/sqlite'
         executeAndReport('tests/autotest-results-sqlite.xml') {
@@ -116,46 +126,38 @@ timestampedNode('SLAVE') {
             '''
         }
 
-    if (isOnReleaseBranch()) {
-        stage 'Integration Testing'
-            executeAndReport('build/integration/output/*.xml') {
-                sh '''phpenv local 7.0
-                rm -rf config/config.php
-                ./occ maintenance:install --admin-pass=admin
-                make clean-test-integration
-                make test-integration
-               '''
-            }
+	stage 'Integration Testing'
+		executeAndReport('tests/integration/output/*.xml') {
+			sh '''phpenv local 7.0
+			rm -rf config/config.php data/*
+			./occ maintenance:install --admin-pass=admin
+			make clean-test-integration
+			make test-integration OC_TEST_ALT_HOME=1
+		   '''
+		}
 
-            executeAndReport('build/integration/output/*.xml') {
-                sh '''phpenv local 7.0
-                rm -rf config/config.php
-                ./occ maintenance:install --admin-pass=admin
-                make clean-test-integration
-                make test-integration OC_TEST_ALT_HOME=1
-               '''
-            }
-			executeAndReport('build/integration/output/*.xml') {
+		if (isOnReleaseBranch()) {
+			executeAndReport('tests/integration/output/*.xml') {
 				sh '''phpenv local 7.0
-				rm -rf config/config.php
-				./occ maintenance:install --admin-pass=admin
-				make clean-test-integration
-				make test-integration OC_TEST_ENCRYPTION_ENABLED=1
-			   '''
-			}
-			executeAndReport('build/integration/output/*.xml') {
-				sh '''phpenv local 7.0
-				rm -rf config/config.php
+				rm -rf config/config.php data/*
 				./occ maintenance:install --admin-pass=admin
 				make clean-test-integration
 				make test-integration OC_TEST_ALT_HOME=1 OC_TEST_ENCRYPTION_ENABLED=1
 			   '''
 			}
-    }
+			executeAndReport('tests/integration/output/*.xml') {
+				sh '''phpenv local 7.0
+				rm -rf config/config.php data/*
+				./occ maintenance:install --admin-pass=admin
+				make clean-test-integration
+				make test-integration OC_TEST_ALT_HOME=1 OC_TEST_ENCRYPTION_MASTER_KEY_ENABLED=1
+			   '''
+			}
+		}
 }
 
 def isOnReleaseBranch ()  {
-    if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'stable9.1' || env.BRANCH_NAME == 'stable9' || env.BRANCH_NAME == 'stable8.2') {
+    if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'stable10' || env.BRANCH_NAME == 'stable9.1' || env.BRANCH_NAME == 'stable9' || env.BRANCH_NAME == 'stable8.2') {
         return true;
     }
     return false

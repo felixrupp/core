@@ -2,10 +2,13 @@
 /**
  * @author Bernhard Posselt <dev@bernhard-posselt.com>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Roeland Jago Douma <rullzer@users.noreply.github.com>
+ * @author Sergio Bertolín <sbertolin@solidgear.es>
  * @author Stefan Weil <sw@weilnetz.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -29,6 +32,7 @@
 
 namespace OCP\AppFramework;
 
+use OC\OCS\Result;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\OCSResponse;
 use OCP\AppFramework\Http\Response;
@@ -78,6 +82,13 @@ abstract class OCSController extends ApiController {
 	 * @since 8.1.0
 	 */
 	private function buildOCSResponse($format, $data) {
+		if ($data instanceof Result) {
+			$headers = $data->getHeaders();
+			$d = $data->getData();
+			$data = $data->getMeta();
+			$data['headers'] = $headers;
+			$data['data'] = $d;
+		}
 		if ($data instanceof DataResponse) {
 			$data = $data->getData();
 		}
@@ -94,11 +105,18 @@ abstract class OCSController extends ApiController {
 			$params[$key] = $value;
 		}
 
-		return new OCSResponse(
+		$resp = new OCSResponse(
 			$format, $params['statuscode'],
 			$params['message'], $params['data'],
 			$params['itemscount'], $params['itemsperpage']
 		);
+		if (isset($data['headers'])) {
+			foreach ($data['headers'] as $key => $value) {
+				$resp->addHeader($key, $value);
+			}
+		}
+
+		return $resp;
 	}
 
 	/**
@@ -122,7 +140,10 @@ abstract class OCSController extends ApiController {
 		if (substr($script, -11) === '/ocs/v2.php') {
 			$statusCode = \OC_API::mapStatusCodes($resp->getStatusCode());
 			if (!is_null($statusCode)) {
+				// HTTP code
 				$resp->setStatus($statusCode);
+				// OCS code
+				$resp->setStatusCode($statusCode);
 			}
 		}
 

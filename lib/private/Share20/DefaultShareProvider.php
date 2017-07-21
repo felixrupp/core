@@ -2,9 +2,11 @@
 /**
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Joas Schilling <coding@schilljs.com>
+ * @author phisch <git@philippschaffrath.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -92,9 +94,11 @@ class DefaultShareProvider implements IShareProvider {
 	 * @param \OCP\Share\IShare $share
 	 * @return \OCP\Share\IShare The share object
 	 * @throws ShareNotFound
+	 * @throws InvalidArgumentException if the share validation failed
 	 * @throws \Exception
 	 */
 	public function create(\OCP\Share\IShare $share) {
+		$this->validate($share);
 		$qb = $this->dbConn->getQueryBuilder();
 
 		$qb->insert('share');
@@ -123,6 +127,9 @@ class DefaultShareProvider implements IShareProvider {
 			if (method_exists($share, 'getParent')) {
 				$qb->setValue('parent', $qb->createNamedParameter($share->getParent()));
 			}
+
+			// Set user-defined name
+			$qb->setValue('share_name', $qb->createNamedParameter($share->getName()));
 		} else {
 			throw new \Exception('invalid share type!');
 		}
@@ -183,8 +190,10 @@ class DefaultShareProvider implements IShareProvider {
 	 *
 	 * @param \OCP\Share\IShare $share
 	 * @return \OCP\Share\IShare The share object
+	 * @throws InvalidArgumentException if the share validation failed
 	 */
 	public function update(\OCP\Share\IShare $share) {
+		$this->validate($share);
 		if ($share->getShareType() === \OCP\Share::SHARE_TYPE_USER) {
 			/*
 			 * We allow updating the recipient on user shares.
@@ -244,6 +253,7 @@ class DefaultShareProvider implements IShareProvider {
 				->set('file_source', $qb->createNamedParameter($share->getNode()->getId()))
 				->set('token', $qb->createNamedParameter($share->getToken()))
 				->set('expiration', $qb->createNamedParameter($share->getExpirationDate(), IQueryBuilder::PARAM_DATE))
+				->set('share_name', $qb->createNamedParameter($share->getName()))
 				->execute();
 		}
 
@@ -460,6 +470,59 @@ class DefaultShareProvider implements IShareProvider {
 	/**
 	 * @inheritdoc
 	 */
+	public function getAllSharesBy($userId, $shareTypes, $nodeIDs, $reshares) {
+		$shares = [];
+		$qb = $this->dbConn->getQueryBuilder();
+
+		$nodeIdsChunks = array_chunk($nodeIDs, 100);
+		foreach ($nodeIdsChunks as $nodeIdsChunk) {
+			$qb->select('*')
+				->from('share')
+				->andWhere($qb->expr()->orX(
+					$qb->expr()->eq('item_type', $qb->createNamedParameter('file')),
+					$qb->expr()->eq('item_type', $qb->createNamedParameter('folder'))
+				));
+
+			$orX = $qb->expr()->orX();
+
+			foreach ($shareTypes as $shareType) {
+				$orX->add($qb->expr()->eq('share_type', $qb->createNamedParameter($shareType)));
+			}
+
+			$qb->andWhere($orX);
+
+			/**
+			 * Reshares for this user are shares where they are the owner.
+			 */
+			if ($reshares === false) {
+				$qb->andWhere($qb->expr()->eq('uid_initiator', $qb->createNamedParameter($userId)));
+			} else {
+				$qb->andWhere(
+					$qb->expr()->orX(
+						$qb->expr()->eq('uid_owner', $qb->createNamedParameter($userId)),
+						$qb->expr()->eq('uid_initiator', $qb->createNamedParameter($userId))
+					)
+				);
+			}
+
+			$qb->andWhere($qb->expr()->in('file_source', $qb->createParameter('file_source_ids')));
+			$qb->setParameter('file_source_ids', $nodeIdsChunk, IQueryBuilder::PARAM_INT_ARRAY);
+
+			$qb->orderBy('id');
+
+			$cursor = $qb->execute();
+			while($data = $cursor->fetch()) {
+				$shares[] = $this->createShare($data);
+			}
+			$cursor->closeCursor();
+		}
+		
+		return $shares;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
 	public function getSharesBy($userId, $shareType, $node, $reshares, $limit, $offset) {
 		$qb = $this->dbConn->getQueryBuilder();
 		$qb->select('*')
@@ -546,7 +609,14 @@ class DefaultShareProvider implements IShareProvider {
 
 		// If the recipient is set for a group share resolve to that user
 		if ($recipientId !== null && $share->getShareType() === \OCP\Share::SHARE_TYPE_GROUP) {
-			$share = $this->resolveGroupShare($share, $recipientId);
+			$resolvedShares = $this->resolveGroupShares([$share], $recipientId);
+			if (count($resolvedShares) === 1){
+				// If we pass to resolveGroupShares() an with one element,
+				// we expect to receive exactly one element, otherwise it is error
+				$share = $resolvedShares[0];
+			} else {
+				throw new ProviderException("ResolveGroupShares() returned wrong result");
+			}
 		}
 
 		return $share;
@@ -652,7 +722,7 @@ class DefaultShareProvider implements IShareProvider {
 
 		} else if ($shareType === \OCP\Share::SHARE_TYPE_GROUP) {
 			$user = $this->userManager->get($userId);
-			$allGroups = $this->groupManager->getUserGroups($user);
+			$allGroups = $this->groupManager->getUserGroups($user, 'sharing');
 
 			/** @var Share[] $shares2 */
 			$shares2 = [];
@@ -710,17 +780,14 @@ class DefaultShareProvider implements IShareProvider {
 				$cursor->closeCursor();
 			}
 
-			/*
- 			 * Resolve all group shares to user specific shares
- 			 * TODO: Optmize this!
- 			 */
-			foreach($shares2 as $share) {
-				$shares[] = $this->resolveGroupShare($share, $userId);
+			//Resolve all group shares to user specific shares
+			if (!empty($shares2)) {
+				$resolvedGroupShares = $this->resolveGroupShares($shares2, $userId);
+				$shares = array_merge($shares, $resolvedGroupShares);
 			}
 		} else {
 			throw new BackendError('Invalid backend');
 		}
-
 
 		return $shares;
 	}
@@ -793,6 +860,7 @@ class DefaultShareProvider implements IShareProvider {
 
 		$share->setNodeId((int)$data['file_source']);
 		$share->setNodeType($data['item_type']);
+		$share->setName($data['share_name']);
 
 		if ($data['expiration'] !== null) {
 			$expiration = \DateTime::createFromFormat('Y-m-d H:i:s', $data['expiration']);
@@ -805,37 +873,100 @@ class DefaultShareProvider implements IShareProvider {
 	}
 
 	/**
-	 * Resolve a group share to a user specific share
-	 * Thus if the user moved their group share make sure this is properly reflected here.
+	 * Will return two maps:
+	 * - $chunkedShareIds responsible to split shareIds into chunks containing 100 elements
+	 * 	 e.g. $chunkedShareIds { { "4", "52", "54",... }[100], { .. }[2] }[2]
 	 *
-	 * @param \OCP\Share\IShare $share
-	 * @param string $userId
-	 * @return Share Returns the updated share if one was found else return the original share.
+	 * - $shareIdToShareMap responsible to split shareIds into chunks containing 100 elements
+	 * 	 e.g. $shareIdToShareMap { "4" => IShare, "52" => IShare, "54" => IShare, ... }[102]
+	 *
+	 * @param \OCP\Share\IShare[] $shares
+	 * @return array $chunkedSharesToMaps e.g { $chunkedShareIds, $shareIdToShareMap }[2]
 	 */
-	private function resolveGroupShare(\OCP\Share\IShare $share, $userId) {
-		$qb = $this->dbConn->getQueryBuilder();
+	private function chunkSharesToMaps($shares) {
+		$chunkedShareIds = [];
+		$shareIdToShareMap = [];
+		$chunkId = 0;
+		$shareNo = 0;
+		foreach($shares as $share) {
+			// Map unique shareIds to IShare
+			$shareId = $share->getId();
+			$shareIdToShareMap[$shareId] = $share;
 
-		$stmt = $qb->select('*')
-			->from('share')
-			->where($qb->expr()->eq('parent', $qb->createNamedParameter($share->getId())))
-			->andWhere($qb->expr()->eq('share_type', $qb->createNamedParameter(self::SHARE_TYPE_USERGROUP)))
-			->andWhere($qb->expr()->eq('share_with', $qb->createNamedParameter($userId)))
-			->andWhere($qb->expr()->orX(
-				$qb->expr()->eq('item_type', $qb->createNamedParameter('file')),
-				$qb->expr()->eq('item_type', $qb->createNamedParameter('folder'))
-			))
-			->setMaxResults(1)
-			->execute();
-
-		$data = $stmt->fetch();
-		$stmt->closeCursor();
-
-		if ($data !== false) {
-			$share->setPermissions((int)$data['permissions']);
-			$share->setTarget($data['file_target']);
+			// Chunk shareId array
+			if ($shareNo >= 100) {
+				// If we have over 100 shares in the array, start next chunk
+				$shareNo = 0;
+				$chunkId++;
+			} else {
+				// Increase number of shares in current array
+				$shareNo++;
+			}
+			$chunkedShareIds[$chunkId][] = $shareId;
 		}
 
-		return $share;
+		$chunkedSharesToMaps = array($chunkedShareIds, $shareIdToShareMap);
+		return $chunkedSharesToMaps;
+	}
+
+	/**
+	 * Resolve a group shares to a user specific share.
+	 * Thus if the user moved their group share make sure this is properly reflected here,
+	 * If $shares array contains exactly 2 elements, where
+	 * only 1 will be changed(resolved), it returns exactly 2 elements, containing the resolved one.
+	 *
+	 * @param \OCP\Share\IShare[] $shares e.g. { IShare, IShare }[2]
+	 * @param string $userId
+	 * @return \OCP\Share\IShare[] $resolvedShares
+	 * @throws ProviderException
+	 */
+	private function resolveGroupShares($shares, $userId) {
+		$qb = $this->dbConn->getQueryBuilder();
+
+		list($chunkedShareIds, $shareIdToShareMap) = $this->chunkSharesToMaps($shares);
+		foreach($chunkedShareIds as $shareIdsChunk) {
+			$qb->select('*')
+				->from('share')
+				->where($qb->expr()->in('parent', $qb->createNamedParameter(
+					$shareIdsChunk,
+					IQueryBuilder::PARAM_STR_ARRAY
+				)))
+				->andWhere($qb->expr()->eq('share_type', $qb->createNamedParameter(self::SHARE_TYPE_USERGROUP)))
+				->andWhere($qb->expr()->eq('share_with', $qb->createNamedParameter($userId)))
+				->andWhere($qb->expr()->orX(
+					$qb->expr()->eq('item_type', $qb->createNamedParameter('file')),
+					$qb->expr()->eq('item_type', $qb->createNamedParameter('folder'))
+				));
+
+			$stmt = $qb->execute();
+
+			// Resolve $shareIdToShareMap array containing group shares
+			$shareParents = [];
+			while($data = $stmt->fetch()) {
+				// Get share parent
+				$shareParent = $data['parent'];
+
+				// Ensure uniquenes of parents
+				if (!isset($shareParents[$shareParent])) {
+					$shareParents[$shareParent] = true;
+				} else {
+					throw new ProviderException('Parent of share should be unique');
+				}
+
+				// Resolve only shares contained in the map.
+				// This will ensure that we return the same amount of shares in the input as in the output
+				// If $shareParent is contained in $shareIdToShareMap, it means that needs resolving
+				if (isset($shareIdToShareMap[$shareParent])) {
+					$share = $shareIdToShareMap[$shareParent];
+					$share->setPermissions(intval($data['permissions']));
+					$share->setTarget($data['file_target']);
+				}
+			}
+			$stmt->closeCursor();
+		}
+		
+		$resolvedShares = array_values($shareIdToShareMap);
+		return $resolvedShares;
 	}
 
 	/**
@@ -982,5 +1113,20 @@ class DefaultShareProvider implements IShareProvider {
 				$qb->execute();
 			}
 		}
+	}
+
+	/**
+	 * Check whether the share object fits the expectations of this provider
+	 *
+	 * @param IShare $share share
+	 *
+	 * @throws InvalidArgumentException if the share validation failed
+	 */
+	private function validate($share) {
+		if (!is_null($share->getName()) && strlen($share->getName()) > 64) {
+			throw new \InvalidArgumentException('Share name cannot be more than 64 characters');
+		}
+
+		// TODO: add more early validation for fields instead of relying on the DB
 	}
 }

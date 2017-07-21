@@ -31,8 +31,8 @@ class DatabaseTest extends BackendTestCase {
 	/** @var array */
 	private $users;
 
-	public function getUser() {
-		$user = parent::getUser();
+	public function getUser($prefix = 'test_') {
+		$user = parent::getUser($prefix);
 		$this->users[]=$user;
 		return $user;
 	}
@@ -50,5 +50,22 @@ class DatabaseTest extends BackendTestCase {
 			$this->backend->deleteUser($user);
 		}
 		parent::tearDown();
+	}
+
+	public function testCreateUserInvalidatesCache() {
+		$user1 = $this->getUser();
+		$this->assertFalse($this->backend->userExists($user1));
+		$this->backend->createUser($user1, 'pw');
+		$this->assertTrue($this->backend->userExists($user1));
+	}
+
+	public function testDeleteUserInvalidatesCache() {
+		$user1 = $this->getUser();
+		$this->backend->createUser($user1, 'pw');
+		$this->assertTrue($this->backend->userExists($user1));
+		$this->backend->deleteUser($user1);
+		$this->assertFalse($this->backend->userExists($user1));
+		$this->backend->createUser($user1, 'pw2');
+		$this->assertTrue($this->backend->userExists($user1));
 	}
 }

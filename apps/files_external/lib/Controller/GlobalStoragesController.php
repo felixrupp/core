@@ -1,12 +1,12 @@
 <?php
 /**
- * @author Joas Schilling <coding@schilljs.com>
  * @author Juan Pablo Villafáñez <jvillafanez@solidgear.es>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
+ * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -87,6 +87,15 @@ class GlobalStoragesController extends StoragesController {
 		$applicableGroups,
 		$priority
 	) {
+		$canCreateNewLocalStorage = \OC::$server->getConfig()->getSystemValue('files_external_allow_create_new_local', false);
+
+		if ($backend === 'local' && $canCreateNewLocalStorage === false) {
+			return new DataResponse(
+				null,
+				Http::STATUS_FORBIDDEN
+			);
+		}
+
 		$newStorage = $this->createStorage(
 			$mountPoint,
 			$backend,
@@ -181,7 +190,6 @@ class GlobalStoragesController extends StoragesController {
 			$storage,
 			Http::STATUS_OK
 		);
-
 	}
 
 

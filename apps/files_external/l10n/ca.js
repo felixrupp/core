@@ -1,8 +1,6 @@
 OC.L10N.register(
     "files_external",
     {
-    "Step 1 failed. Exception: %s" : "El pas 1 ha fallat. Excepció: %s",
-    "Step 2 failed. Exception: %s" : "El pas 2 ha fallat. Excepció: %s",
     "External storage" : "Emmagatzemament extern",
     "Personal" : "Personal",
     "System" : "Sistema",
@@ -49,7 +47,6 @@ OC.L10N.register(
     "<b>Note:</b> The cURL support in PHP is not enabled or installed. Mounting of %s is not possible. Please ask your system administrator to install it." : "<b>Nota:</b> El suport cURL no està activat o instal·lat a PHP. No es pot muntar %s. Demaneu a l'administrador del sistema que l'instal·li.",
     "<b>Note:</b> \"%s\" is not installed. Mounting of %s is not possible. Please ask your system administrator to install it." : "<b>Nota:</b> %s no està instal·lat. No es pot muntar %s. Demaneu a l'administrador del sistema que l'instal·li.",
     "No external storage configured" : "Sense emmagatzematge extern configurat",
-    "You can add external storages in the personal settings" : "Pot agregar emmagatzematges externs en la configuració personal",
     "Name" : "Nom",
     "Storage type" : "Tipus d'emmagatzemament",
     "Scope" : "Abast",

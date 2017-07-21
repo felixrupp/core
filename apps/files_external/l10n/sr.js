@@ -1,8 +1,6 @@
 OC.L10N.register(
     "files_external",
     {
-    "Step 1 failed. Exception: %s" : "Корак 1 није успео. Изузетак: %s",
-    "Step 2 failed. Exception: %s" : "Корак 2 није успео. Изузетак: %s",
     "External storage" : "Спољашње складиште",
     "Personal" : "Лично",
     "System" : "Систем",
@@ -35,7 +33,6 @@ OC.L10N.register(
     "URL" : "УРЛ",
     "Remote subfolder" : "Удаљена потфасцикла",
     "Secure https://" : "Сигурни https://",
-    "Dropbox" : "Dropbox",
     "Local" : "локална",
     "Location" : "Локација",
     "ownCloud" : "оунКлауд",
@@ -54,7 +51,6 @@ OC.L10N.register(
     "<b>Note:</b> The cURL support in PHP is not enabled or installed. Mounting of %s is not possible. Please ask your system administrator to install it." : "<b>Напомена:</b> cURL подршка за ПХП није омогућена или инсталирана. Монтирање %s није могуће. Затражите од вашег администратора система да је инсталира.",
     "<b>Note:</b> \"%s\" is not installed. Mounting of %s is not possible. Please ask your system administrator to install it." : "<b>Напомена:</b> „%s“ није инсталирана. Монтирање %s није могуће. Затражите од вашег администратора система да је инсталира.",
     "No external storage configured" : "Нема подешеног спољашњег складишта",
-    "You can add external storages in the personal settings" : "Можете додати спољна складишта у вашим личним подешавањима",
     "Name" : "Назив",
     "Storage type" : "Тип складишта",
     "Scope" : "Распон",

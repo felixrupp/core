@@ -26,7 +26,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -49,7 +49,7 @@ namespace OC\Files;
 use Icewind\Streams\CallbackWrapper;
 use OC\Files\Mount\MoveableMount;
 use OC\Files\Storage\Storage;
-use OC\User\User;
+use OC\User\RemoteUser;
 use OCP\Constants;
 use OCP\Files\Cache\ICacheEntry;
 use OCP\Files\FileNameTooLongException;
@@ -61,6 +61,7 @@ use OCP\IUser;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
 use OCA\Files_Sharing\SharedMount;
+use OCP\Util;
 
 /**
  * Class to provide access to ownCloud filesystem via a "view", and methods for
@@ -686,7 +687,11 @@ class View {
 		if ($mount and $mount->getInternalPath($absolutePath) === '') {
 			return $this->removeMount($mount, $absolutePath);
 		}
-		$result = $this->basicOperation('unlink', $path, ['delete']);
+		if ($this->is_dir($path)) {
+			$result = $this->basicOperation('rmdir', $path, array('delete'));
+		} else {
+			$result = $this->basicOperation('unlink', $path, array('delete'));
+		}
 		if (!$result && !$this->file_exists($path)) { //clear ghost files from the cache on delete
 			$storage = $mount->getStorage();
 			$internalPath = $mount->getInternalPath($absolutePath);
@@ -955,7 +960,7 @@ class View {
 				$hooks[] = 'write';
 				break;
 			default:
-				\OCP\Util::writeLog('core', 'invalid mode (' . $mode . ') for ' . $path, \OCP\Util::ERROR);
+				Util::writeLog('core', 'invalid mode (' . $mode . ') for ' . $path, Util::ERROR);
 		}
 
 		return $this->basicOperation('fopen', $path, $hooks, $mode);
@@ -1258,15 +1263,15 @@ class View {
 
 	/**
 	 * @param string $ownerId
-	 * @return \OC\User\User
+	 * @return IUser
 	 */
 	private function getUserObjectForOwner($ownerId) {
 		$owner = $this->userManager->get($ownerId);
-		if ($owner instanceof IUser) {
-			return $owner;
-		} else {
-			return new User($ownerId, null);
+		if (!$owner instanceof IUser) {
+			return new RemoteUser($ownerId);
 		}
+
+		return $owner;
 	}
 
 	/**
@@ -1404,7 +1409,7 @@ class View {
 			$folderId = $data['fileid'];
 			$contents = $cache->getFolderContentsById($folderId); //TODO: mimetype_filter
 
-			$sharingDisabled = \OCP\Util::isSharingDisabledForUser();
+			$sharingDisabled = Util::isSharingDisabledForUser();
 			/**
 			 * @var \OC\Files\FileInfo[] $files
 			 */
@@ -1439,11 +1444,11 @@ class View {
 							continue;
 						} catch (\Exception $e) {
 							// sometimes when the storage is not available it can be any exception
-							\OCP\Util::writeLog(
+							Util::writeLog(
 								'core',
 								'Exception while scanning storage "' . $subStorage->getId() . '": ' .
 								get_class($e) . ': ' . $e->getMessage(),
-								\OCP\Util::ERROR
+								Util::ERROR
 							);
 							continue;
 						}
@@ -1482,7 +1487,7 @@ class View {
 							$rootEntry['path'] = substr(Filesystem::normalizePath($path . '/' . $rootEntry['name']), strlen($user) + 2); // full path without /$user/
 
 							// if sharing was disabled for the user we remove the share permissions
-							if (\OCP\Util::isSharingDisabledForUser()) {
+							if (Util::isSharingDisabledForUser()) {
 								$rootEntry['permissions'] = $rootEntry['permissions'] & ~\OCP\Constants::PERMISSION_SHARE;
 							}
 
@@ -1736,9 +1741,9 @@ class View {
 
 		list($targetStorage, $targetInternalPath) = \OC\Files\Filesystem::resolvePath($target);
 		if (!$targetStorage->instanceOfStorage('\OCP\Files\IHomeStorage')) {
-			\OCP\Util::writeLog('files',
+			Util::writeLog('files',
 				'It is not allowed to move one mount point into another one',
-				\OCP\Util::DEBUG);
+				Util::DEBUG);
 			return false;
 		}
 
@@ -1793,13 +1798,15 @@ class View {
 			throw new InvalidPathException($l10n->t('Dot files are not allowed'));
 		}
 
-		// verify database - e.g. mysql only 3-byte chars
-		if (preg_match('%(?:
+		if (!\OC::$server->getDatabaseConnection()->allows4ByteCharacters()) {
+			// verify database - e.g. mysql only 3-byte chars
+			if (preg_match('%(?:
       \xF0[\x90-\xBF][\x80-\xBF]{2}      # planes 1-3
     | [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
     | \xF4[\x80-\x8F][\x80-\xBF]{2}      # plane 16
 )%xs', $fileName)) {
-			throw new InvalidPathException($l10n->t('4-byte characters are not supported in file names'));
+				throw new InvalidPathException($l10n->t('4-byte characters are not supported in file names'));
+			}
 		}
 
 		try {
@@ -2068,7 +2075,7 @@ class View {
 		$parts = explode('/', trim($path, '/'), 3);
 		// "$user", "files", "path/to/dir"
 		if (!isset($parts[1]) || $parts[1] !== 'files') {
-			throw new \InvalidArgumentException('$absolutePath must be relative to "files"');
+			throw new \InvalidArgumentException('"' . $absolutePath . '" must be relative to "files"');
 		}
 		if (isset($parts[2])) {
 			return $parts[2];

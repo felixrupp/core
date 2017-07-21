@@ -1,11 +1,13 @@
 <?php
 /**
  * @author Christoph Wurst <christoph@owncloud.com>
+ * @author Claudemir Todo Bom <claudemir@todobom.com>
  * @author Joas Schilling <coding@schilljs.com>
  * @author Lukas Reschke <lukas@statuscode.ch>
+ * @author Thomas Citharel <tcit@tcit.fr>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -46,7 +48,7 @@ $principalBackend = new Principal(
 $db = \OC::$server->getDatabaseConnection();
 $config = \OC::$server->getConfig();
 $random = \OC::$server->getSecureRandom();
-$calDavBackend = new CalDavBackend($db, $principalBackend, $config, $random);
+$calDavBackend = new CalDavBackend($db, $principalBackend, $config, $random, true);
 
 $debugging = \OC::$server->getConfig()->getSystemValue('debug', false);
 
@@ -77,8 +79,9 @@ if ($debugging) {
 	$server->addPlugin(new Sabre\DAV\Browser\Plugin());
 }
 
+$server->addPlugin(new \Sabre\DAV\Sync\Plugin());
 $server->addPlugin(new \Sabre\CalDAV\ICSExportPlugin());
-$server->addPlugin(new \Sabre\CalDAV\Schedule\Plugin());
+$server->addPlugin(new \OCA\DAV\CalDAV\Schedule\Plugin());
 $server->addPlugin(new OCA\DAV\CalDAV\Schedule\IMipPlugin( \OC::$server->getMailer(), \OC::$server->getLogger()));
 $server->addPlugin(new ExceptionLoggerPlugin('caldav', \OC::$server->getLogger()));
 

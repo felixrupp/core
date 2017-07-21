@@ -7,7 +7,7 @@ OC.Share = _.extend(OC.Share || {}, {
 	SHARE_TYPE_USER:0,
 	SHARE_TYPE_GROUP:1,
 	SHARE_TYPE_LINK:3,
-	SHARE_TYPE_EMAIL:4,
+	SHARE_TYPE_GUEST:4,
 	SHARE_TYPE_REMOTE:6,
 
 	/**
@@ -415,7 +415,6 @@ OC.Share = _.extend(OC.Share || {}, {
 				'data-item-source': itemSource
 			}
 		});
-		dialogView.setShowLink(link);
 		var $dialog = dialogView.render().$el;
 		$dialog.appendTo(appendTo);
 		$dialog.slideDown(OC.menuSpeed, function() {

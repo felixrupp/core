@@ -4,7 +4,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -159,5 +159,14 @@ class OCIExpressionBuilder extends ExpressionBuilder {
 		$x = $this->helper->quoteColumnName($x);
 		$y = $this->helper->quoteColumnName($y);
 		return new QueryFunction('REGEXP_LIKE('.$x.', \'^\' || REPLACE('.$y.', \'%\', \'.*\') || \'$\', \'i\')');
+	}
+
+	/**
+	 * Use LENGTHC on Oracle to return multi-byte safe number of characters not bytes.
+	 * @inheritdoc
+	 */
+	public function length($column) {
+		$column = $this->helper->quoteColumnName($column);
+		return new QueryFunction("LENGTHC({$column})");
 	}
 }

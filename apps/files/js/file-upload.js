@@ -34,6 +34,9 @@
 OC.FileUpload = function(uploader, data) {
 	this.uploader = uploader;
 	this.data = data;
+	if (!data) {
+		throw 'Missing "data" argument in OC.FileUpload constructor';
+	}
 	var path = '';
 	if (this.uploader.fileList) {
 		path = OC.joinPaths(this.uploader.fileList.getCurrentDirectory(), this.getFile().name);
@@ -45,6 +48,7 @@ OC.FileUpload = function(uploader, data) {
 OC.FileUpload.CONFLICT_MODE_DETECT = 0;
 OC.FileUpload.CONFLICT_MODE_OVERWRITE = 1;
 OC.FileUpload.CONFLICT_MODE_AUTORENAME = 2;
+OC.FileUpload.CONFLICT_MODE_AUTORENAME_SERVER = 3;
 OC.FileUpload.prototype = {
 
 	/**
@@ -154,6 +158,12 @@ OC.FileUpload.prototype = {
 	 * @return {bool}
 	 */
 	isPending: function() {
+		if (!this.data || !this.data.state) {
+			// this should not be possible!
+			var stack = new Error().stack;
+			console.error(stack);
+			return false;
+		}
 		return this.data.state() === 'pending';
 	},
 
@@ -201,7 +211,13 @@ OC.FileUpload.prototype = {
 			folderPromise = $.Deferred().resolve().promise();
 		}
 
-		if (this.uploader.fileList) {
+		if (this.uploader.url) {
+			if (_.isFunction(this.uploader.url)) {
+				this.data.url = this.uploader.url(this.getFileName(), this.getFullPath());
+			} else {
+				this.data.url = this.uploader.url;
+			}
+		} else if (this.uploader.fileList) {
 			this.data.url = this.uploader.fileList.getUploadUrl(this.getFileName(), this.getFullPath());
 		}
 
@@ -217,6 +233,10 @@ OC.FileUpload.prototype = {
 		if (this._conflictMode === OC.FileUpload.CONFLICT_MODE_DETECT
 			|| this._conflictMode === OC.FileUpload.CONFLICT_MODE_AUTORENAME) {
 			this.data.headers['If-None-Match'] = '*';
+		}
+		if (this._conflictMode === OC.FileUpload.CONFLICT_MODE_AUTORENAME_SERVER) {
+			// server-side autorename (not supported on all endpoints)
+			this.data.headers['OC-Autorename'] = '1';
 		}
 
 		if (file.lastModified) {
@@ -466,7 +486,7 @@ OC.Uploader.prototype = _.extend({
 						deferred.resolve();
 						return;
 					}
-					OC.Notification.showTemporary(t('files', 'Could not create folder "{dir}"', {dir: fullPath}));
+					OC.Notification.show(t('files', 'Could not create folder "{dir}"', {dir: fullPath}), {type: 'error'});
 					deferred.reject();
 				});
 			}, function() {
@@ -547,7 +567,7 @@ OC.Uploader.prototype = _.extend({
 	},
 
 	showUploadCancelMessage: _.debounce(function() {
-		OC.Notification.showTemporary(t('files', 'Upload cancelled.'), {timeout: 10});
+		OC.Notification.show(t('files', 'Upload cancelled.'), {timeout : 7, type: 'error'});
 	}, 500),
 	/**
 	 * Checks the currently known uploads.
@@ -730,6 +750,7 @@ OC.Uploader.prototype = _.extend({
 	 * @param {OCA.Files.FileList} [options.fileList] file list object
 	 * @param {OC.Files.Client} [options.filesClient] files client object
 	 * @param {Object} [options.dropZone] drop zone for drag and drop upload
+	 * @param {String|function} [options.url] optional target url or function
 	 */
 	init: function($uploadEl, options) {
 		var self = this;
@@ -737,6 +758,10 @@ OC.Uploader.prototype = _.extend({
 
 		this.fileList = options.fileList;
 		this.filesClient = options.filesClient || OC.Files.getClient();
+
+		if (options.url) {
+			this.url = options.url;
+		}
 
 		$uploadEl = $($uploadEl);
 		this.$uploadEl = $uploadEl;
@@ -894,6 +919,10 @@ OC.Uploader.prototype = _.extend({
 							}
 						};
 
+						_.each(selection.uploads, function(upload) {
+							self.trigger('beforeadd', upload);
+						});
+
 						self.checkExistingFiles(selection, callbacks);
 
 					}
@@ -924,19 +953,20 @@ OC.Uploader.prototype = _.extend({
 						self.showConflict(upload);
 					} else if (status === 404) {
 						// target folder does not exist any more
-						OC.Notification.showTemporary(
-							t('files', 'Target folder "{dir}" does not exist any more', {dir: upload.getFullPath()})
-						);
+						var dir = upload.getFullPath();
+						if (dir && dir !== '/') {
+							OC.Notification.show(t('files', 'Target folder "{dir}" does not exist any more', {dir: dir}), {type: 'error'});
+						} else {
+							OC.Notification.show(t('files', 'Target folder does not exist any more'), {type: 'error'});
+						}
 						self.cancelUploads();
 					} else if (status === 507) {
 						// not enough space
-						OC.Notification.showTemporary(
-							t('files', 'Not enough free space')
-						);
+						OC.Notification.show(t('files', 'Not enough free space'), {type: 'error'});
 						self.cancelUploads();
 					} else {
 						// HTTP connection problem or other error
-						OC.Notification.showTemporary(data.errorThrown, {timeout: 10});
+						OC.Notification.show(data.errorThrown, {type: 'error'});
 					}
 
 					if (upload) {
@@ -1098,5 +1128,3 @@ OC.Uploader.prototype = _.extend({
 		return this.fileUploadParam;
 	}
 }, OC.Backbone.Events);
-
-

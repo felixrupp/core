@@ -1,9 +1,10 @@
 <?php
 /**
+ * @author Michael Jobst <mjobst+github@tecratech.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,7 +31,7 @@ use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\Files\IRootFolder;
 use OCP\Lock\LockedException;
-use OCP\Share;
+use OCP\Share\IShare;
 use OCP\Share\IManager;
 use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\Exceptions\GenericShareException;
@@ -151,6 +152,7 @@ class Share20OCS {
 
 			$result['share_with'] = $share->getPassword();
 			$result['share_with_displayname'] = $share->getPassword();
+			$result['name'] = $share->getName();
 
 			$result['token'] = $share->getToken();
 			$result['url'] = $this->urlGenerator->linkToRouteAbsolute('files_sharing.sharecontroller.showShare', ['token' => $share->getToken()]);
@@ -245,6 +247,8 @@ class Share20OCS {
 			return new \OC\OCS\Result(null, 404, $this->l->t('Share API is disabled'));
 		}
 
+		$name = $this->request->getParam('name', null);
+
 		// Verify path
 		$path = $this->request->getParam('path', null);
 		if ($path === null) {
@@ -279,8 +283,17 @@ class Share20OCS {
 			return new \OC\OCS\Result(null, 404, 'invalid permissions');
 		}
 
-		// Shares always require read permissions
-		$permissions |= \OCP\Constants::PERMISSION_READ;
+		if ($permissions === 0) {
+			return new \OC\OCS\Result(null, 400, $this->l->t('Cannot remove all permissions'));
+		}
+
+		$shareType = (int)$this->request->getParam('shareType', '-1');
+
+		// link shares can have create-only without read (anonymous upload)
+		if ($shareType !== \OCP\Share::SHARE_TYPE_LINK && $permissions !== \OCP\Constants::PERMISSION_CREATE) {
+			// Shares always require read permissions
+			$permissions |= \OCP\Constants::PERMISSION_READ;
+		}
 
 		if ($path instanceof \OCP\Files\File) {
 			// Single file shares should never have delete or create permissions
@@ -298,7 +311,6 @@ class Share20OCS {
 		}
 
 		$shareWith = $this->request->getParam('shareWith', null);
-		$shareType = (int)$this->request->getParam('shareType', '-1');
 
 		if ($shareType === \OCP\Share::SHARE_TYPE_USER) {
 			// Valid user is required to share
@@ -328,18 +340,10 @@ class Share20OCS {
 				return new \OC\OCS\Result(null, 404, $this->l->t('Public link sharing is disabled by the administrator'));
 			}
 
-			/*
-			 * For now we only allow 1 link share.
-			 * Return the existing link share if this is a duplicate
-			 */
-			$existingShares = $this->shareManager->getSharesBy($this->currentUser->getUID(), \OCP\Share::SHARE_TYPE_LINK, $path, false, 1, 0);
-			if (!empty($existingShares)) {
-				$share->getNode()->unlock(ILockingProvider::LOCK_SHARED);
-				return new \OC\OCS\Result($this->formatShare($existingShares[0]));
-			}
-
+			// legacy way, expecting that this won't be used together with "create-only" shares
 			$publicUpload = $this->request->getParam('publicUpload', null);
-			if ($publicUpload === 'true') {
+			// a few permission checks
+			if ($publicUpload === 'true' || $permissions === \OCP\Constants::PERMISSION_CREATE) {
 				// Check if public upload is allowed
 				if (!$this->shareManager->shareApiLinkAllowPublicUpload()) {
 					$share->getNode()->unlock(ILockingProvider::LOCK_SHARED);
@@ -351,15 +355,28 @@ class Share20OCS {
 					$share->getNode()->unlock(ILockingProvider::LOCK_SHARED);
 					return new \OC\OCS\Result(null, 404, $this->l->t('Public upload is only possible for publicly shared folders'));
 				}
+			}
 
+			// convert to permissions
+			if ($publicUpload === 'true') {
 				$share->setPermissions(
 					\OCP\Constants::PERMISSION_READ |
 					\OCP\Constants::PERMISSION_CREATE |
 					\OCP\Constants::PERMISSION_UPDATE |
 					\OCP\Constants::PERMISSION_DELETE
 				);
+			} else if ($permissions === \OCP\Constants::PERMISSION_CREATE ||
+					$permissions === (\OCP\Constants::PERMISSION_READ | \OCP\Constants::PERMISSION_CREATE | \OCP\Constants::PERMISSION_UPDATE | \OCP\Constants::PERMISSION_DELETE)) {
+				$share->setPermissions($permissions);
 			} else {
+				// because when "publicUpload" is passed usually no permissions are set,
+				// which defaults to ALL. But in the case of link shares we default to READ...
 				$share->setPermissions(\OCP\Constants::PERMISSION_READ);
+			}
+
+			// set name only if passed as parameter, empty string is allowed
+			if ($name !== null) {
+				$share->setName($name);
 			}
 
 			// Set password
@@ -426,6 +443,10 @@ class Share20OCS {
 		$groupShares = $this->shareManager->getSharedWith($this->currentUser->getUID(), \OCP\Share::SHARE_TYPE_GROUP, $node, -1, 0);
 
 		$shares = array_merge($userShares, $groupShares);
+
+		$shares = array_filter($shares, function(IShare $share) {
+			return $share->getShareOwner() !== $this->currentUser->getUID();
+ 		});
 
 		$formatted = [];
 		foreach ($shares as $share) {
@@ -592,12 +613,13 @@ class Share20OCS {
 		$password = $this->request->getParam('password', null);
 		$publicUpload = $this->request->getParam('publicUpload', null);
 		$expireDate = $this->request->getParam('expireDate', null);
+		$name = $this->request->getParam('name', null);
 
 		/*
 		 * expirationdate, password and publicUpload only make sense for link shares
 		 */
 		if ($share->getShareType() === \OCP\Share::SHARE_TYPE_LINK) {
-			if ($permissions === null && $password === null && $publicUpload === null && $expireDate === null) {
+			if ($permissions === null && $password === null && $publicUpload === null && $expireDate === null && $name === null) {
 				$share->getNode()->unlock(ILockingProvider::LOCK_SHARED);
 				return new \OC\OCS\Result(null, 400, 'Wrong or no update parameter given');
 			}
@@ -615,6 +637,7 @@ class Share20OCS {
 
 			if ($newPermissions !== null &&
 				$newPermissions !== \OCP\Constants::PERMISSION_READ &&
+				$newPermissions !== \OCP\Constants::PERMISSION_CREATE &&
 				// legacy
 				$newPermissions !== (\OCP\Constants::PERMISSION_READ | \OCP\Constants::PERMISSION_CREATE | \OCP\Constants::PERMISSION_UPDATE) &&
 				// correct
@@ -642,6 +665,26 @@ class Share20OCS {
 
 				// normalize to correct public upload permissions
 				$newPermissions = \OCP\Constants::PERMISSION_READ | \OCP\Constants::PERMISSION_CREATE | \OCP\Constants::PERMISSION_UPDATE | \OCP\Constants::PERMISSION_DELETE;
+			}
+
+			// create-only (upload-only)
+			if (
+				$newPermissions === \OCP\Constants::PERMISSION_CREATE
+			) {
+				if (!$this->shareManager->shareApiLinkAllowPublicUpload()) {
+					$share->getNode()->unlock(ILockingProvider::LOCK_SHARED);
+					return new \OC\OCS\Result(null, 403, $this->l->t('Public upload disabled by the administrator'));
+				}
+
+				if (!($share->getNode() instanceof \OCP\Files\Folder)) {
+					$share->getNode()->unlock(ILockingProvider::LOCK_SHARED);
+					return new \OC\OCS\Result(null, 400, $this->l->t('Public upload is only possible for publicly shared folders'));
+				}
+			}
+
+			// set name only if passed as parameter, empty string is allowed
+			if ($name !== null) {
+				$share->setName($name);
 			}
 
 			if ($newPermissions !== null) {
@@ -696,6 +739,9 @@ class Share20OCS {
 			}
 		}
 
+		if ($share->getPermissions() === 0) {
+			return new \OC\OCS\Result(null, 400, $this->l->t('Cannot remove all permissions'));
+		}
 
 		try {
 			$share = $this->shareManager->updateShare($share);

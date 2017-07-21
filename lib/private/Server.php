@@ -11,15 +11,18 @@
  * @author Jörn Friedrich Dreyer <jfd@butonic.de>
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Morris Jobke <hey@morrisjobke.de>
+ * @author Philipp Schaffrath <github@philippschaffrath.de>
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
+ * @author Roeland Jago Douma <rullzer@users.noreply.github.com>
  * @author Sander <brantje@gmail.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Thomas Tanghus <thomas@tanghus.net>
+ * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -77,12 +80,17 @@ use OC\Security\CredentialsManager;
 use OC\Security\SecureRandom;
 use OC\Security\TrustedDomainHelper;
 use OC\Session\CryptoWrapper;
+use OC\Session\Memory;
+use OC\Settings\Panels\Helper;
+use OC\Settings\SettingsManager;
 use OC\Tagging\TagMapper;
-use OC\URLGenerator;
 use OC\Theme\ThemeService;
-use OCP\IDateTimeFormatter;
+use OC\User\AccountMapper;
+use OC\User\AccountTermMapper;
 use OCP\IL10N;
+use OCP\ILogger;
 use OCP\IServerContainer;
+use OCP\ISession;
 use OCP\Security\IContentSecurityPolicyManager;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -104,12 +112,37 @@ class Server extends ServerContainer implements IServerContainer {
 	private $webRoot;
 
 	/**
+	 * cache the logger to prevent querying it over and over again
+	 * @var ILogger;
+	 */
+	private $logger;
+
+	/**
 	 * @param string $webRoot
 	 * @param \OC\Config $config
 	 */
 	public function __construct($webRoot, \OC\Config $config) {
 		parent::__construct();
 		$this->webRoot = $webRoot;
+
+		$this->registerService('SettingsManager', function(Server $c) {
+			return new SettingsManager(
+				$c->getL10N('lib'),
+				$c->getAppManager(),
+				$c->getUserSession(),
+				$c->getLogger(),
+				$c->getGroupManager(),
+				$c->getConfig(),
+				new \OCP\Defaults(),
+				$c->getURLGenerator(),
+				new Helper(),
+				$c->getLockingProvider(),
+				$c->getDatabaseConnection(),
+				$c->getCertificateManager(),
+				$c->getL10NFactory()
+
+			);
+		});
 
 		$this->registerService('ContactsManager', function ($c) {
 			return new ContactsManager();
@@ -195,9 +228,13 @@ class Server extends ServerContainer implements IServerContainer {
 				return $c->getRootFolder();
 			});
 		});
+		$this->registerService('AccountMapper', function(Server $c) {
+			return new AccountMapper($c->getConfig(), $c->getDatabaseConnection(), new AccountTermMapper($c->getDatabaseConnection()));
+		});
 		$this->registerService('UserManager', function (Server $c) {
 			$config = $c->getConfig();
-			return new \OC\User\Manager($config);
+			$logger = $c->getLogger();
+			return new \OC\User\Manager($config, $logger, $c->getAccountMapper());
 		});
 		$this->registerService('GroupManager', function (Server $c) {
 			$groupManager = new \OC\Group\Manager($this->getUserManager());
@@ -247,7 +284,7 @@ class Server extends ServerContainer implements IServerContainer {
 			} else {
 				$defaultTokenProvider = null;
 			}
-			
+
 			$userSession = new \OC\User\Session($manager, $session, $timeFactory, $defaultTokenProvider, $c->getConfig());
 			$userSession->listen('\OC\User', 'preCreateUser', function ($uid, $password) {
 				\OC_Hook::emit('OC_User', 'pre_createUser', ['run' => true, 'uid' => $uid, 'password' => $password]);
@@ -419,13 +456,18 @@ class Server extends ServerContainer implements IServerContainer {
 			return new CredentialsManager($c->getCrypto(), $c->getDatabaseConnection());
 		});
 		$this->registerService('DatabaseConnection', function (Server $c) {
-			$factory = new \OC\DB\ConnectionFactory();
 			$systemConfig = $c->getSystemConfig();
+			$keys = $systemConfig->getKeys();
+			if (!isset($keys['dbname']) && !isset($keys['dbhost']) && isset($keys['dbtableprefix'])) {
+				throw new \OC\DatabaseException('No database configured');
+			}
+
+			$factory = new \OC\DB\ConnectionFactory($systemConfig);
 			$type = $systemConfig->getValue('dbtype', 'sqlite');
 			if (!$factory->isValidType($type)) {
 				throw new \OC\DatabaseException('Invalid database type');
 			}
-			$connectionParams = $factory->createConnectionParams($systemConfig);
+			$connectionParams = $factory->createConnectionParams();
 			$connection = $factory->getConnection($type, $connectionParams);
 			$connection->getConfiguration()->setSQLLogger($c->getQueryLogger());
 			return $connection;
@@ -449,18 +491,20 @@ class Server extends ServerContainer implements IServerContainer {
 			);
 		});
 		$this->registerService('EventLogger', function (Server $c) {
+			$eventLogger = new EventLogger();
 			if ($c->getSystemConfig()->getValue('debug', false)) {
-				return new EventLogger();
-			} else {
-				return new NullEventLogger();
+				// In debug mode, module is being activated by default
+				$eventLogger->activate();
 			}
+			return $eventLogger;
 		});
 		$this->registerService('QueryLogger', function (Server $c) {
+			$queryLogger = new QueryLogger();
 			if ($c->getSystemConfig()->getValue('debug', false)) {
-				return new QueryLogger();
-			} else {
-				return new NullQueryLogger();
+				// In debug mode, module is being activated by default
+				$queryLogger->activate();
 			}
+			return $queryLogger;
 		});
 		$this->registerService('TempManager', function (Server $c) {
 			return new TempManager(
@@ -510,10 +554,12 @@ class Server extends ServerContainer implements IServerContainer {
 			$manager->registerHomeProvider(new ObjectHomeMountProvider($config));
 
 			// external storage
-			$manager->registerProvider(new \OC\Files\External\ConfigAdapter(
-				$c->query('UserStoragesService'),
-				$c->query('UserGlobalStoragesService')
-			));
+			if ($config->getAppValue('core', 'enable_external_storage', 'no') === 'yes') {
+				$manager->registerProvider(new \OC\Files\External\ConfigAdapter(
+					$c->query('UserStoragesService'),
+					$c->query('UserGlobalStoragesService')
+				));
+			}
 
 			return $manager;
 		});
@@ -587,13 +633,6 @@ class Server extends ServerContainer implements IServerContainer {
 				$c->getConfig(),
 				$c->getLogger(),
 				new \OC_Defaults()
-			);
-		});
-		$this->registerService('OcsClient', function (Server $c) {
-			return new OCSClient(
-				$this->getHTTPClientService(),
-				$this->getConfig(),
-				$this->getLogger()
 			);
 		});
 		$this->registerService('LockingProvider', function (Server $c) {
@@ -925,6 +964,13 @@ class Server extends ServerContainer implements IServerContainer {
 	}
 
 	/**
+	 * @return \OC\User\AccountMapper
+	 */
+	public function getAccountMapper() {
+		return $this->query('AccountMapper');
+	}
+
+	/**
 	 * @return \OC\Group\Manager
 	 */
 	public function getGroupManager() {
@@ -935,21 +981,32 @@ class Server extends ServerContainer implements IServerContainer {
 	 * @return \OC\User\Session
 	 */
 	public function getUserSession() {
+		if($this->getConfig()->getSystemValue('installed', false) === false) {
+			return null;
+		}
 		return $this->query('UserSession');
 	}
 
 	/**
-	 * @return \OCP\ISession
+	 * @return ISession
 	 */
 	public function getSession() {
-		return $this->query('UserSession')->getSession();
+		$userSession = $this->getUserSession();
+		if (is_null($userSession)) {
+			return new Memory('');
+		}
+		return $userSession->getSession();
 	}
 
 	/**
-	 * @param \OCP\ISession $session
+	 * @param ISession $session
 	 */
-	public function setSession(\OCP\ISession $session) {
-		return $this->query('UserSession')->setSession($session);
+	public function setSession(ISession $session) {
+		$userSession = $this->getUserSession();
+		if (is_null($userSession)) {
+			return;
+		}
+		$userSession->setSession($session);
 	}
 
 	/**
@@ -1085,8 +1142,21 @@ class Server extends ServerContainer implements IServerContainer {
 	 * @return \OCP\ILogger
 	 */
 	public function getLogger() {
-		return $this->query('Logger');
+		if ($this->logger === null) {
+			$this->logger = $this->query('Logger');
+		}
+		return $this->logger;
 	}
+
+	/**
+	 * Returns a logger instance
+	 *
+	 * @return \OCP\Settings\ISettingsManager
+	 */
+	public function getSettingsManager() {
+		return $this->query('SettingsManager');
+	}
+
 
 	/**
 	 * Returns a router for generating and matching urls
@@ -1254,13 +1324,6 @@ class Server extends ServerContainer implements IServerContainer {
 	 */
 	public function getWebRoot() {
 		return $this->webRoot;
-	}
-
-	/**
-	 * @return \OC\OCSClient
-	 */
-	public function getOcsClient() {
-		return $this->query('OcsClient');
 	}
 
 	/**

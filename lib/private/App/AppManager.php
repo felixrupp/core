@@ -11,7 +11,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2017, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,9 +30,11 @@
 
 namespace OC\App;
 
+use OC_App;
 use OC\Installer;
 use OCP\App\IAppManager;
 use OCP\App\ManagerEvent;
+use OCP\Files;
 use OCP\IAppConfig;
 use OCP\ICacheFactory;
 use OCP\IGroupManager;
@@ -85,7 +87,7 @@ class AppManager implements IAppManager {
 	 * @param ICacheFactory $memCacheFactory
 	 * @param EventDispatcherInterface $dispatcher
 	 */
-	public function __construct(IUserSession $userSession,
+	public function __construct(IUserSession $userSession = null,
 								IAppConfig $appConfig,
 								IGroupManager $groupManager,
 								ICacheFactory $memCacheFactory,
@@ -151,7 +153,7 @@ class AppManager implements IAppManager {
 		if ($this->isAlwaysEnabled($appId)) {
 			return true;
 		}
-		if (is_null($user)) {
+		if (is_null($user) && !is_null($this->userSession)) {
 			$user = $this->userSession->getUser();
 		}
 		$installedApps = $this->getInstalledAppsValues();
@@ -212,6 +214,9 @@ class AppManager implements IAppManager {
 	 * @param string $appId
 	 */
 	public function enableApp($appId) {
+		if(OC_App::getAppPath($appId) === false) {
+			throw new \Exception("$appId can't be enabled since it is not installed.");
+		}
 		$this->installedAppsCache[$appId] = 'yes';
 		$this->appConfig->setValue($appId, 'enabled', 'yes');
 		$this->dispatcher->dispatch(ManagerEvent::EVENT_APP_ENABLE, new ManagerEvent(
@@ -311,6 +316,9 @@ class AppManager implements IAppManager {
 	 */
 	public function getAppInfo($appId) {
 		$appInfo = \OC_App::getAppInfo($appId);
+		if ($appInfo === null) {
+			return null;
+		}
 		if (!isset($appInfo['version'])) {
 			// read version from separate file
 			$appInfo['version'] = \OC_App::getAppVersion($appId);
@@ -373,21 +381,23 @@ class AppManager implements IAppManager {
 	}
 
 	/**
-	 * @param string $package
-	 * @return mixed
-	 * @since 9.2.0
+	 * @param string $package package path
+	 * @param bool $skipMigrations whether to skip migrations, which would only install the code
+	 * @return string|false app id or false in case of error
+	 * @since 10.0
 	 */
-	public function installApp($package) {
-		return Installer::installApp([
+	public function installApp($package, $skipMigrations = false) {
+		$appId = Installer::installApp([
 			'source' => 'local',
 			'path' => $package
 		]);
+		return $appId;
 	}
 
 	/**
 	 * @param string $package
 	 * @return mixed
-	 * @since 9.2.0
+	 * @since 10.0
 	 */
 	public function updateApp($package) {
 		return Installer::updateApp([
@@ -400,9 +410,24 @@ class AppManager implements IAppManager {
 	 * Returns the list of all apps, enabled and disabled
 	 *
 	 * @return string[]
-	 * @since 9.2.0
+	 * @since 10.0
 	 */
 	public function getAllApps() {
 		return $this->appConfig->getApps();
+	}
+
+	/**
+	 * @param string $path
+	 * @return string[] app info
+	 */
+	public function readAppPackage($path) {
+		$data = [
+			'source' => 'path',
+			'path' => $path,
+		];
+		list($appCodeDir, $path) = Installer::downloadApp($data);
+		$appInfo = Installer::checkAppsIntegrity($data, $appCodeDir, $path);
+		Files::rmdirr($appCodeDir);
+		return $appInfo;
 	}
 }
