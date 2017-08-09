@@ -25,6 +25,7 @@ namespace OC\L10N;
 use OCP\IL10N;
 use OCP\L10N\IFactory;
 use Punic\Calendar;
+use Symfony\Component\Translation\PluralizationRules;
 
 class L10N implements IL10N {
 
@@ -36,12 +37,6 @@ class L10N implements IL10N {
 
 	/** @var string Language of this object */
 	protected $lang;
-
-	/** @var string Plural forms (string) */
-	private $pluralFormString = 'nplurals=2; plural=(n != 1);';
-
-	/** @var string Plural forms (function) */
-	private $pluralFormFunction = null;
 
 	/** @var string[] */
 	private $translations = [];
@@ -82,7 +77,7 @@ class L10N implements IL10N {
 	 * returned.
 	 */
 	public function t($text, $parameters = []) {
-		return (string) new \OC_L10N_String($this, $text, $parameters);
+		return (string) new L10NString($this, $text, $parameters);
 	}
 
 	/**
@@ -103,12 +98,12 @@ class L10N implements IL10N {
 	public function n($text_singular, $text_plural, $count, $parameters = []) {
 		$identifier = "_${text_singular}_::_${text_plural}_";
 		if (isset($this->translations[$identifier])) {
-			return (string) new \OC_L10N_String($this, $identifier, $parameters, $count);
+			return (string) new L10NString($this, $identifier, $parameters, $count);
 		} else {
 			if ($count === 1) {
-				return (string) new \OC_L10N_String($this, $text_singular, $parameters, $count);
+				return (string) new L10NString($this, $text_singular, $parameters, $count);
 			} else {
-				return (string) new \OC_L10N_String($this, $text_plural, $parameters, $count);
+				return (string) new L10NString($this, $text_plural, $parameters, $count);
 			}
 		}
 	}
@@ -176,24 +171,11 @@ class L10N implements IL10N {
 	/**
 	 * Returns an associative array with all translations
 	 *
-	 * Called by \OC_L10N_String
+	 * Called by String
 	 * @return array
 	 */
 	public function getTranslations() {
 		return $this->translations;
-	}
-
-	/**
-	 * Returnsed function accepts the argument $n
-	 *
-	 * Called by \OC_L10N_String
-	 * @return string the plural form function
-	 */
-	public function getPluralFormFunction() {
-		if (is_null($this->pluralFormFunction)) {
-			$this->pluralFormFunction = $this->factory->createPluralFunction($this->pluralFormString);
-		}
-		return $this->pluralFormFunction;
 	}
 
 	/**
@@ -208,10 +190,17 @@ class L10N implements IL10N {
 			return false;
 		}
 
-		if (!empty($json['pluralForm'])) {
-			$this->pluralFormString = $json['pluralForm'];
-		}
 		$this->translations = array_merge($this->translations, $json['translations']);
 		return true;
+	}
+
+	/**
+	 * Computes the plural form
+	 *
+	 * @param int $number
+	 * @return int
+	 */
+	public function computePlural($number) {
+		return PluralizationRules::get($number, $this->lang);
 	}
 }

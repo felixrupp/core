@@ -12,6 +12,7 @@ NC='\033[0m' # No Color
 # Look for command line options for:
 # -c or --config - specify a behat.yml to use
 # --feature - specify a single feature to run
+# --suite - specify a single suite to run
 # --tags - specify tags for scenarios to run (or not)
 BEHAT_TAGS_OPTION_FOUND=false
 
@@ -25,6 +26,10 @@ do
 			;;
 		--feature)
 			BEHAT_FEATURE="$2"
+			shift
+			;;
+		--suite)
+			BEHAT_SUITE="$2"
 			shift
 			;;
 		--tags)
@@ -48,6 +53,13 @@ fi
 if [ -z "$BEHAT_YML" ]
 then
 	BEHAT_YML="tests/ui/config/behat.yml"
+fi
+
+if [ -z "$BEHAT_SUITE" ]
+then
+	BEHAT_SUITE_OPTION=""
+else
+	BEHAT_SUITE_OPTION="--suite=$BEHAT_SUITE"
 fi
 
 BEHAT_TAG_OPTION="--tags"
@@ -77,16 +89,40 @@ else
 	fi
 fi
 
-if [ "$SRV_HOST_PORT" == "80" ] || [ -z "$SRV_HOST_PORT" ]
+BASE_URL="http://$SRV_HOST_NAME"
+
+if [ ! -z "$SRV_HOST_PORT" ] && [ "$SRV_HOST_PORT" != "80" ]
 then
-	BASE_URL="http://$SRV_HOST_NAME"
-else
-	BASE_URL="http://$SRV_HOST_NAME:$SRV_HOST_PORT"
+	BASE_URL="$BASE_URL:$SRV_HOST_PORT"
+fi
+
+IPV4_URL="$BASE_URL"
+
+if [ ! -z "$IPV4_HOST_NAME" ]
+then
+	IPV4_URL="http://$IPV4_HOST_NAME"
+	if [ ! -z "$SRV_HOST_PORT" ] && [ "$SRV_HOST_PORT" != "80" ]
+	then
+		IPV4_URL="$IPV4_URL:$SRV_HOST_PORT"
+	fi
+fi
+
+IPV6_URL="$BASE_URL"
+
+if [ ! -z "$IPV6_HOST_NAME" ]
+then
+	IPV6_URL="http://$IPV6_HOST_NAME"
+	if [ ! -z "$SRV_HOST_PORT" ] && [ "$SRV_HOST_PORT" != "80" ]
+	then
+		IPV6_URL="$IPV6_URL:$SRV_HOST_PORT"
+	fi
 fi
 
 if [ -n "$SRV_HOST_URL" ]
 then
 	BASE_URL="$BASE_URL/$SRV_HOST_URL"
+	IPV4_URL="$IPV4_URL/$SRV_HOST_URL"
+	IPV6_URL="$IPV6_URL/$SRV_HOST_URL"
 fi
 
 if [ "$BROWSER" == "firefox" ]
@@ -96,10 +132,17 @@ fi
 
 EXTRA_CAPABILITIES=$EXTRA_CAPABILITIES'"maxDuration":"3600"'
 
-echo "Running tests on '$BROWSER' ($BROWSER_VERSION) on $PLATFORM"
-export BEHAT_PARAMS='{"extensions" : {"Behat\\MinkExtension" : {"browser_name": "'$BROWSER'", "base_url" : "'$BASE_URL'","selenium2":{"capabilities": {"browser": "'$BROWSER'", "version": "'$BROWSER_VERSION'", "platform": "'$PLATFORM'", "name": "'$TRAVIS_REPO_SLUG' - '$TRAVIS_JOB_NUMBER'", "extra_capabilities": {'$EXTRA_CAPABILITIES'}}, "wd_host":"http://'$SAUCE_USERNAME:$SAUCE_ACCESS_KEY'@localhost:4445/wd/hub"}}}}' 
+#Set up personalized skeleton
+OCC=./occ
+PREVIOUS_SKELETON_DIR=$($OCC config:system:get skeletondirectory)
+$OCC config:system:set skeletondirectory --value="$(pwd)/tests/ui/skeleton" >/dev/null
 
-lib/composer/bin/behat -c $BEHAT_YML $BEHAT_TAG_OPTION $BEHAT_TAGS $BEHAT_FEATURE -v
+echo "Running tests on '$BROWSER' ($BROWSER_VERSION) on $PLATFORM"
+export BEHAT_PARAMS='{"extensions" : {"Behat\\MinkExtension" : {"browser_name": "'$BROWSER'", "base_url" : "'$BASE_URL'", "selenium2":{"capabilities": {"browser": "'$BROWSER'", "version": "'$BROWSER_VERSION'", "platform": "'$PLATFORM'", "name": "'$TRAVIS_REPO_SLUG' - '$TRAVIS_JOB_NUMBER'", "extra_capabilities": {'$EXTRA_CAPABILITIES'}}, "wd_host":"http://'$SAUCE_USERNAME:$SAUCE_ACCESS_KEY'@localhost:4445/wd/hub"}}}}' 
+export IPV4_URL
+export IPV6_URL
+
+lib/composer/bin/behat -c $BEHAT_YML $BEHAT_SUITE_OPTION $BEHAT_TAG_OPTION $BEHAT_TAGS $BEHAT_FEATURE -v
 
 if [ $? -eq 0 ]
 then
@@ -125,6 +168,13 @@ then
 		cat "$DRY_RUN_FILE"
 	fi
 	rm -f "$DRY_RUN_FILE"
+fi
+
+# Put back personalized skeleton
+if test "A$PREVIOUS_SKELETON_DIR" = "A"; then
+	$OCC config:system:delete skeletondirectory >/dev/null
+else
+	$OCC config:system:set skeletondirectory --value="$PREVIOUS_SKELETON_DIR" >/dev/null
 fi
 
 if [ ! -z "$SAUCE_USERNAME" ] && [ ! -z "$SAUCE_ACCESS_KEY" ] && [ -e /tmp/saucelabs_sessionid ]

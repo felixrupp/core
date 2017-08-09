@@ -113,7 +113,7 @@ class SharingDialog extends OwnCloudPage
 			"xpath", 
 			$this->autocompleteItemsTextXpath
 		);
-		foreach ( $itemElements as $item ) {
+		foreach ($itemElements as $item) {
 			array_push($itemsArray,$item->getText());
 		}
 		return $itemsArray;
@@ -132,9 +132,10 @@ class SharingDialog extends OwnCloudPage
 	 * @throws \SensioLabs\Behat\PageObjectExtension\PageObject\Exception\ElementNotFoundException
 	 */
 	private function shareWithUserOrGroup($nameToType, $nameToMatch, Session $session, $canShare = true, $canEdit = true, 
-		$createPermission = true, $changePermission = true,
-		$deletePermission = true)
-	{
+		$createPermission = true,
+		$changePermission = true,
+		$deletePermission = true
+	) {
 		if ($canShare !== true || $canEdit !== true ||
 			$createPermission !== true || $changePermission !== true ||
 			$deletePermission !== true) {
@@ -146,7 +147,7 @@ class SharingDialog extends OwnCloudPage
 		);
 		
 		$userFound = false;
-		foreach ( $userElements as $user ) {
+		foreach ($userElements as $user) {
 			if ($user->getText() === $nameToMatch) {
 				$user->click();
 				$this->waitForAjaxCallsToStartAndFinish($session);
@@ -172,9 +173,10 @@ class SharingDialog extends OwnCloudPage
 	 * @throws \SensioLabs\Behat\PageObjectExtension\PageObject\Exception\ElementNotFoundException
 	 */
 	public function shareWithUser($name, Session $session, $canShare = true, $canEdit = true, 
-		$createPermission = true, $changePermission = true,
-		$deletePermission = true)
-	{
+		$createPermission = true,
+		$changePermission = true,
+		$deletePermission = true
+	) {
 		return $this->shareWithUserOrGroup($name, $name, $session,
 			$canShare, $canEdit, $createPermission, $changePermission, $deletePermission);
 	}
@@ -191,9 +193,10 @@ class SharingDialog extends OwnCloudPage
 	 * @throws \SensioLabs\Behat\PageObjectExtension\PageObject\Exception\ElementNotFoundException
 	 */
 	public function shareWithGroup($name, Session $session, $canShare = true, $canEdit = true,
-		$createPermission = true, $changePermission = true,
-		$deletePermission = true)
-	{
+		$createPermission = true,
+		$changePermission = true,
+		$deletePermission = true
+	) {
 		return $this->shareWithUserOrGroup($name, $name . $this->suffixToIdentifyGroups, $session,
 			$canShare, $canEdit, $createPermission, $changePermission, $deletePermission);
 	}

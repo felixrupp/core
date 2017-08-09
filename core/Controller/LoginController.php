@@ -166,6 +166,21 @@ class LoginController extends Controller {
 			$parameters['user_autofocus'] = true;
 		}
 
+		/**
+		 * If redirect_url is not empty and remember_login is null and
+		 * user not logged in and check if the string
+		 * webroot+"/index.php/f/" is in redirect_url then
+		 * user is trying to access files for which he needs to login.
+		 */
+
+		if ((!empty($redirect_url)) and ($remember_login === null) and
+			($this->userSession->isLoggedIn() === false) and
+			(strpos($this->urlGenerator->getAbsoluteURL(urldecode($redirect_url)),
+				$this->urlGenerator->getAbsoluteURL('/index.php/f/')) !== false)) {
+
+			$parameters['accessLink'] = true;
+		}
+
 		return new TemplateResponse(
 			$this->appName, 'login', $parameters, 'guest'
 		);
@@ -196,21 +211,28 @@ class LoginController extends Controller {
 			$this->session->set('loginMessages', [
 				['invalidpassword'], []
 			]);
+			$args = [];
 			// Read current user and append if possible - we need to return the unmodified user otherwise we will leak the login name
-			$args = !is_null($user) ? ['user' => $originalUser] : [];
+			if (!is_null($user)) {
+				$args['user'] = $originalUser;
+			}
+			// keep the redirect url
+			if (!empty($redirect_url)) {
+				$args['redirect_url'] = $redirect_url;
+			}
 			return new RedirectResponse($this->urlGenerator->linkToRoute('core.login.showLoginForm', $args));
 		}
-		/* @var $loginResult IUser */
-		$loginResult = $this->userManager->get($user);
+		/* @var $userObject IUser */
+		$userObject = $this->userSession->getUser();
 		// TODO: remove password checks from above and let the user session handle failures
 		// requires https://github.com/owncloud/core/pull/24616
-		$this->userSession->createSessionToken($this->request, $loginResult->getUID(), $user, $password);
+		$this->userSession->createSessionToken($this->request, $userObject->getUID(), $user, $password);
 
 		// User has successfully logged in, now remove the password reset link, when it is available
-		$this->config->deleteUserValue($loginResult->getUID(), 'owncloud', 'lostpassword');
+		$this->config->deleteUserValue($userObject->getUID(), 'owncloud', 'lostpassword');
 
-		if ($this->twoFactorManager->isTwoFactorAuthenticated($loginResult)) {
-			$this->twoFactorManager->prepareTwoFactorLogin($loginResult);
+		if ($this->twoFactorManager->isTwoFactorAuthenticated($userObject)) {
+			$this->twoFactorManager->prepareTwoFactorLogin($userObject);
 			if (!is_null($redirect_url)) {
 				return new RedirectResponse($this->urlGenerator->linkToRoute('core.TwoFactorChallenge.selectChallenge', [
 					'redirect_url' => $redirect_url

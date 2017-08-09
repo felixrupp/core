@@ -356,6 +356,14 @@ trait BasicStructure {
 	}
 
 	/**
+	 * @Given file :filename is deleted in local storage
+	 * @param string $filename
+	 */
+	public function fileIsDeletedInLocalStorage($filename) {
+		unlink("work/local_storage/$filename");
+	}
+
+	/**
 	 * @param string $userName
 	 * @return string
 	 */
@@ -389,6 +397,17 @@ trait BasicStructure {
 		foreach ( $ri as $file ) {
 			$file->isDir() ?  rmdir($file) : unlink($file);
 		}
+	}
+
+	/**
+	 * @BeforeSuite
+	 */
+	public static function useBigFileIDs(){
+		$fullUrl = getenv('TEST_SERVER_URL') . "/v1.php/apps/testing/api/v1/increasefileid";
+		$client = new Client();
+		$options = [];
+		$options['auth'] = ['admin','admin'];
+		$response = $client->send($client->createRequest('post', $fullUrl, $options));
 	}
 }
 

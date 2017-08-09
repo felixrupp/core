@@ -137,6 +137,23 @@ class LoginControllerTest extends TestCase {
 		$this->assertEquals($expectedResponse, $this->loginController->showLoginForm('', '', ''));
 	}
 
+	public function testResponseForNotLoggedinUser() {
+		$params = [
+			'messages' => Array (),
+			'loginName' => '',
+			'user_autofocus' => true,
+			'redirect_url' => '%2Findex.php%2Ff%2F17',
+			'canResetPassword' => true,
+			'resetPasswordLink' => null,
+			'alt_login' => Array (),
+			'rememberLoginAllowed' => false,
+			'rememberLoginState' => 0
+		];
+
+		$expectedResponse = new TemplateResponse('core', 'login', $params, 'guest');
+		$this->assertEquals($expectedResponse, $this->loginController->showLoginForm('', '%2Findex.php%2Ff%2F17', ''));
+	}
+
 	public function testShowLoginFormWithErrorsInSession() {
 		$this->userSession
 			->expects($this->once())
@@ -287,7 +304,7 @@ class LoginControllerTest extends TestCase {
 	}
 
 	public function testLoginWithInvalidCredentials() {
-		$user = $this->createMock(IUser::class);
+		$user = 'unknown';
 		$password = 'secret';
 		$loginPageUrl = 'some url';
 
@@ -296,14 +313,14 @@ class LoginControllerTest extends TestCase {
 			->will($this->returnValue(false));
 		$this->urlGenerator->expects($this->once())
 			->method('linkToRoute')
-			->with('core.login.showLoginForm')
+			->with('core.login.showLoginForm', ['user' => $user, 'redirect_url' => '/foo'])
 			->will($this->returnValue($loginPageUrl));
 
 		$this->userSession->expects($this->never())
 			->method('createSessionToken');
 
 		$expected = new RedirectResponse($loginPageUrl);
-		$this->assertEquals($expected, $this->loginController->tryLogin($user, $password, ''));
+		$this->assertEquals($expected, $this->loginController->tryLogin($user, $password, '/foo'));
 	}
 
 	public function testLoginWithValidCredentials() {
@@ -316,9 +333,8 @@ class LoginControllerTest extends TestCase {
 			->method('login')
 			->with($user, $password)
 			->will($this->returnValue(true));
-		$this->userManager->expects($this->once())
-			->method('get')
-			->with($user)
+		$this->userSession->expects($this->once())
+			->method('getUser')
 			->will($this->returnValue($user));
 		$this->userSession->expects($this->once())
 			->method('createSessionToken')
@@ -364,9 +380,8 @@ class LoginControllerTest extends TestCase {
 			->method('login')
 			->with('Jane', $password)
 			->will($this->returnValue(true));
-		$this->userManager->expects($this->once())
-			->method('get')
-			->with('Jane')
+		$this->userSession->expects($this->once())
+			->method('getUser')
 			->will($this->returnValue($user));
 		$this->userSession->expects($this->once())
 			->method('createSessionToken')
@@ -396,8 +411,8 @@ class LoginControllerTest extends TestCase {
 		$this->userSession->expects($this->once())
 			->method('login')
 			->will($this->returnValue(true));
-		$this->userManager->expects($this->once())
-			->method('get')
+		$this->userSession->expects($this->once())
+			->method('getUser')
 			->will($this->returnValue($user));
 		$this->userSession->expects($this->once())
 			->method('login')
