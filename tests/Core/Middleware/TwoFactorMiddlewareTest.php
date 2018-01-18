@@ -3,7 +3,7 @@
 /**
  * @author Christoph Wurst <christoph@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,8 +22,8 @@
 
 namespace Test\Core\Middleware;
 
-use OC\Core\Middleware\TwoFactorMiddleware;
 use OC\AppFramework\Http\Request;
+use OC\Core\Middleware\TwoFactorMiddleware;
 use Test\TestCase;
 
 class TwoFactorMiddlewareTest extends TestCase {

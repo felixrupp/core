@@ -5,7 +5,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -58,7 +58,7 @@ class SyncFederationAddressbooksTest extends \Test\TestCase {
 		$s->syncThemAll(function($url, $ex) {
 			$this->callBacks[] = [$url, $ex];
 		});
-		$this->assertEquals(1, count($this->callBacks));
+		$this->assertCount(1, $this->callBacks);
 	}
 
 	function testException() {
@@ -86,6 +86,6 @@ class SyncFederationAddressbooksTest extends \Test\TestCase {
 		$s->syncThemAll(function($url, $ex) {
 			$this->callBacks[] = [$url, $ex];
 		});
-		$this->assertEquals(2, count($this->callBacks));
+		$this->assertCount(2, $this->callBacks);
 	}
 }

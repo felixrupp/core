@@ -12,6 +12,7 @@ OC.L10N.register(
     "Shared with others" : "Sdíleno s ostatními",
     "Shared by link" : "Sdíleno pomocí odkazu",
     "Anonymous upload" : "Nahrát anonymně",
+    "Click to select files or use drag & drop to upload" : "Vyberte soubor nebo použijte táhni a pusť k nahrání",
     "Uploaded files" : "Nahrané soubory",
     "Uploading..." : "Odesílám...",
     "Nothing shared with you yet" : "Zatím s vámi nikdo nic nesdílel",
@@ -37,6 +38,7 @@ OC.L10N.register(
     "Could not delete share" : "Nelze smazat sdílení",
     "Please specify a file or folder path" : "Prosím zadejte cestu adresáře nebo souboru",
     "Wrong path, file/folder doesn't exist" : "Špatná cesta, soubor/adresář neexistuje",
+    "Cannot remove all permissions" : "Nelze odstranit všechna oprávnění",
     "Please specify a valid user" : "Prosím zadejte platného uživatele",
     "Group sharing is disabled by the administrator" : "Skupinové sdílení bylo zakázáno administrátorem",
     "Please specify a valid group" : "Prosím zadejte platnou skupinu",
@@ -108,7 +110,6 @@ OC.L10N.register(
     "sharing is disabled" : "sdílení je zakázané",
     "For more info, please ask the person who sent this link." : "Pro více informací kontaktujte osobu, která vám zaslala tento odkaz.",
     "%s is publicly shared" : "%s je veřejně sdílen",
-    "Add to your ownCloud" : "Přidat do svého ownCloudu",
     "Download" : "Stáhnout",
     "Download %s" : "Stáhnout %s",
     "Direct link" : "Přímý odkaz"

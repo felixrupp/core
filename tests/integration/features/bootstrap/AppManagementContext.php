@@ -2,7 +2,7 @@
 /**
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -18,10 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
  */
- 
+
 use Behat\Behat\Context\Context;
-use Behat\Behat\Hook\Scope\AfterScenarioScope;
-use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
@@ -29,9 +27,6 @@ require __DIR__ . '/../../../../lib/composer/autoload.php';
  * App Management context.
  */
 class AppManagementContext implements  Context {
-	
-	/** @var string[] */
-	private $appInfo;
 	
 	private $oldAppPath;
 	
@@ -43,9 +38,8 @@ class AppManagementContext implements  Context {
 	 *
 	 * Enable the testing app before the first scenario of the feature and
 	 * reset the configs before each scenario
-	 * @param BeforeScenarioScope $event
 	 */
-	public function prepareParameters(BeforeScenarioScope $event){
+	public function prepareParameters() {
 		include_once __DIR__ . '/../../../../lib/base.php';
 		$this->oldAppPath = \OC::$server->getConfig()->getSystemValue('apps_paths', null);
 	}
@@ -54,10 +48,9 @@ class AppManagementContext implements  Context {
 	 * @AfterScenario
 	 *
 	 * Reset the values after the last scenario of the feature and disable the testing app
-	 * @param AfterScenarioScope $event
 	 */
-	public function undoChangingParameters(AfterScenarioScope $event) {
-		if (!is_null($this->oldAppPath)){
+	public function undoChangingParameters() {
+		if (!is_null($this->oldAppPath)) {
 			\OC::$server->getConfig()->setSystemValue('apps_paths', $this->oldAppPath);
 		} else {
 			\OC::$server->getConfig()->deleteSystemValue('apps_paths');
@@ -69,7 +62,7 @@ class AppManagementContext implements  Context {
 	 * @param string $dir1
 	 * @param string $dir2
 	 */
-	public function setAppDirectories($dir1, $dir2){
+	public function setAppDirectories($dir1, $dir2) {
 		$fullpath1 = \OC::$SERVERROOT . '/' . $dir1;
 		$fullpath2 = \OC::$SERVERROOT . '/' . $dir2;
 		\OC::$server->getConfig()->setSystemValue(
@@ -82,12 +75,12 @@ class AppManagementContext implements  Context {
 	}
 	
 	/**
-	 * @Given App :appId with version :version exists in dir :dir
+	 * @Given app :appId with version :version exists in dir :dir
 	 * @param string $appId app id
 	 * @param string $version app version
 	 * @param string $dir app directory
 	 */
-	public function appExistsInDir($appId, $version, $dir){
+	public function appExistsInDir($appId, $version, $dir) {
 		$ocVersion = \OC::$server->getConfig()->getSystemValue('version', '0.0.0');
 		$appInfo = sprintf('<?xml version="1.0"?>
 			<info>
@@ -113,16 +106,16 @@ class AppManagementContext implements  Context {
 			$ocVersion
 		);
 		$appsDir = \OC::$SERVERROOT . '/' . $dir;
-		if (!file_exists($appsDir)){
+		if (!file_exists($appsDir)) {
 			mkdir($appsDir);
 		}
-		if (!file_exists($appsDir . '/' . $appId)){
+		if (!file_exists($appsDir . '/' . $appId)) {
 			mkdir($appsDir . '/' . $appId);
 		}
 		
 		$fullpath = $appsDir . '/' . $appId;
 		
-		if (!file_exists($fullpath . '/appinfo')){
+		if (!file_exists($fullpath . '/appinfo')) {
 			mkdir($fullpath . '/appinfo');
 		}
 		
@@ -130,10 +123,10 @@ class AppManagementContext implements  Context {
 	}
 	
 	/**
-	 * @When App :appId is loaded
+	 * @When app :appId is loaded
 	 * @param string $appId app id
 	 */
-	public function loadApp($appId){
+	public function loadApp($appId) {
 		$args = explode(' ', "app:getpath $appId");
 		$args = array_map(function($arg) {
 			return escapeshellarg($arg);
@@ -156,7 +149,7 @@ class AppManagementContext implements  Context {
 	 * @param string $appId
 	 * @param string $dir
 	 */
-	 public function appVersionIs($appId, $dir){
+	 public function appVersionIs($appId, $dir) {
 		PHPUnit_Framework_Assert::assertEquals(\OC::$SERVERROOT . '/' . $dir . '/' . $appId, trim($this->cmdOutput));
 	}
 }

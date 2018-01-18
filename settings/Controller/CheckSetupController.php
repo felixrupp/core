@@ -7,7 +7,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -37,7 +37,6 @@ use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
-use OC_Util;
 use OCP\IURLGenerator;
 
 /**
@@ -253,7 +252,7 @@ class CheckSetupController extends Controller {
 
 	/**
 	 * @NoCSRFRequired
-	 * @return DataResponse
+	 * @return DataResponse | DataDisplayResponse
 	 */
 	public function getFailedIntegrityCheckFiles() {
 		if(!$this->checker->isCodeCheckEnforced()) {
@@ -329,6 +328,7 @@ Raw output
 				'isCorrectMemcachedPHPModuleInstalled' => $this->isCorrectMemcachedPHPModuleInstalled(),
 				'hasPassedCodeIntegrityCheck' => $this->checker->hasPassedCheck(),
 				'codeIntegrityCheckerDocumentation' => $this->urlGenerator->linkToDocs('admin-code-integrity'),
+				'hasDebugMode' => $this->config->getSystemValue('debug', false),
 			]
 		);
 	}
@@ -339,8 +339,9 @@ Raw output
 	protected function isEndOfLive() {
 		$eol = false;
 
-		//PHP 5.4 is EOL on 14 Sep 2015
-		if (version_compare(PHP_VERSION, '5.5.0') === -1) {
+		// PHP 5.4 is EOL on 14 Sep 2015
+		// PHP 5.5 is EOL on 21 Jul 2016
+		if (version_compare(PHP_VERSION, '5.6.0') === -1) {
 			$eol = true;
 			return $eol;
 		}

@@ -3,7 +3,7 @@
  * @author Björn Schießle <bjoern@schiessle.org>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,10 +24,10 @@
 namespace OCA\Files_Versions\Tests\Command;
 
 
-use OCA\Files_Versions\Command\CleanUp;
-use Test\TestCase;
 use OC\User\Manager;
+use OCA\Files_Versions\Command\CleanUp;
 use OCP\Files\IRootFolder;
+use Test\TestCase;
 
 /**
  * Class CleanupTest
@@ -109,7 +109,7 @@ class CleanupTest extends TestCase {
 		$instance->expects($this->exactly(count($userIds)))
 			->method('deleteVersions')
 			->willReturnCallback(function ($user) use ($userIds) {
-				$this->assertTrue(in_array($user, $userIds));
+				$this->assertContains($user, $userIds);
 			});
 
 		$this->userManager->expects($this->exactly(count($userIds)))
@@ -148,7 +148,7 @@ class CleanupTest extends TestCase {
 		$instance->expects($this->exactly(count($backendUsers)))
 			->method('deleteVersions')
 			->willReturnCallback(function ($user) use ($backendUsers) {
-				$this->assertTrue(in_array($user, $backendUsers));
+				$this->assertContains($user, $backendUsers);
 			});
 
 		$inputInterface = $this->getMockBuilder('\Symfony\Component\Console\Input\InputInterface')

@@ -14,7 +14,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Volkan Gezer <volkangezer@gmail.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -63,7 +63,7 @@ class OC_Defaults {
 		$this->defaultAndroidClientUrl = 'https://play.google.com/store/apps/details?id=com.owncloud.android';
 		$this->defaultDocBaseUrl = 'https://doc.owncloud.org';
 		$this->defaultDocVersion = $version[0] . '.' . $version[1]; // used to generate doc links
-		$this->defaultSlogan = $this->l->t('web services under your control');
+		$this->defaultSlogan = $this->l->t('A safe home for all your data');
 		$this->defaultLogoClaim = '';
 		$this->defaultMailHeaderColor = '#1d2d44'; /* header color of mail notifications */
 

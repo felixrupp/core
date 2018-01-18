@@ -5,7 +5,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,9 +24,9 @@
 
 namespace OCA\DAV\Tests\unit\Connector\Sabre\RequestTest;
 
+use OC\Files\View;
 use OCA\DAV\Connector\Sabre\Server;
 use OCA\DAV\Connector\Sabre\ServerFactory;
-use OC\Files\View;
 use Sabre\HTTP\Request;
 use Test\TestCase;
 use Test\Traits\MountProviderTrait;

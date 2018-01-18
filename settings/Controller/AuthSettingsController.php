@@ -2,7 +2,7 @@
 /**
  * @author Christoph Wurst <christoph@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -74,7 +74,7 @@ class AuthSettingsController extends Controller {
 	 * @NoAdminRequired
 	 * @NoSubadminRequired
 	 *
-	 * @return JSONResponse
+	 * @return JSONResponse | array
 	 */
 	public function index() {
 		$user = $this->userManager->get($this->uid);
@@ -109,7 +109,8 @@ class AuthSettingsController extends Controller {
 	 * @NoAdminRequired
 	 * @NoSubadminRequired
 	 *
-	 * @return JSONResponse
+	 * @param string $name
+	 * @return JSONResponse | array
 	 */
 	public function create($name) {
 		try {
@@ -126,18 +127,19 @@ class AuthSettingsController extends Controller {
 			} catch (PasswordlessTokenException $ex) {
 				$password = null;
 			}
+			$token = $this->generateRandomDeviceToken();
+			$deviceToken = $this->tokenProvider->generateToken($token, $this->uid, $loginName, $password, $name, IToken::PERMANENT_TOKEN);
+
+			return [
+				'token' => $token,
+				'loginName' => $loginName,
+				'deviceToken' => $deviceToken
+			];
+		} catch (\InvalidArgumentException $ex) {
+			return $this->getServiceNotAvailableResponse();
 		} catch (InvalidTokenException $ex) {
 			return $this->getServiceNotAvailableResponse();
 		}
-
-		$token = $this->generateRandomDeviceToken();
-		$deviceToken = $this->tokenProvider->generateToken($token, $this->uid, $loginName, $password, $name, IToken::PERMANENT_TOKEN);
-
-		return [
-			'token' => $token,
-			'loginName' => $loginName,
-			'deviceToken' => $deviceToken
-		];
 	}
 
 	private function getServiceNotAvailableResponse() {
@@ -165,10 +167,18 @@ class AuthSettingsController extends Controller {
 	 * @NoAdminRequired
 	 * @NoSubadminRequired
 	 *
-	 * @return JSONResponse
+	 * @return JSONResponse | array
 	 */
 	public function destroy($id) {
+
 		$user = $this->userManager->get($this->uid);
+		$currentToken = $this->tokenProvider->getToken($this->session->getId());
+
+		if ($currentToken && ($currentToken->getId() === intval($id))) {
+			return (new JSONResponse())->setStatus(Http::STATUS_CONFLICT);
+		}
+
+
 		if (is_null($user)) {
 			return [];
 		}

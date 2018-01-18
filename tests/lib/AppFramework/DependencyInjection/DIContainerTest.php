@@ -5,8 +5,8 @@
  *
  * @author Bernhard Posselt
  * @author Morris Jobke
- * @copyright 2012 Bernhard Posselt <dev@bernhard-posselt.com>
- * @copyright 2013 Morris Jobke <morris.jobke@gmail.com>
+ * @copyright Copyright (c) 2012 Bernhard Posselt <dev@bernhard-posselt.com>
+ * @copyright Copyright (c) 2013 Morris Jobke <morris.jobke@gmail.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -27,7 +27,7 @@
 namespace Test\AppFramework\DependencyInjection;
 
 
-use \OC\AppFramework\Http\Request;
+use OC\AppFramework\Http\Request;
 
 class DIContainerTest extends \Test\TestCase {
 

@@ -2,7 +2,7 @@
 /**
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -106,7 +106,7 @@ class OccControllerTest extends TestCase {
 		$decoded = json_decode($responseData['response'], true);
 
 		$this->assertArrayHasKey('installed', $decoded);
-		$this->assertEquals(true, $decoded['installed']);
+		$this->assertTrue($decoded['installed']);
 	}
 
 	private function getControllerMock($host){

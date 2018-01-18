@@ -7,7 +7,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,15 +30,15 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
 use OCP\Contacts\IManager;
+use OCP\IConfig;
 use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\ILogger;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\IUserManager;
-use OCP\IConfig;
 use OCP\IUserSession;
-use OCP\IURLGenerator;
 use OCP\Share;
 
 class ShareesController extends OCSController  {
@@ -74,6 +74,9 @@ class ShareesController extends OCSController  {
 	protected $shareWithGroupOnly = false;
 
 	/** @var bool */
+	protected $shareWithMembershipGroupOnly = false;
+
+	/** @var bool */
 	protected $shareeEnumeration = true;
 
 	/** @var bool */
@@ -98,6 +101,11 @@ class ShareesController extends OCSController  {
 	];
 
 	protected $reachedEndFor = [];
+
+	/**
+	 * @var string
+	 */
+	protected $additionalInfoField;
 
 	/**
 	 * @param IGroupManager $groupManager
@@ -131,6 +139,7 @@ class ShareesController extends OCSController  {
 		$this->request = $request;
 		$this->logger = $logger;
 		$this->shareManager = $shareManager;
+		$this->additionalInfoField = $this->config->getAppValue('core', 'user_additional_info_field', '');
 	}
 
 	/**
@@ -166,25 +175,33 @@ class ShareesController extends OCSController  {
 		$lowerSearch = strtolower($search);
 		foreach ($users as $uid => $user) {
 			/* @var $user IUser */
-			if (strtolower($uid) === $lowerSearch || strtolower($user->getDisplayName()) === $lowerSearch || strtolower($user->getEMailAddress()) === $lowerSearch) {
+			$entry = [
+				'label' => $user->getDisplayName(),
+				'value' => [
+					'shareType' => Share::SHARE_TYPE_USER,
+					'shareWith' => $uid,
+				],
+			];
+			$additionalInfo = $this->getAdditionalUserInfo($user);
+			if ($additionalInfo !== null) {
+				$entry['value']['shareWithAdditionalInfo'] = $additionalInfo;
+			}
+
+			if (
+				// Check if the uid is the same
+				strtolower($uid) === $lowerSearch
+				// Check if exact display name
+				|| strtolower($user->getDisplayName()) === $lowerSearch
+				// Check if exact first email
+				|| strtolower($user->getEMailAddress()) === $lowerSearch
+				// Check for exact search term matches (when mail attributes configured as search terms + no enumeration)
+				|| in_array($lowerSearch, array_map('strtolower', $user->getSearchTerms()))) {
 				if (strtolower($uid) === $lowerSearch) {
 					$foundUserById = true;
 				}
-				$this->result['exact']['users'][] = [
-					'label' => $user->getDisplayName(),
-					'value' => [
-						'shareType' => Share::SHARE_TYPE_USER,
-						'shareWith' => $uid,
-					],
-				];
+				$this->result['exact']['users'][] = $entry;
 			} else {
-				$this->result['users'][] = [
-					'label' => $user->getDisplayName(),
-					'value' => [
-						'shareType' => Share::SHARE_TYPE_USER,
-						'shareWith' => $uid,
-					],
-				];
+				$this->result['users'][] = $entry;
 			}
 		}
 
@@ -202,13 +219,18 @@ class ShareesController extends OCSController  {
 				}
 
 				if ($addUser) {
-					array_push($this->result['exact']['users'], [
+					$entry = [
 						'label' => $user->getDisplayName(),
 						'value' => [
 							'shareType' => Share::SHARE_TYPE_USER,
 							'shareWith' => $user->getUID(),
 						],
-					]);
+					];
+					$additionalInfo = $this->getAdditionalUserInfo($user);
+					if ($additionalInfo !== null) {
+						$entry['value']['shareWithAdditionalInfo'] = $additionalInfo;
+					}
+					array_push($this->result['exact']['users'], $entry);
 				}
 			}
 		}
@@ -216,6 +238,21 @@ class ShareesController extends OCSController  {
 		if (!$this->shareeEnumeration) {
 			$this->result['users'] = [];
 		}
+	}
+
+	/**
+	 * Returns the additional info to display behind the display name as configured.
+	 *
+	 * @param IUser $user user for which to retrieve the additional info
+	 * @return string|null additional info or null if none to be displayed
+	 */
+	protected function getAdditionalUserInfo(IUser $user) {
+		if ($this->additionalInfoField === 'email') {
+			return $user->getEMailAddress();
+		} else if ($this->additionalInfoField === 'id') {
+			return $user->getUID();
+		}
+		return null;
 	}
 
 	/**
@@ -232,7 +269,7 @@ class ShareesController extends OCSController  {
 		}
 
 		$userGroups =  [];
-		if (!empty($groups) && ($this->shareWithGroupOnly || $this->shareeEnumerationGroupMembers)) {
+		if (!empty($groups) && ($this->shareWithMembershipGroupOnly || $this->shareeEnumerationGroupMembers)) {
 			// Intersect all the groups that match with the groups this user is a member of
 			$userGroups = $this->groupManager->getUserGroups($this->userSession->getUser(), 'sharing');
 			$userGroups = array_map(function (IGroup $group) { return $group->getGID(); }, $userGroups);
@@ -269,7 +306,7 @@ class ShareesController extends OCSController  {
 			// On page one we try if the search result has a direct hit on the
 			// user id and if so, we add that to the exact match list
 			$group = $this->groupManager->get($search);
-			if ($group instanceof IGroup && (!$this->shareWithGroupOnly || in_array($group->getGID(), $userGroups))) {
+			if ($group instanceof IGroup && (!$this->shareWithMembershipGroupOnly || in_array($group->getGID(), $userGroups))) {
 				array_push($this->result['exact']['groups'], [
 					'label' => $group->getDisplayName(),
 					'value' => [
@@ -516,6 +553,7 @@ class ShareesController extends OCSController  {
 		}
 
 		$this->shareWithGroupOnly = $this->config->getAppValue('core', 'shareapi_only_share_with_group_members', 'no') === 'yes';
+		$this->shareWithMembershipGroupOnly = $this->config->getAppValue('core', 'shareapi_only_share_with_membership_groups', 'no') === 'yes';
 		$this->shareeEnumeration = $this->config->getAppValue('core', 'shareapi_allow_share_dialog_user_enumeration', 'yes') === 'yes';
 		if ($this->shareeEnumeration) {
 			$this->shareeEnumerationGroupMembers = $this->config->getAppValue('core', 'shareapi_share_dialog_user_enumeration_group_members', 'no') === 'yes';

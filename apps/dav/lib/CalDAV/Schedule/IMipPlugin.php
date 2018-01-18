@@ -2,7 +2,7 @@
 /**
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,9 +22,9 @@ namespace OCA\DAV\CalDAV\Schedule;
 
 use OCP\ILogger;
 use OCP\Mail\IMailer;
-use Sabre\DAV;
-use Sabre\VObject\ITip;
 use Sabre\CalDAV\Schedule\IMipPlugin as SabreIMipPlugin;
+use Sabre\VObject\ITip;
+
 /**
  * iMIP handler.
  *

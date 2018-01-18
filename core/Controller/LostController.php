@@ -9,7 +9,7 @@
  * @author Ujjwal Bhardwaj <ujjwalb1996@gmail.com>
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -40,6 +40,7 @@ use OCP\IUserManager;
 use OCP\Mail\IMailer;
 use OCP\Security\ISecureRandom;
 use \OC_Defaults;
+use OC\User\Session;
 
 /**
  * Class LostController
@@ -73,6 +74,8 @@ class LostController extends Controller {
 	protected $timeFactory;
 	/** @var ILogger */
 	protected $logger;
+	/** @var Session */
+	private $userSession;
 
 	/**
 	 * @param string $appName
@@ -88,6 +91,7 @@ class LostController extends Controller {
 	 * @param IMailer $mailer
 	 * @param ITimeFactory $timeFactory
 	 * @param ILogger $logger
+	 * @param Session $userSession
 	 */
 	public function __construct($appName,
 								IRequest $request,
@@ -101,7 +105,8 @@ class LostController extends Controller {
 								$isDataEncrypted,
 								IMailer $mailer,
 								ITimeFactory $timeFactory,
-								ILogger $logger) {
+								ILogger $logger,
+								Session $userSession) {
 		parent::__construct($appName, $request);
 		$this->urlGenerator = $urlGenerator;
 		$this->userManager = $userManager;
@@ -114,6 +119,7 @@ class LostController extends Controller {
 		$this->mailer = $mailer;
 		$this->timeFactory = $timeFactory;
 		$this->logger = $logger;
+		$this->userSession = $userSession;
 	}
 
 	/**
@@ -159,18 +165,18 @@ class LostController extends Controller {
 		$splittedToken = explode(':', $this->config->getUserValue($userId, 'owncloud', 'lostpassword', null));
 		if(count($splittedToken) !== 2) {
 			$this->config->deleteUserValue($userId, 'owncloud', 'lostpassword');
-			throw new \Exception($this->l10n->t('Couldn\'t reset password because the token is invalid'));
+			throw new \Exception($this->l10n->t('Could not reset password because the token is invalid'));
 		}
 
 		if ($splittedToken[0] < ($this->timeFactory->getTime() - 60*60*12) ||
 			$user->getLastLogin() > $splittedToken[0]) {
 			$this->config->deleteUserValue($userId, 'owncloud', 'lostpassword');
-			throw new \Exception($this->l10n->t('Couldn\'t reset password because the token is expired'));
+			throw new \Exception($this->l10n->t('Could not reset password because the token expired'));
 		}
 
 		if (!hash_equals($splittedToken[1], $token)) {
 			$this->config->deleteUserValue($userId, 'owncloud', 'lostpassword');
-			throw new \Exception($this->l10n->t('Couldn\'t reset password because the token is invalid'));
+			throw new \Exception($this->l10n->t('Could not reset password because the token does not match'));
 		}
 	}
 
@@ -239,6 +245,8 @@ class LostController extends Controller {
 		} catch (\Exception $e){
 			return $this->error($e->getMessage());
 		}
+
+		$this->logout();
 
 		return $this->success();
 	}
@@ -338,6 +346,14 @@ class LostController extends Controller {
 		}
 
 		return true;
+	}
+
+	private function logout() {
+		$loginToken = $this->request->getCookie('oc_token');
+		if (!is_null($loginToken)) {
+			$this->config->deleteUserValue($this->userSession->getUser()->getUID(), 'login_token', $loginToken);
+		}
+		$this->userSession->logout();
 	}
 
 }

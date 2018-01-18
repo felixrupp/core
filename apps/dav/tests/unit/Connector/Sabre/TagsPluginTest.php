@@ -4,7 +4,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -301,7 +301,7 @@ class TagsPluginTest extends \Test\TestCase {
 
 		$result = $propPatch->getResult();
 		$this->assertEquals(200, $result[self::TAGS_PROPERTYNAME]);
-		$this->assertFalse(isset($result[self::FAVORITE_PROPERTYNAME]));
+		$this->assertArrayNotHasKey(self::FAVORITE_PROPERTYNAME, $result);
 	}
 
 	public function testUpdateTagsFromScratch() {

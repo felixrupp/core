@@ -5,7 +5,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -43,27 +43,22 @@ class GroupsController extends Controller {
 	private $l10n;
 	/** @var IUserSession */
 	private $userSession;
-	/** @var bool */
-	private $isAdmin;
 
 	/**
 	 * @param string $appName
 	 * @param IRequest $request
 	 * @param IGroupManager $groupManager
 	 * @param IUserSession $userSession
-	 * @param bool $isAdmin
 	 * @param IL10N $l10n
 	 */
 	public function __construct($appName,
 								IRequest $request,
 								IGroupManager $groupManager,
 								IUserSession $userSession,
-								$isAdmin,
 								IL10N $l10n) {
 		parent::__construct($appName, $request);
 		$this->groupManager = $groupManager;
 		$this->userSession = $userSession;
-		$this->isAdmin = $isAdmin;
 		$this->l10n = $l10n;
 	}
 
@@ -80,7 +75,7 @@ class GroupsController extends Controller {
 
 		$groupsInfo = new MetaData(
 			$this->userSession->getUser()->getUID(),
-			$this->isAdmin,
+			$this->isAdmin(),
 			$this->groupManager,
 			$this->userSession
 		);
@@ -132,7 +127,7 @@ class GroupsController extends Controller {
 	 * @return DataResponse
 	 */
 	public function destroy($id) {
-		$group = $this->groupManager->get($id);
+		$group = $this->groupManager->get(urldecode($id));
 		if ($group) {
 			if ($group->delete()) {
 				return new DataResponse(
@@ -157,4 +152,18 @@ class GroupsController extends Controller {
 		);
 	}
 
+	/**
+	 * Check if current user (active and not in incognito mode)
+	 * is an admin
+	 *
+	 * @return bool
+	 */
+	private function isAdmin() {
+		// Get current user (active and not in incognito mode)
+		$user = $this->userSession->getUser();
+		if(!is_null($user)) {
+			return $this->groupManager->isAdmin($user->getUID());
+		}
+		return false;
+	}
 }

@@ -10,6 +10,7 @@
     "Shared with others" : "V souporabi  z drugimi",
     "Shared by link" : "V souporabi prek povezave",
     "Anonymous upload" : "Brezimno pošiljanje v oblak",
+    "Click to select files or use drag & drop to upload" : "Kliknite za izbor datotek oziroma uporabite možnost povleci in spusti za pošiljanje v oblak ...",
     "Uploaded files" : "Datoteke, poslane v oblak",
     "Uploading..." : "Poteka pošiljanje ...",
     "Nothing shared with you yet" : "Datotek drugih uporabnikov še ni v souporabi",
@@ -107,7 +108,6 @@
     "sharing is disabled" : "souporaba je onemogočena.",
     "For more info, please ask the person who sent this link." : "Za več podrobnosti stopite v stik s pošiljateljem te povezave.",
     "%s is publicly shared" : "%s je v javni souporabi",
-    "Add to your ownCloud" : "Dodaj v svoj oblak ownCloud",
     "Download" : "Prejmi",
     "Download %s" : "Prejmi %s",
     "Direct link" : "Neposredna povezava"

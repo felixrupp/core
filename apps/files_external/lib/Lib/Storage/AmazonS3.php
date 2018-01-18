@@ -16,7 +16,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -39,8 +39,8 @@ set_include_path(get_include_path() . PATH_SEPARATOR .
 	\OC_App::getAppPath('files_external') . '/3rdparty/aws-sdk-php');
 require 'aws-autoloader.php';
 
-use Aws\S3\S3Client;
 use Aws\S3\Exception\S3Exception;
+use Aws\S3\S3Client;
 use Icewind\Streams\IteratorDirectory;
 
 class AmazonS3 extends \OCP\Files\Storage\StorageAdapter {
@@ -568,15 +568,12 @@ class AmazonS3 extends \OCP\Files\Storage\StorageAdapter {
 		$scheme = ($this->params['use_ssl'] === false) ? 'http' : 'https';
 		$base_url = $scheme . '://' . $this->params['hostname'] . ':' . $this->params['port'] . '/';
 
-		$isLondon = !(strpos($this->params['region'], 'eu-west-2') === false);
-		$signature = $isLondon ? 'v4' : null;
-
 		$this->connection = S3Client::factory([
 			'key' => $this->params['key'],
 			'secret' => $this->params['secret'],
 			'base_url' => $base_url,
 			'region' => $this->params['region'],
-			'signature' => $signature,
+			'signature' => 'v4',
 			S3Client::COMMAND_PARAMS => [
 				'PathStyle' => $this->params['use_path_style'],
 			],

@@ -4,7 +4,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -150,7 +150,11 @@ trait FrontendDefinitionTrait {
 				if (!$parameter->validateValue($value)) {
 					return false;
 				}
-				$storage->setBackendOption($name, $value);
+				if (($name === 'public_key') || ($name === 'private_key')) {
+					$storage->setBackendOption($name, base64_encode($value));
+				} else {
+					$storage->setBackendOption($name, $value);
+				}
 			}
 		}
 		return true;

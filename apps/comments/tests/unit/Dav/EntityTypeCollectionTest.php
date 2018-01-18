@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -76,7 +76,7 @@ class EntityTypeCollectionTest extends \Test\TestCase {
 		$this->childMap[17] = true;
 
 		$ec = $this->collection->getChild('17');
-		$this->assertTrue($ec instanceof EntityCollectionImplemantation);
+		$this->assertInstanceOf(EntityCollectionImplemantation::class, $ec);
 	}
 
 	/**

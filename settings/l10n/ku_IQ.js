@@ -1,6 +1,7 @@
 OC.L10N.register(
     "settings",
     {
+    "Share" : "هاوبەشی کردن",
     "Invalid request" : "داواکارى نادروستە",
     "All" : "هەمووی",
     "Enable" : "چالاککردن",
@@ -8,6 +9,7 @@ OC.L10N.register(
     "Login" : "چوونەژوورەوە",
     "Encryption" : "نهێنیکردن",
     "Server address" : "ناونیشانی ڕاژه",
+    "Add" : "زیادکردن",
     "Cancel" : "لابردن",
     "Email" : "ئیمه‌یل",
     "Password" : "وشەی تێپەربو",

@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 namespace OCA\Files_Sharing;
 
 use OCP\Capabilities\ICapability;
-use \OCP\IConfig;
+use OCP\IConfig;
 
 /**
  * Class Capabilities
@@ -67,6 +67,7 @@ class Capabilities implements ICapability {
 				}
 
 				$public['send_mail'] = $this->config->getAppValue('core', 'shareapi_allow_public_notification', 'no') === 'yes';
+				$public['social_share'] = $this->config->getAppValue('core', 'shareapi_allow_social_share', 'yes') === 'yes';
 				$public['upload'] = $this->config->getAppValue('core', 'shareapi_allow_public_upload', 'yes') === 'yes';
 				$public['multiple'] = true;
 				$public['supports_upload_only'] = true;
@@ -78,6 +79,18 @@ class Capabilities implements ICapability {
 			$res['resharing'] = $this->config->getAppValue('core', 'shareapi_allow_resharing', 'yes') === 'yes';
 
 			$res['group_sharing'] = $this->config->getAppValue('core', 'shareapi_allow_group_sharing', 'yes') === 'yes';
+
+			$res['share_with_group_members_only'] = $this->config->getAppValue('core', 'shareapi_only_share_with_group_members', 'yes') === 'yes';
+			$res['share_with_membership_groups_only'] = $this->config->getAppValue('core', 'shareapi_only_share_with_membership_groups', 'yes') === 'yes';
+
+			$user_enumeration = [];
+			$user_enumeration['enabled'] = $this->config->getAppValue('core', 'shareapi_allow_share_dialog_user_enumeration', 'yes') === 'yes';
+			if ($user_enumeration['enabled']) {
+				$user_enumeration['group_members_only'] = $this->config->getAppValue('core', 'shareapi_share_dialog_user_enumeration_group_members', 'no') === 'yes';
+			}
+			$res["user_enumeration"] = $user_enumeration;
+
+			$res['default_permissions'] = (int)$this->config->getAppValue('core', 'shareapi_default_permissions', \OCP\Constants::PERMISSION_ALL);
 		}
 
 		//Federated sharing

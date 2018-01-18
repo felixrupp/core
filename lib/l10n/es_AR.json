@@ -1,5 +1,6 @@
 { "translations": {
     "Cannot write into \"config\" directory!" : "¡No se puede escribir en el directorio \"config\"!",
+    "See %s" : "Ver %s",
     "Unknown filetype" : "Tipo de archivo desconocido",
     "Invalid image" : "Imagen inválida",
     "today" : "hoy",
@@ -30,7 +31,6 @@
     "Encryption" : "Encriptación",
     "Sharing" : "Compartiendo",
     "Search" : "Buscar",
-    "Updates" : "Actualizaciones",
     "%s enter the database username." : "%s Entrá el usuario de la base de datos",
     "%s enter the database name." : "%s Entrá el nombre de la base de datos.",
     "%s you may not use dots in the database name" : "%s no podés usar puntos en el nombre de la base de datos",
@@ -50,9 +50,10 @@
     "Help" : "Ayuda",
     "Settings" : "Configuración",
     "Users" : "Usuarios",
-    "web services under your control" : "servicios web sobre los que tenés control",
+    "A safe home for all your data" : "Un lugar seguro para todos sus datos",
     "Application is not enabled" : "La aplicación no está habilitada",
     "Authentication error" : "Error al autenticar",
-    "Token expired. Please reload page." : "Token expirado. Por favor, recargá la página."
+    "Token expired. Please reload page." : "Token expirado. Por favor, recargá la página.",
+    "Storage is temporarily not available" : "El repositorio no está disponible temporalmente"
 },"pluralForm" :"nplurals=2; plural=(n != 1);"
 }

@@ -1,6 +1,8 @@
 OC.L10N.register(
     "settings",
     {
+    "Delete" : "ਹਟਾਓ",
+    "Share" : "ਸਾਂਝਾ ਕਰੋ",
     "__language_name__" : "__ਭਾਸ਼ਾ_ਨਾਂ__",
     "Language changed" : "ਭਾਸ਼ਾ ਬਦਲੀ",
     "Please wait...." : "...ਉਡੀਕੋ ਜੀ",
@@ -8,7 +10,6 @@ OC.L10N.register(
     "Enable" : "ਚਾਲੂ",
     "Updating...." : "...ਅੱਪਡੇਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ",
     "Updated" : "ਅੱਪਡੇਟ ਕੀਤਾ",
-    "Delete" : "ਹਟਾਓ",
     "Groups" : "ਗਰੁੱਪ",
     "undo" : "ਵਾਪਸ",
     "add group" : "ਗਰੁੱਪ ਸ਼ਾਮਲ",

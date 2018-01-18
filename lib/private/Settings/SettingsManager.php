@@ -2,7 +2,7 @@
 /**
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -46,6 +46,7 @@ use OC\Settings\Panels\Admin\Legacy as LegacyAdmin;
 use OC\Settings\Panels\Personal\Clients;
 use OC\Settings\Panels\Personal\Version;
 use OC\Settings\Panels\Personal\Tokens;
+use OC\Settings\Panels\Personal\Cors;
 use OC\Settings\Panels\Personal\Quota;
 use OC\Settings\Panels\Admin\BackgroundJobs;
 use OC\Settings\Panels\Admin\Certificates;
@@ -54,7 +55,6 @@ use OC\Settings\Panels\Admin\FileSharing;
 use OC\Settings\Panels\Admin\Mail;
 use OC\Settings\Panels\Admin\Logging;
 use OC\Settings\Panels\Admin\SecurityWarning;
-use OC\Settings\Panels\Admin\Updater;
 use OC\Settings\Panels\Admin\Tips;
 use OC\Settings\Panels\Admin\Status;
 
@@ -198,13 +198,12 @@ class SettingsManager implements ISettingsManager {
 				new Section('apps', $this->l->t('Apps'), 105, 'list'),
 				new Section('general', $this->l->t('General'), 100),
 				new Section('storage', $this->l->t('Storage'), 95, 'folder'),
-				new Section('security', $this->l->t('Security'), 90, 'password'),
+				new Section('security', $this->l->t('Security'), 90, 'shield'),
 				new Section('authentication', $this->l->t('User Authentication'), 87, 'user'),
 				new Section('encryption', $this->l->t('Encryption'), 85, 'password'),
 				new Section('workflow', $this->l->t('Workflows & Tags'), 85, 'workflows'),
 				new Section('sharing', $this->l->t('Sharing'), 80, 'share'),
 				new Section('search', $this->l->t('Search'), 75, 'search'),
-				new Section('updates', $this->l->t('Updates'), 20, 'update'),
 				new Section('help', $this->l->t('Help & Tips'), -5, 'info'),
 				new Section('additional', $this->l->t('Additional'), -10, 'more'),
 			];
@@ -212,7 +211,7 @@ class SettingsManager implements ISettingsManager {
 			return [
 				new Section('general', $this->l->t('General'), 100, 'user'),
 				new Section('storage', $this->l->t('Storage'), 50, 'folder'),
-				new Section('security', $this->l->t('Security'), 30, 'password'),
+				new Section('security', $this->l->t('Security'), 30, 'shield'),
 				new Section('encryption', $this->l->t('Encryption'), 20),
 				new Section('additional', $this->l->t('Additional'), -10, 'more'),
 			];
@@ -246,6 +245,7 @@ class SettingsManager implements ISettingsManager {
 				LegacyPersonal::class,
 				Version::class,
 				Tokens::class,
+				Cors::class,
 				Quota::class
 			];
 		}
@@ -268,6 +268,10 @@ class SettingsManager implements ISettingsManager {
 			Clients::class => new Clients($this->config, $this->defaults),
 			Version::class => new Version(),
 			Tokens::class => new Tokens(),
+			Cors::class => new Cors(
+				$this->userSession,
+				$this->urlGenerator,
+				$this->config),
 			Quota::class => new Quota($this->helper),
 			// Admin
 			BackgroundJobs::class => new BackgroundJobs($this->config),
@@ -276,7 +280,7 @@ class SettingsManager implements ISettingsManager {
 				$this->urlGenerator,
 				$this->certificateManager),
 			Encryption::class => new Encryption(),
-			FileSharing::class => new FileSharing($this->config, $this->helper),
+			FileSharing::class => new FileSharing($this->config, $this->helper, $this->l),
 			Logging::class => new Logging($this->config, $this->urlGenerator, $this->helper),
 			Mail::class => new Mail($this->config, $this->helper),
 			SecurityWarning::class => new SecurityWarning(

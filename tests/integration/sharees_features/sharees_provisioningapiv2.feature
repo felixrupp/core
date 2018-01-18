@@ -4,10 +4,11 @@ Feature: sharees_provisioningapiv2
     And user "test" exists
     And user "Sharee1" exists
     And group "ShareeGroup" exists
-    And user "test" belongs to group "ShareeGroup"
+    And group "ShareeGroup2" exists
+    And user "test" belongs to group "ShareeGroup2"
 
   Scenario: Search without exact match
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
       | search | Sharee |
       | itemType | file |
@@ -19,11 +20,12 @@ Feature: sharees_provisioningapiv2
     And "exact groups" sharees returned is empty
     And "groups" sharees returned are
       | ShareeGroup | 1 | ShareeGroup |
+      | ShareeGroup2 | 1 | ShareeGroup2 |
     And "exact remotes" sharees returned is empty
     And "remotes" sharees returned is empty
 
   Scenario: Search without exact match not-exact casing
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
       | search | sharee |
       | itemType | file |
@@ -35,11 +37,12 @@ Feature: sharees_provisioningapiv2
     And "exact groups" sharees returned is empty
     And "groups" sharees returned are
       | ShareeGroup | 1 | ShareeGroup |
+      | ShareeGroup2 | 1 | ShareeGroup2 |
     And "exact remotes" sharees returned is empty
     And "remotes" sharees returned is empty
 
   Scenario: Search only with group members - denied
-    Given As an "test"
+    Given as an "test"
     And parameter "shareapi_only_share_with_group_members" of app "core" is set to "yes"
     When getting sharees for
       | search | sharee |
@@ -51,13 +54,14 @@ Feature: sharees_provisioningapiv2
     And "exact groups" sharees returned is empty
     And "groups" sharees returned are
       | ShareeGroup | 1 | ShareeGroup |
+      | ShareeGroup2 | 1 | ShareeGroup2 |
     And "exact remotes" sharees returned is empty
     And "remotes" sharees returned is empty
 
   Scenario: Search only with group members - allowed
-    Given As an "test"
+    Given as an "test"
     And parameter "shareapi_only_share_with_group_members" of app "core" is set to "yes"
-    And user "Sharee1" belongs to group "ShareeGroup"
+    And user "Sharee1" belongs to group "ShareeGroup2"
     When getting sharees for
       | search | sharee |
       | itemType | file |
@@ -69,12 +73,14 @@ Feature: sharees_provisioningapiv2
     And "exact groups" sharees returned is empty
     And "groups" sharees returned are
       | ShareeGroup | 1 | ShareeGroup |
+      | ShareeGroup2 | 1 | ShareeGroup2 |
     And "exact remotes" sharees returned is empty
     And "remotes" sharees returned is empty
 
   Scenario: Search only with group members - no group as non-member
-    Given As an "Sharee1"
+    Given as an "Sharee1"
     And parameter "shareapi_only_share_with_group_members" of app "core" is set to "yes"
+    And parameter "shareapi_only_share_with_membership_groups" of app "core" is set to "yes"
     When getting sharees for
       | search | sharee |
       | itemType | file |
@@ -87,8 +93,72 @@ Feature: sharees_provisioningapiv2
     And "exact remotes" sharees returned is empty
     And "remotes" sharees returned is empty
 
+  Scenario: Search only with membership groups - denied
+    Given as an "Sharee1"
+    And parameter "shareapi_only_share_with_membership_groups" of app "core" is set to "yes"
+    When getting sharees for
+      | search | ShareeGroup |
+      | itemType | file |
+    Then the OCS status code should be "200"
+    And the HTTP status code should be "200"
+    And "exact users" sharees returned is empty
+    And "users" sharees returned is empty
+    And "exact groups" sharees returned is empty
+    And "groups" sharees returned is empty
+    And "exact remotes" sharees returned is empty
+    And "remotes" sharees returned is empty
+
+  Scenario: Search only with membership groups - denied but users match
+    Given as an "Sharee1"
+    And parameter "shareapi_only_share_with_membership_groups" of app "core" is set to "yes"
+    When getting sharees for
+      | search | sharee |
+      | itemType | file |
+    Then the OCS status code should be "200"
+    And the HTTP status code should be "200"
+    And "exact users" sharees returned is empty
+    And "users" sharees returned are
+      | Sharee1 | 0 | Sharee1 |
+    And "exact groups" sharees returned is empty
+    And "groups" sharees returned is empty
+    And "exact remotes" sharees returned is empty
+    And "remotes" sharees returned is empty
+
+  Scenario: Search only with membership groups - allowed
+    Given as an "test"
+    And parameter "shareapi_only_share_with_membership_groups" of app "core" is set to "yes"
+    When getting sharees for
+      | search | ShareeGroup |
+      | itemType | file |
+    Then the OCS status code should be "200"
+    And the HTTP status code should be "200"
+    And "exact users" sharees returned is empty
+    And "users" sharees returned is empty
+    And "exact groups" sharees returned is empty
+    And "groups" sharees returned are
+      | ShareeGroup2 | 1 | ShareeGroup2 |
+    And "exact remotes" sharees returned is empty
+    And "remotes" sharees returned is empty
+
+  Scenario: Search only with membership groups - allowed including users
+    Given as an "test"
+    And parameter "shareapi_only_share_with_membership_groups" of app "core" is set to "yes"
+    When getting sharees for
+      | search | Sharee |
+      | itemType | file |
+    Then the OCS status code should be "200"
+    And the HTTP status code should be "200"
+    And "exact users" sharees returned is empty
+    And "users" sharees returned are
+      | Sharee1 | 0 | Sharee1 |
+    And "exact groups" sharees returned is empty
+    And "groups" sharees returned are
+      | ShareeGroup2 | 1 | ShareeGroup2 |
+    And "exact remotes" sharees returned is empty
+    And "remotes" sharees returned is empty
+
   Scenario: Search without exact match no iteration allowed
-    Given As an "test"
+    Given as an "test"
     And parameter "shareapi_allow_share_dialog_user_enumeration" of app "core" is set to "no"
     When getting sharees for
       | search | Sharee |
@@ -103,7 +173,7 @@ Feature: sharees_provisioningapiv2
     And "remotes" sharees returned is empty
 
   Scenario: Search with exact match no iteration allowed
-    Given As an "test"
+    Given as an "test"
     And parameter "shareapi_allow_share_dialog_user_enumeration" of app "core" is set to "no"
     When getting sharees for
       | search | Sharee1 |
@@ -119,7 +189,7 @@ Feature: sharees_provisioningapiv2
     And "remotes" sharees returned is empty
 
   Scenario: Search with exact match group no iteration allowed
-    Given As an "test"
+    Given as an "test"
     And parameter "shareapi_allow_share_dialog_user_enumeration" of app "core" is set to "no"
     When getting sharees for
       | search | ShareeGroup |
@@ -135,7 +205,7 @@ Feature: sharees_provisioningapiv2
     And "remotes" sharees returned is empty
 
   Scenario: Search with exact match
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
       | search | Sharee1 |
       | itemType | file |
@@ -150,7 +220,7 @@ Feature: sharees_provisioningapiv2
     Then "remotes" sharees returned is empty
 
   Scenario: Search with exact match not-exact casing
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
       | search | sharee1 |
       | itemType | file |
@@ -165,22 +235,22 @@ Feature: sharees_provisioningapiv2
     Then "remotes" sharees returned is empty
 
   Scenario: Search with exact match not-exact casing group
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
-      | search | shareegroup |
+      | search | shareegroup2 |
       | itemType | file |
     Then the OCS status code should be "200"
     And the HTTP status code should be "200"
     Then "exact users" sharees returned is empty
     Then "users" sharees returned is empty
     Then "exact groups" sharees returned are
-      | ShareeGroup | 1 | ShareeGroup |
+      | ShareeGroup2 | 1 | ShareeGroup2 |
     Then "groups" sharees returned is empty
     Then "exact remotes" sharees returned is empty
     Then "remotes" sharees returned is empty
 
   Scenario: Search with "self"
-    Given As an "Sharee1"
+    Given as an "Sharee1"
     When getting sharees for
       | search | Sharee1 |
       | itemType | file |
@@ -195,7 +265,7 @@ Feature: sharees_provisioningapiv2
     Then "remotes" sharees returned is empty
 
   Scenario: Remote sharee for files
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
       | search | test@localhost |
       | itemType | file |
@@ -210,7 +280,7 @@ Feature: sharees_provisioningapiv2
     Then "remotes" sharees returned is empty
 
   Scenario: Remote sharee for calendars not allowed
-    Given As an "test"
+    Given as an "test"
     When getting sharees for
       | search | test@localhost |
       | itemType | calendar |
@@ -224,7 +294,7 @@ Feature: sharees_provisioningapiv2
     Then "remotes" sharees returned is empty
 
   Scenario: Group sharees not returned when group sharing is disabled
-    Given As an "test"
+    Given as an "test"
     And parameter "shareapi_allow_group_sharing" of app "core" is set to "no"
     When getting sharees for
       | search | sharee |

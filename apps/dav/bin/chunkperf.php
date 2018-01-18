@@ -2,7 +2,7 @@
 /**
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -72,5 +72,7 @@ while(!feof($stream)) {
 $destination = pathinfo($file, PATHINFO_BASENAME);
 //echo "Moving $uploadUrl/.file to it's final destination $baseUri/files/$userName/$destination" . PHP_EOL;
 request($client, 'MOVE', "$uploadUrl/.file", null, [
-	'Destination' => "$baseUri/files/$userName/$destination"
+	'Destination' => "$baseUri/files/$userName/$destination",
+	'OC-Total-Length' => filesize($file),
+	'X-OC-MTime' => filemtime($file)
 ]);

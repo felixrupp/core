@@ -19,7 +19,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@
  */
 
 use OC\TemplateLayout;
-use OC\Theme\Theme;
+use OCP\Theme\ITheme;
 
 require_once __DIR__.'/template/functions.php';
 
@@ -183,16 +183,18 @@ class OC_Template extends \OC\Template\Base {
 	 *
 	 * Will select the template file for the selected theme.
 	 * Checking all the possible locations.
-	 * @param Theme $theme
+	 * @param ITheme $theme
 	 * @param string $app
 	 * @return string
 	 */
 	protected function findTemplate($theme, $app, $name) {
 		// Check if it is a app template or not.
-		if( $app !== '' && $app !== 'core' ) {
-			$dirs = $this->getAppTemplateDirs($theme, $app, OC::$SERVERROOT, OC_App::getAppPath($app));
-		} else {
+		if($app === '' || $app === 'core') {
 			$dirs = $this->getCoreTemplateDirs($theme, OC::$SERVERROOT);
+		} elseif ($app === 'settings') {
+			$dirs = $this->getSettingsTemplateDirs($theme, OC::$SERVERROOT);
+		} else {
+			$dirs = $this->getAppTemplateDirs($theme, $app, OC::$SERVERROOT, OC_App::getAppPath($app));
 		}
 
 		$locator = new \OC\Template\TemplateFileLocator( $dirs );
@@ -328,7 +330,7 @@ class OC_Template extends \OC\Template\Base {
 
 		try {
 			$content = new \OC_Template( '', 'error', 'error', false );
-			$errors = [['error' => \OCP\Util::sanitizeHTML($error_msg), 'hint' => \OCP\Util::sanitizeHTML($hint)]];
+			$errors = [['error' => $error_msg, 'hint' => $hint]];
 			$content->assign( 'errors', $errors );
 			if ($httpStatusCode !== null) {
 				http_response_code((int)$httpStatusCode);

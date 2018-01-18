@@ -108,9 +108,8 @@ OC.L10N.register(
     "Expiration date" : "Auslaufdatum",
     "Link" : "Link",
     "Choose a password for the public link" : "Wähle ein Passwort für den öffentlichen Link",
-    "Password" : "Passwort",
     "Name" : "Name",
-    "Allow editing" : "Erlaube bearbeiten",
+    "Password" : "Passwort",
     "Sending ..." : "Sende...",
     "Email sent" : "eMail gesendet",
     "Email link to person" : "Sende diesen Link zu einer Person",
@@ -122,7 +121,6 @@ OC.L10N.register(
     "delete" : "Löschen",
     "Share" : "Teilen",
     "Resharing is not allowed" : "Weiterteilen ist nicht erlaubt",
-    "Warning" : "Warnung",
     "Delete" : "Löschen",
     "Personal" : "Persönlich",
     "Username" : "Benutzername"

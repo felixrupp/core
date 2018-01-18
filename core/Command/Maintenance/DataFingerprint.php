@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ class DataFingerprint extends Command {
 	protected function configure() {
 		$this
 			->setName('maintenance:data-fingerprint')
-			->setDescription('update the systems data-fingerprint after a backup is restored');
+			->setDescription('Update the systems data-fingerprint after a backup is restored.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output) {

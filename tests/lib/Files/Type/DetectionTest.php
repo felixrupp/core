@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <roeland@famdouma.nl>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 
 namespace Test\Files\Type;
 
-use \OC\Files\Type\Detection;
+use OC\Files\Type\Detection;
 use org\bovigo\vfs\vfsStream;
 
 class DetectionTest extends \Test\TestCase {

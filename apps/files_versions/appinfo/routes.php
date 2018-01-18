@@ -8,7 +8,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -34,11 +34,4 @@ $this->create('core_ajax_versions_preview', '/preview')->action(
 function() {
 	require_once __DIR__ . '/../ajax/preview.php';
 });
-
-$this->create('files_versions_download', 'download.php')
-	->actionInclude('files_versions/download.php');
-$this->create('files_versions_ajax_getVersions', 'ajax/getVersions.php')
-	->actionInclude('files_versions/ajax/getVersions.php');
-$this->create('files_versions_ajax_rollbackVersion', 'ajax/rollbackVersion.php')
-	->actionInclude('files_versions/ajax/rollbackVersion.php');
 

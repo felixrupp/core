@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,18 +24,20 @@
 
 namespace OCA\Files\Command;
 
+use OC\Encryption\Manager;
 use OC\Files\Filesystem;
 use OC\Files\View;
 use OCP\Files\FileInfo;
 use OCP\Files\Mount\IMountManager;
+use OCP\ILogger;
 use OCP\IUserManager;
 use OCP\Share\IManager;
 use OCP\Share\IShare;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class TransferOwnership extends Command {
@@ -48,6 +50,12 @@ class TransferOwnership extends Command {
 
 	/** @var IMountManager */
 	private $mountManager;
+
+	/** @var Manager  */
+	private $encryptionManager;
+
+	/** @var ILogger  */
+	private  $logger;
 
 	/** @var FileInfo[] */
 	private $allFiles = [];
@@ -70,10 +78,12 @@ class TransferOwnership extends Command {
 	/** @var string */
 	private $finalTarget;
 
-	public function __construct(IUserManager $userManager, IManager $shareManager, IMountManager $mountManager) {
+	public function __construct(IUserManager $userManager, IManager $shareManager, IMountManager $mountManager, Manager $encryptionManager, ILogger $logger) {
 		$this->userManager = $userManager;
 		$this->shareManager = $shareManager;
 		$this->mountManager = $mountManager;
+		$this->encryptionManager = $encryptionManager;
+		$this->logger = $logger;
 		parent::__construct();
 	}
 
@@ -260,7 +270,9 @@ class TransferOwnership extends Command {
 				$this->finalTarget = $this->finalTarget . '/' . basename($sourcePath);
 			}
 		}
+
 		$view->rename($sourcePath, $this->finalTarget);
+
 		if (!is_dir("$this->sourceUser/files")) {
 			// because the files folder is moved away we need to recreate it
 			$view->mkdir("$this->sourceUser/files");

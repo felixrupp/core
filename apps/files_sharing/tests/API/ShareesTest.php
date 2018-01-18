@@ -7,7 +7,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -121,9 +121,11 @@ class ShareesTest extends TestCase {
 	/**
 	 * @param string $uid
 	 * @param string $displayName
+	 * @param string $email
+	 * @param array $terms Search terms for the user
 	 * @return \OCP\IUser|\PHPUnit_Framework_MockObject_MockObject
 	 */
-	protected function getUserMock($uid, $displayName) {
+	protected function getUserMock($uid, $displayName, $email = null, $terms = []) {
 		$user = $this->getMockBuilder(IUser::class)
 			->disableOriginalConstructor()
 			->getMock();
@@ -135,6 +137,14 @@ class ShareesTest extends TestCase {
 		$user->expects($this->any())
 			->method('getDisplayName')
 			->willReturn($displayName);
+
+		$user->expects($this->any())
+			->method('getEMailAddress')
+			->willReturn($email);
+
+		$user->expects($this->any())
+			->method('getSearchTerms')
+			->willReturn($terms);
 
 		return $user;
 	}
@@ -433,11 +443,19 @@ class ShareesTest extends TestCase {
 				[],
 				// fuzzy match expected
 				[
-					['label' => 'Another One', 'value' => ['shareType' => Share::SHARE_TYPE_USER, 'shareWith' => 'another1']],
+					[
+						'label' => 'Another One',
+						'value' => [
+							'shareType' => Share::SHARE_TYPE_USER,
+							'shareWith' => 'another1',
+							'shareWithAdditionalInfo' => 'another1'
+						]
+					],
 				],
 				true,
 				false,
 				true,
+				'id'
 			],
 			[
 				// pick user directly by name
@@ -454,13 +472,21 @@ class ShareesTest extends TestCase {
 				],
 				// exact expected
 				[
-					['label' => 'Another One', 'value' => ['shareType' => Share::SHARE_TYPE_USER, 'shareWith' => 'another1']],
+					[
+						'label' => 'Another One',
+						'value' => [
+							'shareType' => Share::SHARE_TYPE_USER,
+							'shareWith' => 'another1',
+							'shareWithAdditionalInfo' => 'email@example.com'
+						]
+					],
 				],
 				// fuzzy match expected
 				[],
 				true,
-				$this->getUserMock('another1', 'Another One'),
+				$this->getUserMock('another1', 'Another One', 'email@example.com'),
 				true,
+				'email'
 			],
 		];
 	}
@@ -478,6 +504,7 @@ class ShareesTest extends TestCase {
 	 * @param bool $reachedEnd
 	 * @param mixed $singleUser false for testing search or user mock when we are testing a direct match
 	 * @param mixed $shareeEnumerationGroupMembers restrict enumeration to group members
+	 * @param mixed $additionalUserInfoField
 	 */
 	public function testGetUsers(
 		$searchTerm,
@@ -489,8 +516,26 @@ class ShareesTest extends TestCase {
 		$expected,
 		$reachedEnd,
 		$singleUser,
-		$shareeEnumerationGroupMembers = false
+		$shareeEnumerationGroupMembers = false,
+		$additionalUserInfoField = null
 	) {
+		$this->config->expects($this->once())
+			->method('getAppValue')
+			->with('core', 'user_additional_info_field', '')
+			->willReturn($additionalUserInfoField);
+
+		$this->sharees = new ShareesController(
+			'files_sharing',
+			$this->request,
+			$this->groupManager,
+			$this->userManager,
+			$this->contactsManager,
+			$this->config,
+			$this->session,
+			$this->getMockBuilder(IURLGenerator::class)->disableOriginalConstructor()->getMock(),
+			$this->getMockBuilder(ILogger::class)->disableOriginalConstructor()->getMock(),
+			$this->shareManager
+		);
 		$this->invokePrivate($this->sharees, 'limit', [2]);
 		$this->invokePrivate($this->sharees, 'offset', [0]);
 		$this->invokePrivate($this->sharees, 'shareWithGroupOnly', [$shareWithGroupOnly]);
@@ -894,7 +939,7 @@ class ShareesTest extends TestCase {
 	 */
 	public function testGetGroups(
 		$searchTerm,
-		$shareWithGroupOnly,
+		$shareWithMembershipGroupOnly,
 		$shareeEnumeration,
 		$groupResponse,
 		$userGroupsResponse,
@@ -906,7 +951,7 @@ class ShareesTest extends TestCase {
 	) {
 		$this->invokePrivate($this->sharees, 'limit', [2]);
 		$this->invokePrivate($this->sharees, 'offset', [0]);
-		$this->invokePrivate($this->sharees, 'shareWithGroupOnly', [$shareWithGroupOnly]);
+		$this->invokePrivate($this->sharees, 'shareWithMembershipGroupOnly', [$shareWithMembershipGroupOnly]);
 		$this->invokePrivate($this->sharees, 'shareeEnumeration', [$shareeEnumeration]);
 		$this->invokePrivate($this->sharees, 'shareeEnumerationGroupMembers', [$shareeEnumerationGroupMembers]);
 
@@ -922,7 +967,7 @@ class ShareesTest extends TestCase {
 				->willReturn($singleGroup);
 		}
 
-		if ($shareWithGroupOnly || $shareeEnumerationGroupMembers) {
+		if ($shareWithMembershipGroupOnly || $shareeEnumerationGroupMembers) {
 			$user = $this->getUserMock('admin', 'Administrator');
 			$this->session->expects($this->any())
 				->method('getUser')
@@ -1427,9 +1472,6 @@ class ShareesTest extends TestCase {
 	 * @param string $message
 	 */
 	public function testSearchInvalid($message, $search = '', $itemType = null, $page = 1, $perPage = 200) {
-		$this->config->expects($this->never())
-			->method('getAppValue');
-
 		/** @var ShareesController | \PHPUnit_Framework_MockObject_MockObject $sharees */
 		$sharees = $this->getMockBuilder(ShareesController::class)
 			->setConstructorArgs([
@@ -1784,5 +1826,39 @@ class ShareesTest extends TestCase {
 			['http://localhost/index.php', 'http://localhost'],
 			['http://localhost/index.php/s/AShareToken', 'http://localhost'],
 		];
+	}
+
+	public function testGetUserWithSearchAttributes() {
+		$this->invokePrivate($this->sharees, 'limit', [2]);
+		$this->invokePrivate($this->sharees, 'offset', [0]);
+		$this->invokePrivate($this->sharees, 'shareWithGroupOnly', [false]);
+		$this->invokePrivate($this->sharees, 'shareeEnumeration', [false]);
+		$this->invokePrivate($this->sharees, 'shareeEnumerationGroupMembers', [false]);
+
+		// User with more search term
+		$user = $this->getUserMock('testBob', 'Bob', 'bob@example.com', ['alt@example.com']);
+		$this->session->expects($this->any())
+			->method('getUser')
+			->willReturn($user);
+
+		// Do an exact search for a search term
+		$searchTerm = 'alt@example.com';
+
+		$this->userManager->expects($this->once())
+			->method('find')
+			->with(
+				$searchTerm,
+					$this->invokePrivate($this->sharees, 'limit'),
+					$this->invokePrivate($this->sharees, 'offset'))
+			->willReturn([$user]);
+
+		$exactExpected = [['label' => 'Bob', 'value' => ['shareType' => Share::SHARE_TYPE_USER, 'shareWith' => 'testBob']]];
+		$expected = [];
+		
+		$this->invokePrivate($this->sharees, 'getUsers', [$searchTerm]);
+		$result = $this->invokePrivate($this->sharees, 'result');
+		$this->assertEquals($exactExpected, $result['exact']['users']);
+		$this->assertEquals($expected, $result['users']);
+		$this->assertCount((int) 1, $this->invokePrivate($this->sharees, 'reachedEndFor'));
 	}
 }

@@ -6,7 +6,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -29,6 +29,7 @@ namespace OC\Encryption;
 use OC\Encryption\Exceptions\DecryptionFailedException;
 use OC\Files\View;
 use \OCP\Encryption\IEncryptionModule;
+use OCP\ILogger;
 use OCP\IUserManager;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
@@ -54,20 +55,26 @@ class DecryptAll {
 	/** @var  array files which couldn't be decrypted */
 	protected $failed;
 
+	/** @var ILogger */
+	protected $logger;
+
 	/**
 	 * @param Manager $encryptionManager
 	 * @param IUserManager $userManager
 	 * @param View $rootView
+	 * @param ILogger $logger
 	 */
 	public function __construct(
 		Manager $encryptionManager,
 		IUserManager $userManager,
-		View $rootView
+		View $rootView,
+		ILogger $logger
 	) {
 		$this->encryptionManager = $encryptionManager;
 		$this->userManager = $userManager;
 		$this->rootView = $rootView;
 		$this->failed = [];
+		$this->logger = $logger;
 	}
 
 	/**
@@ -90,8 +97,10 @@ class DecryptAll {
 		}
 
 		$this->output->writeln('prepare encryption modules...');
-		if ($this->prepareEncryptionModules($user) === false) {
-			return false;
+		if (\OC::$server->getAppConfig()->getValue('encryption', 'useMasterKey', '0') !== '0') {
+			if ($this->prepareEncryptionModules($user) === false) {
+				return false;
+			}
 		}
 		$this->output->writeln(' done.');
 
@@ -139,6 +148,7 @@ class DecryptAll {
 	 * iterate over all user and encrypt their files
 	 *
 	 * @param string $user which users files should be decrypted, default = all users
+	 * @return bool
 	 */
 	protected function decryptAllUsersFiles($user = '') {
 
@@ -183,6 +193,11 @@ class DecryptAll {
 		$userNo = 1;
 		foreach ($userList as $uid) {
 			$userCount = "$uid ($userNo of $numberOfUsers)";
+			if (\OC::$server->getAppConfig()->getValue('encryption', 'userSpecificKey', '0') !== '0') {
+				if ($this->prepareEncryptionModules($uid) === false) {
+					return false;
+				}
+			}
 			$this->decryptUsersFiles($uid, $progress, $userCount);
 			$userNo++;
 		}
@@ -191,7 +206,7 @@ class DecryptAll {
 		$progress->finish();
 
 		$this->output->writeln("\n\n");
-
+		return true;
 	}
 
 	/**
@@ -210,8 +225,8 @@ class DecryptAll {
 		while ($root = array_pop($directories)) {
 			$content = $this->rootView->getDirectoryContent($root);
 			foreach ($content as $file) {
-				// only decrypt files owned by the user
-				if($file->getStorage()->instanceOfStorage('OCA\Files_Sharing\SharedStorage')) {
+				// only decrypt files owned by the user, exclude incoming local shares, and incoming federated shares
+				if ($file->getStorage()->instanceOfStorage('\OCA\Files_Sharing\ISharedStorage')) {
 						continue;
 				}
 				$path = $root . '/' . $file['name'];
@@ -232,6 +247,10 @@ class DecryptAll {
 							}
 						}
 					} catch (\Exception $e) {
+						$this->logger->logException($e, [
+							'message' => "Exception trying to decrypt file <$path> for user <$uid>",
+							'app' => __CLASS__
+						]);
 						if (isset($this->failed[$uid])) {
 							$this->failed[$uid][] = $path;
 						} else {
@@ -255,7 +274,9 @@ class DecryptAll {
 		$target = $path . '.decrypted.' . $this->getTimestamp();
 
 		try {
+			\OC\Files\Storage\Wrapper\Encryption::setDisableWriteEncryption(true);
 			$this->rootView->copy($source, $target);
+			\OC\Files\Storage\Wrapper\Encryption::setDisableWriteEncryption(false);
 			$this->rootView->rename($target, $source);
 		} catch (DecryptionFailedException $e) {
 			if ($this->rootView->file_exists($target)) {

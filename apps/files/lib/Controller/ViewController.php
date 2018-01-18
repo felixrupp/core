@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -27,10 +27,12 @@
 namespace OCA\Files\Controller;
 
 use OC\AppFramework\Http\Request;
+use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\Files\Folder;
 use OCP\Files\NotFoundException;
 use OCP\IConfig;
 use OCP\IL10N;
@@ -39,8 +41,6 @@ use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\IUserSession;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use OCP\Files\Folder;
-use OCP\App\IAppManager;
 
 /**
  * Class ViewController
@@ -212,11 +212,14 @@ class ViewController extends Controller {
 			]
 		);
 
+		$user = $this->userSession->getUser()->getUID();
+
 		$navItems = \OCA\Files\App::getNavigationManager()->getAll();
 		usort($navItems, function($item1, $item2) {
 			return $item1['order'] - $item2['order'];
 		});
 		$nav->assign('navigationItems', $navItems);
+		$nav->assign('webdavUrl', $this->urlGenerator->getAbsoluteUrl($this->urlGenerator->linkTo('', 'remote.php') . '/dav/files/' . $user . '/'));
 
 		$contentItems = [];
 
@@ -243,7 +246,6 @@ class ViewController extends Controller {
 		$params['mailPublicNotificationEnabled'] = $this->config->getAppValue('core', 'shareapi_allow_public_notification', 'no');
 		$params['socialShareEnabled'] = $this->config->getAppValue('core', 'shareapi_allow_social_share', 'yes');
 		$params['allowShareWithLink'] = $this->config->getAppValue('core', 'shareapi_allow_links', 'yes');
-		$user = $this->userSession->getUser()->getUID();
 		$params['defaultFileSorting'] = $this->config->getUserValue($user, 'files', 'file_sorting', 'name');
 		$params['defaultFileSortingDirection'] = $this->config->getUserValue($user, 'files', 'file_sorting_direction', 'asc');
 		$showHidden = (bool) $this->config->getUserValue($this->userSession->getUser()->getUID(), 'files', 'show_hidden', false);

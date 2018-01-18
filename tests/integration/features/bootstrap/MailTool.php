@@ -2,7 +2,7 @@
 /**
  * @author Sergio Bertolin <sbertolin@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud, Gmbh.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -20,18 +20,24 @@
  */
 
 require __DIR__ . '/../../../../lib/composer/autoload.php';
+
 use GuzzleHttp\Client;
 
 trait MailTool {
 
-	/*Connects to an API in a docker container with mailhog, retrieving the emails sent from it
-	  To use it previously the container should be set up*/
+	/*
+	 * Connects to an API in a docker container with mailhog,
+	 * retrieving the emails sent from it.
+	 * To use it the container should have previously been set up.
+	*/
 	public function getEmails() {
 		$fullUrl = $this->mailhogUrl;
 		$client = new Client();
 		$options = ['headers' => ['Content-Type' => 'application/json']];
 		try {
-			$this->response = $client->send($client->createRequest('GET', $fullUrl, $options));
+			$this->response = $client->send(
+				$client->createRequest('GET', $fullUrl, $options)
+			);
 		} catch (\GuzzleHttp\Exception\ClientException $ex) {
 			$this->response = $ex->getResponse();
 		}

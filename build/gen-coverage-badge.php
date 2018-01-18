@@ -2,7 +2,7 @@
 /**
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2016, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -50,7 +50,7 @@ try {
 	if ($percent >= 75) {
 		$color = 'green';
 	}
-	$content = file_get_contents("https://img.shields.io/badge/coverage-$percent%-$color.svg");
+	$content = file_get_contents("https://img.shields.io/badge/coverage-$percent%25-$color.svg");
 	file_put_contents('coverage.svg', $content);
 } catch(Exception $ex) {
 	echo $ex->getMessage() . PHP_EOL;

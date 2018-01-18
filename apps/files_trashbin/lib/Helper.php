@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -114,7 +114,9 @@ class Helper {
 			$entry['id'] = $id++;
 			$entry['etag'] = $entry['mtime']; // add fake etag, it is only needed to identify the preview image
 			$entry['permissions'] = \OCP\Constants::PERMISSION_READ;
-			$entry['mimetype'] = \OC::$server->getMimeTypeDetector()->detectPath($entry['name']);
+			if ($entry['mimetype'] !== 'httpd/unix-directory') {
+				$entry['mimetype'] = \OC::$server->getMimeTypeDetector()->detectPath($entry['name']);
+			}
 			$files[] = $entry;
 		}
 		return $files;

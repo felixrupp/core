@@ -2,7 +2,7 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -45,22 +45,22 @@ class DeleteConfig extends Base {
 
 		$this
 			->setName('config:app:delete')
-			->setDescription('Delete an app config value')
+			->setDescription('Delete an app config value.')
 			->addArgument(
 				'app',
 				InputArgument::REQUIRED,
-				'Name of the app'
+				'Name of the app.'
 			)
 			->addArgument(
 				'name',
 				InputArgument::REQUIRED,
-				'Name of the config to delete'
+				'Name of the config to delete.'
 			)
 			->addOption(
 				'error-if-not-exists',
 				null,
 				InputOption::VALUE_NONE,
-				'Checks whether the config exists before deleting it'
+				'Checks whether the config exists before deleting it.'
 			)
 		;
 	}

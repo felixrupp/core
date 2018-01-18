@@ -2,7 +2,7 @@
 /**
  * @author Olivier Paroz <owncloud@interfasys.ch>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -139,8 +139,8 @@ abstract class Provider extends \Test\TestCase {
 	private function getPreview($provider) {
 		$preview = $provider->getThumbnail($this->imgPath, $this->maxWidth, $this->maxHeight, $this->scalingUp, $this->rootView);
 
-		$this->assertNotEquals(false, $preview);
-		$this->assertEquals(true, $preview->valid());
+		$this->assertNotFalse($preview);
+		$this->assertTrue($preview->valid());
 
 		return $preview;
 	}

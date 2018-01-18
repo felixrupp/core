@@ -3,7 +3,7 @@
  * ownCloud
  *
  * @author Joas Schilling
- * @copyright 2014 Joas Schilling nickvergessen@owncloud.com
+ * @copyright Copyright (c) 2014 Joas Schilling nickvergessen@owncloud.com
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -32,8 +32,9 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\Security\ISecureRandom;
+use PHPUnit\Framework\TestCase as BaseTestCase;
 
-abstract class TestCase extends \PHPUnit_Framework_TestCase {
+abstract class TestCase extends BaseTestCase {
 	/** @var \OC\Command\QueueBus */
 	private $commandBus;
 
@@ -42,6 +43,9 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 
 	/** @var bool */
 	static private $wasDatabaseAllowed = false;
+
+	/** @var string */
+	static private $lastTest = '';
 
 	/** @var array */
 	protected $services = [];
@@ -127,6 +131,9 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 	}
 
 	protected function tearDown() {
+		// store testname in static attr for use in class teardown
+		self::$lastTest = get_class($this) . ':' . $this->getName();
+
 		// restore database connection
 		if (!$this->IsDatabaseAccessAllowed()) {
 			\OC::$server->registerService('DatabaseConnection', function () {
@@ -212,6 +219,22 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 	}
 
 	public static function tearDownAfterClass() {
+		// fail if still in a transaction after test run
+		if(self::$wasDatabaseAllowed && \OC::$server->getDatabaseConnection()->inTransaction()) {
+			// This is bad. But we cannot fail the unit test since we are already
+			// outside of it. We cannot throw an exception since this hides
+			// potentially the real cause of this issue. So let's just output
+			// something to the console so it is apparent.
+			echo 'Stray transaction after test: ' . self::$lastTest;
+			// attempt to reset it so you can continue running testing unaffected
+			try {
+				\OC::$server->getDatabaseConnection()->commit();
+			} catch (\Exception $e) {}
+			try {
+				\OC::$server->getDatabaseConnection()->rollBack();
+			} catch (\Exception $e) {}
+		}
+
 		if (!self::$wasDatabaseAllowed && self::$realDatabase !== null) {
 			// in case an error is thrown in a test, PHPUnit jumps straight to tearDownAfterClass,
 			// so we need the database again
@@ -221,7 +244,8 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 		}
 		$dataDir = \OC::$server->getConfig()->getSystemValue('datadirectory', \OC::$SERVERROOT . '/data-autotest');
 		if (self::$wasDatabaseAllowed && \OC::$server->getDatabaseConnection()) {
-			$queryBuilder = \OC::$server->getDatabaseConnection()->getQueryBuilder();
+			$connection = \OC::$server->getDatabaseConnection();
+			$queryBuilder = $connection->getQueryBuilder();
 
 			self::tearDownAfterClassCleanShares($queryBuilder);
 			self::tearDownAfterClassCleanStorages($queryBuilder);
@@ -281,7 +305,7 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 			'.' => true,
 		];
 
-		if ($dh = opendir($dataDir)) {
+		if ($dh = @opendir($dataDir)) {
 			while (($file = readdir($dh)) !== false) {
 				if (!isset($knownEntries[$file])) {
 					self::tearDownAfterClassCleanStrayDataUnlinkDir($dataDir . '/' . $file);
@@ -297,21 +321,23 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 	 * @param string $dir
 	 */
 	static protected function tearDownAfterClassCleanStrayDataUnlinkDir($dir) {
-		if ($dh = @opendir($dir)) {
-			while (($file = readdir($dh)) !== false) {
-				if (\OC\Files\Filesystem::isIgnoredDir($file)) {
-					continue;
+		if (is_dir($dir)) {
+			if ($dh = @opendir($dir)) {
+				while (($file = readdir($dh)) !== false) {
+					if (\OC\Files\Filesystem::isIgnoredDir($file)) {
+						continue;
+					}
+					$path = $dir . '/' . $file;
+					if (is_dir($path)) {
+						self::tearDownAfterClassCleanStrayDataUnlinkDir($path);
+					} else {
+						@unlink($path);
+					}
 				}
-				$path = $dir . '/' . $file;
-				if (is_dir($path)) {
-					self::tearDownAfterClassCleanStrayDataUnlinkDir($path);
-				} else {
-					@unlink($path);
-				}
+				closedir($dh);
 			}
-			closedir($dh);
+			@rmdir($dir);
 		}
-		@rmdir($dir);
 	}
 
 	/**
@@ -490,4 +516,21 @@ abstract class TestCase extends \PHPUnit_Framework_TestCase {
 			}
 		}
 	}
+
+	public function getCurrentUser() {
+		$processUser = posix_getpwuid(posix_geteuid());
+		return $processUser['name'];
+	}
+
+	/**
+	 * @param string $string
+	 * @return bool|resource
+	 */
+	protected function createStreamFor($string) {
+		$stream = fopen('php://memory', 'r+');
+		fwrite($stream, $string);
+		rewind($stream);
+		return $stream;
+	}
+
 }

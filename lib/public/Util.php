@@ -23,7 +23,7 @@
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -188,6 +188,8 @@ class Util {
 			if ($user !== null) {
 				$user = $user->getUID();
 			}
+		} else {
+			$user = null;
 		}
 
 		return self::$shareManager->sharingDisabledForUser($user);
@@ -720,31 +722,87 @@ class Util {
 
 		$installed = (bool) $systemConfig->getValue('installed', false);
 		$maintenance = (bool) $systemConfig->getValue('maintenance', false);
-		# see core/lib/private/legacy/defaults.php and core/themes/example/defaults.php
-		# for description and defaults
+
+		// see core/lib/private/legacy/defaults.php and core/themes/example/defaults.php
+		// for description and defaults
 		$defaults = new \OCP\Defaults();
 		$values = [
-			'installed'=> $installed ? 'true' : 'false',
-			'maintenance' => $maintenance ? 'true' : 'false',
-			'needsDbUpgrade' => self::needUpgrade() ? 'true' : 'false',
+			'installed'=> $installed ? true : false,
+			'maintenance' => $maintenance ? true : false,
+			'needsDbUpgrade' => self::needUpgrade() ? true : false,
 			'version' => '',
 			'versionstring' => '',
 			'edition' => '',
 			'productname' => ''];
 
-		# expose version and servername details 
+		// expose version and servername details
 		if ($includeVersion || (bool) $systemConfig->getValue('version.hide', false) === false) {
 			$values['version'] = implode('.', self::getVersion());
 			$values['versionstring'] = \OC_Util::getVersionString();
 			$values['edition'] = \OC_Util::getEditionString();
 			$values['productname'] = $defaults->getName();
-			# expose the servername only if allowed via version, but never when called via status.php
+			// expose the servername only if allowed via version, but never when called via status.php
 			if ($serverHide === false) {
 				$values['hostname'] = gethostname();
 			}
 		}
 
-
 		return $values;
 	}
+
+	/**
+	 * Returns the protocol, domain and port as string in a normalized
+	 * format for easier comparison.
+	 * Example: "HTTPS://HOST.tld:8080" is returned as "https://host.tld:8080"
+	 *
+	 * If no port was specified, it will add the default port
+	 * of the specified protocol (80 for http or 443 for https)
+	 *
+	 * @param string $url full url
+	 * @return string protocol, domain and port as string
+	 * @since 10.0.5
+	 */
+	public static function getFullDomain($url) {
+		$parts = parse_url($url);
+		if ($parts === false) {
+			throw new \InvalidArgumentException('Invalid url "' . $url . '"');
+		}
+		if (!isset($parts['scheme']) || !isset($parts['host'])) {
+			throw new \InvalidArgumentException('Invalid url "' . $url . '"');
+		}
+		$protocol = strtolower($parts['scheme']);
+		$host = strtolower($parts['host']);
+		$port = null;
+		if ($protocol === 'http') {
+			$port = 80;
+		} else if ($protocol === 'https') {
+			$port = 443;
+		} else {
+			throw new \InvalidArgumentException('Only http based URLs supported');
+		}
+
+		if (isset($parts['port']) && $port !== '') {
+			$port = $parts['port'];
+		}
+
+		return $protocol . '://' . strtolower($host) . ':' . $port;
+	}
+
+	/**
+	 * Check whether the given URLs have the same protocol, domain and port.
+	 * This is useful to check a browser's cross-domain situation.
+	 * If this method returns false, a browser would consider both URLs to be
+	 * a cross-domain situation and would require a CORS setup.
+	 *
+	 * @param string $url1
+	 * @param string $url2
+	 *
+	 * @return bool true if both URLs have the same protocol, domain and port
+	 *
+	 * @since 10.0.5
+	 */
+	public static function isSameDomain($url1, $url2) {
+		return self::getFullDomain($url1) === self::getFullDomain($url2);
+	}
+
 }

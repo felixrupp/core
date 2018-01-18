@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -57,11 +57,11 @@ class Message {
 		foreach($addresses as $email => $readableName) {
 			if(!is_numeric($email)) {
 				list($name, $domain) = explode('@', $email, 2);
-				$domain = idn_to_ascii($domain);
+				$domain = idn_to_ascii($domain, 0, INTL_IDNA_VARIANT_UTS46);
 				$convertedAddresses[$name.'@'.$domain] = $readableName;
 			} else {
 				list($name, $domain) = explode('@', $readableName, 2);
-				$domain = idn_to_ascii($domain);
+				$domain = idn_to_ascii($domain, 0, INTL_IDNA_VARIANT_UTS46);
 				$convertedAddresses[$email] = $name.'@'.$domain;
 			}
 		}

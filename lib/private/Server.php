@@ -22,7 +22,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -46,8 +46,6 @@ use OC\AppFramework\Db\Db;
 use OC\AppFramework\Utility\TimeFactory;
 use OC\Command\AsyncBus;
 use OC\Diagnostics\EventLogger;
-use OC\Diagnostics\NullEventLogger;
-use OC\Diagnostics\NullQueryLogger;
 use OC\Diagnostics\QueryLogger;
 use OC\Files\Config\UserMountCache;
 use OC\Files\Config\UserMountCacheListener;
@@ -87,11 +85,17 @@ use OC\Tagging\TagMapper;
 use OC\Theme\ThemeService;
 use OC\User\AccountMapper;
 use OC\User\AccountTermMapper;
+use OCP\App\IServiceLoader;
+use OCP\AppFramework\QueryException;
+use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\Events\EventEmitterTrait;
 use OCP\IL10N;
 use OCP\ILogger;
 use OCP\IServerContainer;
 use OCP\ISession;
+use OCP\IUser;
 use OCP\Security\IContentSecurityPolicyManager;
+use OCP\Theme\IThemeService;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use OC\Files\External\StoragesBackendService;
@@ -99,6 +103,8 @@ use OC\Files\External\Service\UserStoragesService;
 use OC\Files\External\Service\UserGlobalStoragesService;
 use OC\Files\External\Service\GlobalStoragesService;
 use OC\Files\External\Service\DBConfigService;
+use OC\Http\Client\WebDavClientService;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 /**
  * Class Server
@@ -107,7 +113,8 @@ use OC\Files\External\Service\DBConfigService;
  *
  * TODO: hookup all manager classes
  */
-class Server extends ServerContainer implements IServerContainer {
+class Server extends ServerContainer implements IServerContainer, IServiceLoader {
+	use EventEmitterTrait;
 	/** @var string */
 	private $webRoot;
 
@@ -273,6 +280,10 @@ class Server extends ServerContainer implements IServerContainer {
 			return new \OC\Authentication\Token\DefaultTokenProvider($mapper, $crypto, $config, $logger, $timeFactory);
 		});
 		$this->registerAlias('OC\Authentication\Token\IProvider', 'OC\Authentication\Token\DefaultTokenProvider');
+		$this->registerService('TimeFactory', function() {
+			return new TimeFactory();
+		});
+		$this->registerAlias('OCP\AppFramework\Utility\ITimeFactory', 'TimeFactory');
 		$this->registerService('UserSession', function (Server $c) {
 			$manager = $c->getUserManager();
 			$session = new \OC\Session\Memory('');
@@ -285,7 +296,8 @@ class Server extends ServerContainer implements IServerContainer {
 				$defaultTokenProvider = null;
 			}
 
-			$userSession = new \OC\User\Session($manager, $session, $timeFactory, $defaultTokenProvider, $c->getConfig());
+			$userSession = new \OC\User\Session($manager, $session, $timeFactory,
+				$defaultTokenProvider, $c->getConfig(), $this);
 			$userSession->listen('\OC\User', 'preCreateUser', function ($uid, $password) {
 				\OC_Hook::emit('OC_User', 'pre_createUser', ['run' => true, 'uid' => $uid, 'password' => $password]);
 			});
@@ -300,6 +312,9 @@ class Server extends ServerContainer implements IServerContainer {
 			$userSession->listen('\OC\User', 'postDelete', function ($user) {
 				/** @var $user \OC\User\User */
 				\OC_Hook::emit('OC_User', 'post_deleteUser', ['uid' => $user->getUID()]);
+				$this->emittingCall(function () use (&$user) {
+					return true;
+				}, ['before' => [], 'after' => ['uid' => $user->getUID()]], 'user', 'delete');
 			});
 			$userSession->listen('\OC\User', 'preSetPassword', function ($user, $password, $recoveryPassword) {
 				/** @var $user \OC\User\User */
@@ -316,12 +331,18 @@ class Server extends ServerContainer implements IServerContainer {
 				/** @var $user \OC\User\User */
 				\OC_Hook::emit('OC_User', 'post_login', ['run' => true, 'uid' => $user->getUID(), 'password' => $password]);
 			});
+			$userSession->listen('\OC\User', 'preLogout', function () {
+				$event = new GenericEvent(null, []);
+				\OC::$server->getEventDispatcher()->dispatch('\OC\User\Session::pre_logout', $event);
+			});
 			$userSession->listen('\OC\User', 'logout', function () {
 				\OC_Hook::emit('OC_User', 'logout', []);
 			});
 			$userSession->listen('\OC\User', 'changeUser', function ($user, $feature, $value) {
 				/** @var $user \OC\User\User */
 				\OC_Hook::emit('OC_User', 'changeUser', ['run' => true, 'user' => $user, 'feature' => $feature, 'value' => $value]);
+				$this->emittingCall(function () use (&$user, &$feature, &$value) {
+				}, ['before' => ['run' => true, 'user' => $user, 'feature' => $feature, 'value' => $value]], 'user', 'featurechange');
 			});
 			return $userSession;
 		});
@@ -352,6 +373,7 @@ class Server extends ServerContainer implements IServerContainer {
 			return new \OC\L10N\Factory(
 				$c->getConfig(),
 				$c->getRequest(),
+				$c->getThemeService(),
 				$c->getUserSession(),
 				\OC::$SERVERROOT
 			);
@@ -490,6 +512,14 @@ class Server extends ServerContainer implements IServerContainer {
 				new \OC\Security\CertificateManager($uid, new View(), $c->getConfig())
 			);
 		});
+		$this->registerService('WebDavClientService', function (Server $c) {
+			$user = \OC_User::getUser();
+			$uid = $user ? $user : null;
+			return new WebDavClientService(
+				$c->getConfig(),
+				new \OC\Security\CertificateManager($uid, new View(), $c->getConfig())
+			);
+		});
 		$this->registerService('EventLogger', function (Server $c) {
 			$eventLogger = new EventLogger();
 			if ($c->getSystemConfig()->getValue('debug', false)) {
@@ -513,12 +543,20 @@ class Server extends ServerContainer implements IServerContainer {
 			);
 		});
 		$this->registerService('AppManager', function (Server $c) {
+			if(\OC::$server->getSystemConfig()->getValue('installed', false)) {
+				$appConfig = $c->getAppConfig();
+				$groupManager = $c->getGroupManager();
+			} else {
+				$appConfig = null;
+				$groupManager = null;
+			}
 			return new \OC\App\AppManager(
 				$c->getUserSession(),
-				$c->getAppConfig(),
-				$c->getGroupManager(),
+				$appConfig,
+				$groupManager,
 				$c->getMemCacheFactory(),
-				$c->getEventDispatcher()
+				$c->getEventDispatcher(),
+				$c->getConfig()
 			);
 		});
 		$this->registerService('DateTimeZone', function (Server $c) {
@@ -556,6 +594,7 @@ class Server extends ServerContainer implements IServerContainer {
 			// external storage
 			if ($config->getAppValue('core', 'enable_external_storage', 'no') === 'yes') {
 				$manager->registerProvider(new \OC\Files\External\ConfigAdapter(
+					$c->query('AllConfig'),
 					$c->query('UserStoragesService'),
 					$c->query('UserGlobalStoragesService')
 				));
@@ -650,6 +689,7 @@ class Server extends ServerContainer implements IServerContainer {
 			}
 			return new NoopLockingProvider();
 		});
+		$this->registerAlias('OCP\Lock\ILockingProvider', 'LockingProvider');
 		$this->registerService('MountManager', function () {
 			return new \OC\Files\Mount\Manager();
 		});
@@ -665,6 +705,7 @@ class Server extends ServerContainer implements IServerContainer {
 				$c->getDatabaseConnection()
 			);
 		});
+		$this->registerAlias('OCP\Files\IMimeTypeLoader', 'MimeTypeLoader');
 		$this->registerService('NotificationManager', function () {
 			return new Manager();
 		});
@@ -808,6 +849,7 @@ class Server extends ServerContainer implements IServerContainer {
 		$this->registerService('ThemeService', function ($c) {
 			return new ThemeService($this->getSystemConfig()->getValue('theme'));
 		});
+		$this->registerAlias('OCP\Theme\IThemeService', 'ThemeService');
 		$this->registerAlias('OCP\IUserSession', 'UserSession');
 		$this->registerAlias('OCP\Security\ICrypto', 'Crypto');
 	}
@@ -1260,6 +1302,15 @@ class Server extends ServerContainer implements IServerContainer {
 	}
 
 	/**
+	 * Returns an instance of the Webdav client service
+	 *
+	 * @return \OCP\Http\Client\IWebDavClientService
+	 */
+	public function getWebDavClientService() {
+		return $this->query('WebDavClientService');
+	}
+
+	/**
 	 * Create a new event source
 	 *
 	 * @return \OCP\IEventSource
@@ -1506,4 +1557,59 @@ class Server extends ServerContainer implements IServerContainer {
 		return $this->query('ShareManager');
 	}
 
+	/**
+	 * @return IThemeService
+	 */
+	public function getThemeService() {
+		return $this->query('\OCP\Theme\IThemeService');
+	}
+
+	/**
+	 * @return ITimeFactory
+	 */
+	public function getTimeFactory() {
+		return $this->query('\OCP\AppFramework\Utility\ITimeFactory');
+	}
+
+	/**
+	 * @return IServiceLoader
+	 */
+	public function getServiceLoader() {
+		return $this;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function load(array $xmlPath, IUser $user = null) {
+		$appManager = $this->getAppManager();
+		$allApps = $appManager->getEnabledAppsForUser($user);
+
+		foreach ($allApps as $appId) {
+			$info = $appManager->getAppInfo($appId);
+			if ($info === null) {
+				$info = [];
+			}
+
+			foreach($xmlPath as $xml) {
+				$info = isset($info[$xml]) ? $info[$xml] : [];
+			}
+			if (!is_array($info)) {
+				$info = [$info];
+			}
+
+			foreach ($info as $class) {
+				try {
+					if (!\OC_App::isAppLoaded($appId)) {
+						\OC_App::loadApp($appId);
+					}
+
+					yield $this->query($class);
+
+				} catch (QueryException $exc) {
+					throw new \Exception("Could not load service $class");
+				}
+			}
+		}
+	}
 }

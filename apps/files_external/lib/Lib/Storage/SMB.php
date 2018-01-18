@@ -12,7 +12,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -261,11 +261,22 @@ class SMB extends \OCP\Files\Storage\StorageAdapter {
 			$this->removeFromCache($this->root . $source);
 			$this->removeFromCache($this->root . $target);
 		} catch (AlreadyExistsException $e) {
+			$this->swallow(__FUNCTION__, $e);
 			$this->unlink($target);
 			$result = $this->share->rename($this->root . $source, $this->root . $target);
 			$this->removeFromCache($this->root . $source);
 			$this->removeFromCache($this->root . $target);
+		} catch (Exception $e) {
 			$this->swallow(__FUNCTION__, $e);
+			// Icewind\SMB\Exception\Exception, not a plain exception
+			if ($e->getCode() === 22) {
+				$this->unlink($target);
+				$result = $this->share->rename($this->root . $source, $this->root . $target);
+				$this->removeFromCache($this->root . $source);
+				$this->removeFromCache($this->root . $target);
+			} else {
+				$result = false;
+			}
 		} catch (\Exception $e) {
 			$this->swallow(__FUNCTION__, $e);
 			$result = false;

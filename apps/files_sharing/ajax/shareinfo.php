@@ -8,7 +8,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,11 +30,6 @@
  */
 
 OCP\JSON::checkAppEnabled('files_sharing');
-
-OC::$server->getLogger()->warning(
-	'Deprecated api access from '.OC::$server->getRequest()->getRemoteAddress().
-	'. Ask remote to upgrade.', ['app' => 'files_sharing']
-);
 
 if (!isset($_GET['t'])) {
 	\OC_Response::setStatus(400); //400 Bad Request

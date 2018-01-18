@@ -18,7 +18,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -64,7 +64,6 @@ use OC\Files\Config\MountProviderCollection;
 use OC\Files\Mount\MountPoint;
 use OC\Files\Storage\StorageFactory;
 use OCP\Files\Config\IMountProvider;
-use OCP\Files\Mount\IMountPoint;
 use OCP\Files\NotFoundException;
 use OCP\IUserManager;
 
@@ -684,10 +683,6 @@ class Filesystem {
 
 	static public function opendir($path) {
 		return self::$defaultInstance->opendir($path);
-	}
-
-	static public function readdir($path) {
-		return self::$defaultInstance->readdir($path);
 	}
 
 	static public function is_dir($path) {

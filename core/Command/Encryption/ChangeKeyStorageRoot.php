@@ -2,7 +2,7 @@
 /**
  * @author Björn Schießle <bjoern@schiessle.org>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -73,11 +73,11 @@ class ChangeKeyStorageRoot extends Command {
 		parent::configure();
 		$this
 			->setName('encryption:change-key-storage-root')
-			->setDescription('Change key storage root')
+			->setDescription('Change key storage root.')
 			->addArgument(
 				'newRoot',
 				InputArgument::OPTIONAL,
-				'new root of the key storage relative to the data folder'
+				'New root of the key storage relative to the data folder.'
 			);
 	}
 

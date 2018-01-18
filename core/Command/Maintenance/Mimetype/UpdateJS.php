@@ -5,7 +5,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ class UpdateJS extends Command {
 	protected function configure() {
 		$this
 			->setName('maintenance:mimetype:update-js')
-			->setDescription('Update mimetypelist.js');
+			->setDescription('Update mimetypelist.js.');
 	}
 
 	/**
@@ -122,15 +122,17 @@ class UpdateJS extends Command {
 	private function getLegacyThemes() {
 		$themes = [];
 
-		$legacyThemeDirectories = new \DirectoryIterator(\OC::$SERVERROOT . '/themes/');
+		if (is_dir(\OC::$SERVERROOT . '/themes/')) {
+			$legacyThemeDirectories = new \DirectoryIterator(\OC::$SERVERROOT . '/themes/');
 
-		foreach($legacyThemeDirectories as $legacyThemeDirectory) {
-			if ($legacyThemeDirectory->isFile() || $legacyThemeDirectory->isDot()) {
-				continue;
+			foreach($legacyThemeDirectories as $legacyThemeDirectory) {
+				if ($legacyThemeDirectory->isFile() || $legacyThemeDirectory->isDot()) {
+					continue;
+				}
+				$themes[$legacyThemeDirectory->getFilename()] = $this->getFileTypeIcons(
+					$legacyThemeDirectory->getPathname()
+				);
 			}
-			$themes[$legacyThemeDirectory->getFilename()] = $this->getFileTypeIcons(
-				$legacyThemeDirectory->getPathname()
-			);
 		}
 
 		return $themes;

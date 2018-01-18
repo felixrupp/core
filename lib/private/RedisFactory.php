@@ -3,7 +3,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -80,7 +80,7 @@ class RedisFactory {
 				$timeout = 0.0; // unlimited
 			}
 
-			$this->instance->connect($host, $port, $timeout);
+			@$this->instance->connect($host, $port, $timeout);
 			if (isset($config['password']) && $config['password'] !== '') {
 				$this->instance->auth($config['password']);
 			}
@@ -108,6 +108,7 @@ class RedisFactory {
 
 	public function isAvailable() {
 		return extension_loaded('redis')
-		&& version_compare(phpversion('redis'), '2.2.5', '>=');
+		&& (version_compare(phpversion('redis'), '2.2.5', '>=')
+		|| strcmp(phpversion('redis'), 'develop')==0); // Using a developing Version?
 	}
 }

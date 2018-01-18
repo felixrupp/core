@@ -3,7 +3,7 @@
  * ownCloud
  *
  * @author Thomas Müller
- * @copyright 2013 Thomas Müller deepdiver@owncloud.com
+ * @copyright Copyright (c) 2013 Thomas Müller deepdiver@owncloud.com
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -166,7 +166,7 @@ class PrivatedataTest extends \Test\TestCase {
 	public function assertOcsResult($expectedArraySize, $result) {
 		$this->assertEquals(100, $result->getStatusCode());
 		$data = $result->getData();
-		$this->assertTrue(is_array($data));
-		$this->assertEquals($expectedArraySize, sizeof($data));
+		$this->assertInternalType('array', $data);
+		$this->assertCount($expectedArraySize, $data);
 	}
 }

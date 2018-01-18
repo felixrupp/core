@@ -10,7 +10,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -38,6 +38,13 @@ class OC_FileChunking {
 	 * @var int
 	 */
 	protected $ttl;
+
+	static public function isWebdavChunk() {
+		if (isset($_SERVER['HTTP_OC_CHUNKED'])) {
+			return true;
+		}
+		return false;
+	}
 
 	static public function decodeName($name) {
 		preg_match('/(?P<name>.*)-chunking-(?P<transferid>\d+)-(?P<chunkcount>\d+)-(?P<index>\d+)/', $name, $matches);

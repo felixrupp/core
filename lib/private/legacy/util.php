@@ -39,7 +39,7 @@
  * @author Vincent Petry <pvince81@owncloud.com>
  * @author Volkan Gezer <volkangezer@gmail.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -388,10 +388,15 @@ class OC_Util {
 	 *
 	 * @param String $userId
 	 * @param \OCP\Files\Folder $userDirectory
+	 * @throws \OC\HintException
 	 */
 	public static function copySkeleton($userId, \OCP\Files\Folder $userDirectory) {
 
 		$skeletonDirectory = \OCP\Config::getSystemValue('skeletondirectory', \OC::$SERVERROOT . '/core/skeleton');
+
+		if (!is_dir($skeletonDirectory))  {
+			throw new \OC\HintException('The skeleton folder '.$skeletonDirectory.' is not accessible');
+		}
 
 		if (!empty($skeletonDirectory)) {
 			\OCP\Util::writeLog(
@@ -458,8 +463,8 @@ class OC_Util {
 	}
 
 	/**
-	 * @description get the current installed edition of ownCloud. 
-	 * There is the community edition that returns "Community" and 
+	 * @description get the current installed edition of ownCloud.
+	 * There is the community edition that returns "Community" and
 	 * the enterprise edition that returns "Enterprise".
 	 * @return string
 	 */
@@ -569,7 +574,7 @@ class OC_Util {
 	 *
 	 * @param string $application application id
 	 * @param string $languageCode language code, defaults to the current language
-	 * @param bool $prepend prepend the Script to the beginning of the list 
+	 * @param bool $prepend prepend the Script to the beginning of the list
 	 */
 	public static function addTranslations($application, $languageCode = null, $prepend = false) {
 		if (is_null($languageCode)) {
@@ -614,7 +619,7 @@ class OC_Util {
 	 *
 	 * @param string $application application id
 	 * @param bool $prepend prepend the file to the beginning of the list
-	 * @param string $path 
+	 * @param string $path
 	 * @param string $type (script or style)
 	 * @return void
 	 */
@@ -777,6 +782,7 @@ class OC_Util {
 				'DOMDocument' => 'dom',
 				'XMLWriter' => 'XMLWriter',
 				'XMLReader' => 'XMLReader',
+				'Collator' => 'intl',
 			],
 			'functions' => [
 				'xml_parser_create' => 'libxml',
@@ -1051,19 +1057,20 @@ class OC_Util {
 	}
 
 	/**
-	 * Check if the user is a subadmin, redirects to home if not
+	 * Check if the user has administration privileges, redirects to home if not
 	 *
 	 * @return null|boolean $groups where the current user is subadmin
 	 */
 	public static function checkSubAdminUser() {
 		OC_Util::checkLoggedIn();
+		$hasUserManagementPrivileges = false;
 		$userObject = \OC::$server->getUserSession()->getUser();
-		$isSubAdmin = false;
 		if($userObject !== null) {
-			$isSubAdmin = \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
+			//Admin and SubAdmins are allowed to access user management
+			$hasUserManagementPrivileges = \OC::$server->getGroupManager()->isAdmin($userObject->getUID())
+				|| \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
 		}
-
-		if (!$isSubAdmin) {
+		if (!$hasUserManagementPrivileges) {
 			header('Location: ' . \OCP\Util::linkToAbsolute('', 'index.php'));
 			exit();
 		}
@@ -1253,12 +1260,19 @@ class OC_Util {
 	}
 
 	/**
-	 * Checks whether the server is running on Mac OS X
+	 * Checks whether the server is running on the given OS type
 	 *
-	 * @return bool true if running on Mac OS X, false otherwise
+	 * @param string $osType linux|mac|bsd etc
+	 * @return bool true if running on that OS type, false otherwise
 	 */
-	public static function runningOnMac() {
-		return (strtoupper(substr(PHP_OS, 0, 6)) === 'DARWIN');
+	public static function runningOn($osType) {
+		$osType = strtolower($osType) === 'mac' ? 'darwin' : strtolower($osType);
+
+		if ($osType === 'bsd') {
+			return (strpos(strtolower(PHP_OS), $osType) !== false);
+		} else {
+			return (strtolower(substr(PHP_OS, 0, strlen($osType))) === $osType);
+		}
 	}
 
 	/**
@@ -1274,10 +1288,10 @@ class OC_Util {
 	 * Handles the case that there may not be a theme, then check if a "default"
 	 * theme exists and take that one
 	 *
-	 * @return \OC\Theme\Theme the theme
+	 * @return \OCP\Theme\ITheme the theme
 	 */
 	public static function getTheme() {
-		/** @var \OC\Theme\ThemeService $themeService */
+		/** @var \OCP\Theme\IThemeService $themeService */
 		$themeService = \OC::$server->query('ThemeService');
 		return $themeService->getTheme();
 	}

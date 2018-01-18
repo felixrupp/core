@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -20,24 +20,22 @@
  */
 namespace Test\Share20;
 
+use OC\Share20\Manager;
+use OC\Share20\Share;
 use OCP\Files\IRootFolder;
+use OCP\Files\Mount\IMountManager;
+use OCP\IConfig;
+use OCP\IGroupManager;
+use OCP\IL10N;
+use OCP\ILogger;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\Security\IHasher;
+use OCP\Security\ISecureRandom;
 use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\IProviderFactory;
 use OCP\Share\IShare;
-use OC\Share20\Manager;
-use OC\Share20\Exception;
-
-use OC\Share20\Share;
-use OCP\IL10N;
-use OCP\ILogger;
-use OCP\IConfig;
 use OCP\Share\IShareProvider;
-use OCP\Security\ISecureRandom;
-use OCP\Security\IHasher;
-use OCP\Files\Mount\IMountManager;
-use OCP\IGroupManager;
 
 /**
  * Class ManagerTest
@@ -74,7 +72,7 @@ class ManagerTest extends \Test\TestCase {
 
 	public function setUp() {
 		parent::setUp();
-		
+
 		$this->logger = $this->createMock('\OCP\ILogger');
 		$this->config = $this->createMock('\OCP\IConfig');
 		$this->secureRandom = $this->createMock('\OCP\Security\ISecureRandom');
@@ -146,7 +144,7 @@ class ManagerTest extends \Test\TestCase {
 
 		$group = $this->createMock('\OCP\IGroup');
 		$group->method('getGID')->willReturn('sharedWithGroup');
-	
+
 		return [
 			[\OCP\Share::SHARE_TYPE_USER, 'sharedWithUser'],
 			[\OCP\Share::SHARE_TYPE_GROUP, 'sharedWithGroup'],
@@ -977,7 +975,7 @@ class ManagerTest extends \Test\TestCase {
 
 		$this->invokePrivate($this->manager, 'validateExpirationDate', [$share]);
 
-		$this->assertEquals(null, $share->getExpirationDate());
+		$this->assertNull($share->getExpirationDate());
 	}
 
 	/**
@@ -1222,7 +1220,7 @@ class ManagerTest extends \Test\TestCase {
 		$this->config
 			->method('getAppValue')
 			->will($this->returnValueMap([
-				['core', 'shareapi_only_share_with_group_members', 'no', 'yes'],
+				['core', 'shareapi_only_share_with_membership_groups', 'no', 'yes'],
 				['core', 'shareapi_allow_group_sharing', 'yes', 'yes'],
 			]));
 
@@ -1245,7 +1243,7 @@ class ManagerTest extends \Test\TestCase {
 		$this->config
 			->method('getAppValue')
 			->will($this->returnValueMap([
-				['core', 'shareapi_only_share_with_group_members', 'no', 'yes'],
+				['core', 'shareapi_only_share_with_membership_groups', 'no', 'yes'],
 				['core', 'shareapi_allow_group_sharing', 'yes', 'yes'],
 			]));
 
@@ -1274,7 +1272,7 @@ class ManagerTest extends \Test\TestCase {
 		$this->config
 			->method('getAppValue')
 			->will($this->returnValueMap([
-				['core', 'shareapi_only_share_with_group_members', 'no', 'yes'],
+				['core', 'shareapi_only_share_with_membership_groups', 'no', 'yes'],
 				['core', 'shareapi_allow_group_sharing', 'yes', 'yes'],
 			]));
 
@@ -1785,6 +1783,7 @@ class ManagerTest extends \Test\TestCase {
 			'itemTarget' => '/target',
 			'fileTarget' => '/target',
 			'shareWith' => null,
+			'passwordEnabled' => true,
 		];
 
 		$hookListner->expects($this->once())
@@ -2735,7 +2734,7 @@ class ManagerTest extends \Test\TestCase {
 
 		$this->manager->moveShare($share, 'recipient');
 	}
-	
+
 	public function testGetSharedWith() {
 		$user = $this->createMock(IUser::class);
 

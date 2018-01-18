@@ -37,6 +37,7 @@ OC.L10N.register(
     "Wrong share ID, share doesn't exist" : "ID de compartilhamento errado, o compartilhamento não existe",
     "Could not delete share" : "Não foi possível eliminar o compartilhamento",
     "Please specify a file or folder path" : "Por favor especifique um arquivo ou caminho",
+    "No permission to create share" : "Sem permissão para criar compartilhamento",
     "Wrong path, file/folder doesn't exist" : "Caminho errado, arquivo/pasta não existe",
     "Cannot remove all permissions" : "Não é possível remover todas as permissões",
     "Please specify a valid user" : "Por favor especifique um usuário válido",
@@ -110,7 +111,6 @@ OC.L10N.register(
     "sharing is disabled" : "o compartilhamento está desativado",
     "For more info, please ask the person who sent this link." : "Para mais informações, por favor, pergunte a pessoa que enviou este link.",
     "%s is publicly shared" : "%s foi compartilhado publicamente",
-    "Add to your ownCloud" : "Adiconar ao seu ownCloud",
     "Download" : "Baixar",
     "Download %s" : "Baixar %s",
     "Direct link" : "Link direto"

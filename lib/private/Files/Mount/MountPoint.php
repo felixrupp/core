@@ -9,7 +9,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -245,9 +245,20 @@ class MountPoint implements IMountPoint {
 	/**
 	 * Get the file id of the root of the storage
 	 *
-	 * @return int
+	 * @return int storage numeric id or -1 in case of invalid storage
 	 */
 	public function getStorageRootId() {
-		return (int)$this->getStorage()->getCache()->getId('');
+		$storage = $this->getStorage();
+		if ($storage === null || $this->invalidStorage) {
+			return -1;
+		}
+
+		$cache = $storage->getCache();
+
+		if ($cache === null) {
+			return -1;
+		}
+
+		return (int)$cache->getId('');
 	}
 }

@@ -6,7 +6,6 @@ use GuzzleHttp\Message\ResponseInterface;
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
 trait Provisioning {
-	use BasicStructure;
 
 	/** @var array */
 	private $createdUsers = [];
@@ -16,7 +15,7 @@ trait Provisioning {
 
 	/** @var array */
 	private $createdRemoteGroups = [];
-	
+
 	/** @var array */
 	private $createdGroups = [];
 
@@ -25,39 +24,68 @@ trait Provisioning {
 	 * @param string $user
 	 */
 	public function assureUserExists($user) {
-		try {
-			$this->userExists($user);
-		} catch (\GuzzleHttp\Exception\ClientException $ex) {
+		if ( !$this->userExists($user) ) {
 			$previous_user = $this->currentUser;
 			$this->currentUser = "admin";
 			$this->creatingTheUser($user);
 			$this->currentUser = $previous_user;
 		}
-		$this->userExists($user);
-		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
+		PHPUnit_Framework_Assert::assertTrue($this->userExists($user));
+	}
+
+	/**
+	 * @Then /^user "([^"]*)" already exists$/
+	 * @param string $user
+	 */
+	public function userAlreadyExists($user) {
+		PHPUnit_Framework_Assert::assertTrue($this->userExists($user));
+		$this->rememberTheUser($user);
+	}
+
+	/**
+	 * @Then /^user "([^"]*)" does not already exist$/
+	 * @param string $user
+	 */
+	public function userDoesNotAlreadyExist($user) {
+		PHPUnit_Framework_Assert::assertFalse($this->userExists($user));
+	}
+
+	/**
+	 * @Then /^group "([^"]*)" already exists$/
+	 * @param string $group
+	 */
+	public function groupAlreadyExists($group) {
+		PHPUnit_Framework_Assert::assertTrue($this->groupExists($group));
+		$this->rememberTheGroup($group);
+	}
+
+	/**
+	 * @Then /^group "([^"]*)" does not already exist$/
+	 * @param string $group
+	 */
+	public function groupDoesNotAlreadyExist($group) {
+		PHPUnit_Framework_Assert::assertFalse($this->groupExists($group));
 	}
 
 	/**
 	 * @Given /^user "([^"]*)" does not exist$/
 	 * @param string $user
 	 */
-	public function userDoesNotExist($user) {
-		try {
-			$this->userExists($user);
-		} catch (\GuzzleHttp\Exception\ClientException $ex) {
-			$this->response = $ex->getResponse();
-			PHPUnit_Framework_Assert::assertEquals(404, $ex->getResponse()->getStatusCode());
-			return;
+	public function assureUserDoesNotExist($user) {
+		if ($this->userExists($user)) {
+			$previous_user = $this->currentUser;
+			$this->currentUser = "admin";
+			$this->deletingTheUser($user);
+			$this->currentUser = $previous_user;
 		}
-		$previous_user = $this->currentUser;
-		$this->currentUser = "admin";
-		$this->deletingTheUser($user);
-		$this->currentUser = $previous_user;
-		try {
-			$this->userExists($user);
-		} catch (\GuzzleHttp\Exception\ClientException $ex) {
-			$this->response = $ex->getResponse();
-			PHPUnit_Framework_Assert::assertEquals(404, $ex->getResponse()->getStatusCode());
+		PHPUnit_Framework_Assert::assertFalse($this->userExists($user));
+	}
+
+	public function rememberTheUser($user) {
+		if ($this->currentServer === 'LOCAL') {
+			$this->createdUsers[$user] = $user;
+		} elseif ($this->currentServer === 'REMOTE') {
+			$this->createdRemoteUsers[$user] = $user;
 		}
 	}
 
@@ -75,11 +103,7 @@ trait Provisioning {
 							];
 
 		$this->response = $client->send($client->createRequest("POST", $fullUrl, $options));
-		if ($this->currentServer === 'LOCAL'){
-			$this->createdUsers[$user] = $user;
-		} elseif ($this->currentServer === 'REMOTE') {
-			$this->createdRemoteUsers[$user] = $user;
-		}
+		$this->rememberTheUser($user);
 
 		//Quick hack to login once with the current user
 		$options2 = [
@@ -93,7 +117,7 @@ trait Provisioning {
 		$previous_user = $this->currentUser;
 		$this->currentUser = "admin";
 		$this->creatingTheUser($user);
-		$this->userExists($user);
+		PHPUnit_Framework_Assert::assertTrue($this->userExists($user));
 		$this->currentUser = $previous_user;
 	}
 
@@ -101,7 +125,7 @@ trait Provisioning {
 		$previous_user = $this->currentUser;
 		$this->currentUser = "admin";
 		$this->deletingTheUser($user);
-		$this->userDoesNotExist($user);
+		PHPUnit_Framework_Assert::assertFalse($this->userExists($user));
 		$this->currentUser = $previous_user;
 	}
 
@@ -109,7 +133,7 @@ trait Provisioning {
 		$previous_user = $this->currentUser;
 		$this->currentUser = "admin";
 		$this->creatingTheGroup($group);
-		$this->groupExists($group);
+		PHPUnit_Framework_Assert::assertTrue($this->groupExists($group));
 		$this->currentUser = $previous_user;
 	}
 
@@ -117,17 +141,22 @@ trait Provisioning {
 		$previous_user = $this->currentUser;
 		$this->currentUser = "admin";
 		$this->deletingTheGroup($group);
-		$this->groupDoesNotExist($group);
+		PHPUnit_Framework_Assert::assertFalse($this->groupExists($group));
 		$this->currentUser = $previous_user;
 	}
 
-	public function userExists($user){
+	public function userExists($user) {
 		$fullUrl = $this->baseUrl . "v2.php/cloud/users/$user";
 		$client = new Client();
 		$options = [];
 		$options['auth'] = $this->adminUser;
-
-		$this->response = $client->get($fullUrl, $options);
+		try {
+			$this->response = $client->get($fullUrl, $options);
+			return True;
+		} catch (\GuzzleHttp\Exception\ClientException $e) {
+			$this->response = $e->getResponse();
+			return False;
+		}
 	}
 
 	/**
@@ -181,9 +210,9 @@ trait Provisioning {
 		$this->response = $client->get($fullUrl, $options);
 		$respondedArray = $this->getArrayOfGroupsResponded($this->response);
 
-		if (array_key_exists($group, $respondedArray)) {
+		if (in_array($group, $respondedArray)) {
 			return True;
-		} else{
+		} else {
 			return False;
 		}
 	}
@@ -193,11 +222,11 @@ trait Provisioning {
 	 * @param string $user
 	 * @param string $group
 	 */
-	public function assureUserBelongsToGroup($user, $group){
+	public function assureUserBelongsToGroup($user, $group) {
 		$previous_user = $this->currentUser;
 		$this->currentUser = "admin";
 
-		if (!$this->userBelongsToGroup($user, $group)){
+		if (!$this->userBelongsToGroup($user, $group)) {
 			$this->addingUserToGroup($user, $group);
 		}
 
@@ -226,6 +255,17 @@ trait Provisioning {
 	}
 
 	/**
+	 * @param string $group
+	 */
+	public function rememberTheGroup($group) {
+		if ($this->currentServer === 'LOCAL') {
+			$this->createdGroups[$group] = $group;
+		} elseif ($this->currentServer === 'REMOTE') {
+			$this->createdRemoteGroups[$group] = $group;
+		}
+	}
+
+	/**
 	 * @When /^creating the group "([^"]*)"$/
 	 * @param string $group
 	 */
@@ -242,11 +282,7 @@ trait Provisioning {
 							];
 
 		$this->response = $client->send($client->createRequest("POST", $fullUrl, $options));
-		if ($this->currentServer === 'LOCAL'){
-			$this->createdGroups[$group] = $group;
-		} elseif ($this->currentServer === 'REMOTE') {
-			$this->createdRemoteGroups[$group] = $group;
-		}
+		$this->rememberTheGroup($group);
 	}
 
 	/**
@@ -264,7 +300,7 @@ trait Provisioning {
 	}
 
 	/**
-	 * @When /^Deleting the user "([^"]*)"$/
+	 * @When /^deleting the user "([^"]*)"$/
 	 * @param string $user
 	 */
 	public function deletingTheUser($user) {
@@ -279,7 +315,7 @@ trait Provisioning {
 	}
 
 	/**
-	 * @When /^Deleting the group "([^"]*)"$/
+	 * @When /^deleting the group "([^"]*)"$/
 	 * @param string $group
 	 */
 	public function deletingTheGroup($group) {
@@ -294,19 +330,18 @@ trait Provisioning {
 	}
 
 	/**
-	 * @Given /^Add user "([^"]*)" to the group "([^"]*)"$/
+	 * @Given /^add user "([^"]*)" to the group "([^"]*)"$/
 	 * @param string $user
 	 * @param string $group
 	 */
 	public function addUserToGroup($user, $group) {
-		$this->userExists($user);
-		$this->groupExists($group);
+		PHPUnit_Framework_Assert::assertTrue($this->userExists($user));
+		PHPUnit_Framework_Assert::assertTrue($this->groupExists($group));
 		$this->addingUserToGroup($user, $group);
-
 	}
 
 	/**
-	 * @When /^User "([^"]*)" is added to the group "([^"]*)"$/
+	 * @When /^user "([^"]*)" is added to the group "([^"]*)"$/
 	 * @param string $user
 	 * @param string $group
 	 */
@@ -325,14 +360,18 @@ trait Provisioning {
 		$this->response = $client->send($client->createRequest("POST", $fullUrl, $options));
 	}
 
-
 	public function groupExists($group) {
 		$fullUrl = $this->baseUrl . "v2.php/cloud/groups/$group";
 		$client = new Client();
 		$options = [];
 		$options['auth'] = $this->adminUser;
-
-		$this->response = $client->get($fullUrl, $options);
+		try {
+			$this->response = $client->get($fullUrl, $options);
+			return True;
+		} catch (\GuzzleHttp\Exception\ClientException $e) {
+			$this->response = $e->getResponse();
+			return False;
+		}
 	}
 
 	/**
@@ -340,40 +379,27 @@ trait Provisioning {
 	 * @param string $group
 	 */
 	public function assureGroupExists($group) {
-		try {
-			$this->groupExists($group);
-		} catch (\GuzzleHttp\Exception\ClientException $ex) {
+		if (!$this->groupExists($group)) {
 			$previous_user = $this->currentUser;
 			$this->currentUser = "admin";
 			$this->creatingTheGroup($group);
 			$this->currentUser = $previous_user;
 		}
-		$this->groupExists($group);
-		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
+		PHPUnit_Framework_Assert::assertTrue($this->groupExists($group));
 	}
 
 	/**
 	 * @Given /^group "([^"]*)" does not exist$/
 	 * @param string $group
 	 */
-	public function groupDoesNotExist($group) {
-		try {
-			$this->groupExists($group);
-		} catch (\GuzzleHttp\Exception\ClientException $ex) {
-			$this->response = $ex->getResponse();
-			PHPUnit_Framework_Assert::assertEquals(404, $ex->getResponse()->getStatusCode());
-			return;
+	public function assureGroupDoesNotExist($group) {
+		if ($this->groupExists($group)) {
+			$previous_user = $this->currentUser;
+			$this->currentUser = "admin";
+			$this->deletingTheGroup($group);
+			$this->currentUser = $previous_user;
 		}
-		$previous_user = $this->currentUser;
-		$this->currentUser = "admin";
-		$this->deletingTheGroup($group);
-		$this->currentUser = $previous_user;
-		try {
-			$this->groupExists($group);
-		} catch (\GuzzleHttp\Exception\ClientException $ex) {
-			$this->response = $ex->getResponse();
-			PHPUnit_Framework_Assert::assertEquals(404, $ex->getResponse()->getStatusCode());
-		}
+		PHPUnit_Framework_Assert::assertFalse($this->groupExists($group));
 	}
 
 	/**
@@ -397,7 +423,7 @@ trait Provisioning {
 	}
 
 	/**
-	 * @Given /^Assure user "([^"]*)" is subadmin of group "([^"]*)"$/
+	 * @Given /^assure user "([^"]*)" is subadmin of group "([^"]*)"$/
 	 * @param string $user
 	 * @param string $group
 	 */
@@ -627,6 +653,7 @@ trait Provisioning {
 
 		// method used from BasicStructure trait
 		$this->sendingToWith("PUT", "/cloud/users/" . $user, $body);
+		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
 	}
 
 	/**
@@ -655,12 +682,12 @@ trait Provisioning {
 	 * @Then /^user attributes match with$/
 	 * @param \Behat\Gherkin\Node\TableNode|null $body
 	 */
-	public function checkUserAttributes($body){
+	public function checkUserAttributes($body) {
 		$data = $this->response->xml()->data[0];
 		if ($body instanceof \Behat\Gherkin\Node\TableNode) {
 			$fd = $body->getRowsHash();
-			foreach($fd as $field => $value) {
-				if ($data->$field != $value){
+			foreach ($fd as $field => $value) {
+				if ($data->$field != $value) {
 					PHPUnit_Framework_Assert::fail("$field" . " has value " . "$data->$field");
 				}
 			}
@@ -675,11 +702,11 @@ trait Provisioning {
 	{
 		$previousServer = $this->currentServer;
 		$this->usingServer('LOCAL');
-		foreach($this->createdUsers as $user) {	
+		foreach ($this->createdUsers as $user) {
 			$this->deleteUser($user);
 		}
 		$this->usingServer('REMOTE');
-		foreach($this->createdRemoteUsers as $remoteUser) {
+		foreach ($this->createdRemoteUsers as $remoteUser) {
 			$this->deleteUser($remoteUser);
 		}
 		$this->usingServer($previousServer);
@@ -693,11 +720,11 @@ trait Provisioning {
 	{
 		$previousServer = $this->currentServer;
 		$this->usingServer('LOCAL');
-		foreach($this->createdGroups as $group) {
+		foreach ($this->createdGroups as $group) {
 			$this->deleteGroup($group);
 		}
 		$this->usingServer('REMOTE');
-		foreach($this->createdRemoteGroups as $remoteGroup) {
+		foreach ($this->createdRemoteGroups as $remoteGroup) {
 			$this->deleteUser($remoteGroup);
 		}
 		$this->usingServer($previousServer);

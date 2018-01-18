@@ -2,7 +2,7 @@
 /**
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,11 +21,11 @@
 namespace OCA\Files_External\Panels;
 
 use OC\Encryption\Manager;
-use OCP\Files\External\Service\IGlobalStoragesService;
-use OCP\Settings\ISettings;
 use OCP\Files\External\IStoragesBackendService;
-use OCP\Template;
+use OCP\Files\External\Service\IGlobalStoragesService;
 use OCP\IConfig;
+use OCP\Settings\ISettings;
+use OCP\Template;
 
 class Admin implements ISettings {
 
@@ -67,6 +67,8 @@ class Admin implements ISettings {
 		$tmpl->assign('authMechanisms', $this->backendService->getAuthMechanisms());
 		$tmpl->assign('dependencies', \OC_Mount_Config::dependencyMessage($this->backendService->getBackends()));
 		$tmpl->assign('allowUserMounting', $this->backendService->isUserMountingAllowed());
+		$tmpl->assign('allowUserMountSharing', $this->config->getAppValue('core', 'allow_user_mount_sharing', 'yes') === 'yes');
+
 		return $tmpl;
 	}
 

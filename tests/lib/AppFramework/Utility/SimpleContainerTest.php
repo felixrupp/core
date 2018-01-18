@@ -4,7 +4,7 @@
  * ownCloud - App Framework
  *
  * @author Bernhard Posselt
- * @copyright 2014 Bernhard Posselt <dev@bernhard-posselt.com>
+ * @copyright Copyright (c) 2014 Bernhard Posselt <dev@bernhard-posselt.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -89,7 +89,7 @@ class SimpleContainerTest extends \Test\TestCase {
 
     public function testNoConstructorClass() {
         $object = $this->container->query('Test\AppFramework\Utility\ClassEmptyConstructor');
-        $this->assertTrue($object instanceof ClassEmptyConstructor);
+        $this->assertInstanceOf(ClassEmptyConstructor::class, $object);
     }
 
 
@@ -104,7 +104,7 @@ class SimpleContainerTest extends \Test\TestCase {
         $object = $this->container->query(
             'Test\AppFramework\Utility\ClassSimpleConstructor'
         );
-        $this->assertTrue($object instanceof ClassSimpleConstructor);
+        $this->assertInstanceOf(ClassSimpleConstructor::class, $object);
         $this->assertEquals('abc', $object->test);
     }
 
@@ -114,7 +114,7 @@ class SimpleContainerTest extends \Test\TestCase {
         $object = $this->container->query(
             'Test\AppFramework\Utility\ClassComplexConstructor'
         );
-        $this->assertTrue($object instanceof ClassComplexConstructor);
+        $this->assertInstanceOf(ClassComplexConstructor::class, $object);
         $this->assertEquals('abc', $object->class->test);
         $this->assertEquals('abc', $object->test);
     }
@@ -129,7 +129,7 @@ class SimpleContainerTest extends \Test\TestCase {
         $object = $this->container->query(
             'Test\AppFramework\Utility\ClassInterfaceConstructor'
         );
-        $this->assertTrue($object instanceof ClassInterfaceConstructor);
+        $this->assertInstanceOf(ClassInterfaceConstructor::class, $object);
         $this->assertEquals('abc', $object->class->test);
         $this->assertEquals('abc', $object->test);
     }
@@ -147,7 +147,7 @@ class SimpleContainerTest extends \Test\TestCase {
         $object = $this->container->query(
             'Test\AppFramework\Utility\IInterfaceConstructor'
         );
-        $this->assertTrue($object instanceof ClassEmptyConstructor);
+        $this->assertInstanceOf(ClassEmptyConstructor::class, $object);
     }
 
     public function testRegisterAliasParamter() {

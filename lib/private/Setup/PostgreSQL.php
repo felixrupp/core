@@ -8,7 +8,7 @@
  * @author Stefan Weil <sw@weilnetz.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -152,7 +152,7 @@ class PostgreSQL extends AbstractDatabase {
 		}
 
 		if(! pg_fetch_row($result)) {
-			//user does not exists let's create it :)
+			//user does not exist, so let's create them :)
 			$query = "CREATE USER \"$e_name\" CREATEDB PASSWORD '$e_password';";
 			$result = pg_query($connection, $query);
 			if(!$result) {

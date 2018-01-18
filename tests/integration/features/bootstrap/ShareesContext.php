@@ -1,4 +1,26 @@
 <?php
+/**
+ * ownCloud
+ *
+ * @author Joas Schilling <coding@schilljs.com>
+ * @author Sergio Bertolin <sbertolin@owncloud.com>
+ * @author Phillip Davis <phil@jankaritech.com>
+ * @copyright Copyright (c) 2018, ownCloud GmbH
+ *
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License,
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>
+ *
+ */
 
 use Behat\Behat\Context\Context;
 use Behat\Behat\Context\SnippetAcceptingContext;
@@ -6,17 +28,16 @@ use GuzzleHttp\Message\ResponseInterface;
 
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
-
 /**
- * Features context.
+ * Sharees context.
  */
 class ShareesContext implements Context, SnippetAcceptingContext {
-	use Provisioning;
-	use AppConfiguration;
+	use BasicStructure;
 
 	/**
 	 * @When /^getting sharees for$/
 	 * @param \Behat\Gherkin\Node\TableNode $body
+	 * @return void
 	 */
 	public function whenGettingShareesFor($body) {
 		$url = '/apps/files_sharing/api/v1/sharees';
@@ -38,19 +59,31 @@ class ShareesContext implements Context, SnippetAcceptingContext {
 	 * @param string $shareeType
 	 * @param string $isEmpty
 	 * @param \Behat\Gherkin\Node\TableNode|null $shareesList
+	 * @return void
 	 */
 	public function thenListOfSharees($shareeType, $isEmpty, $shareesList = null) {
 		if ($isEmpty !== 'is empty') {
 			$sharees = $shareesList->getRows();
-			$respondedArray = $this->getArrayOfShareesResponded($this->response, $shareeType);
+			$respondedArray = $this->getArrayOfShareesResponded(
+				$this->response, $shareeType
+			);
 			PHPUnit_Framework_Assert::assertEquals($sharees, $respondedArray);
 		} else {
-			$respondedArray = $this->getArrayOfShareesResponded($this->response, $shareeType);
+			$respondedArray = $this->getArrayOfShareesResponded(
+				$this->response, $shareeType
+			);
 			PHPUnit_Framework_Assert::assertEmpty($respondedArray);
 		}
 	}
 
-	public function getArrayOfShareesResponded(ResponseInterface $response, $shareeType) {
+	/**
+	 * @param ResponseInterface $response
+	 * @param string $shareeType
+	 * @return array
+	 */
+	public function getArrayOfShareesResponded(
+		ResponseInterface $response, $shareeType
+	) {
 		$elements = $response->xml()->data;
 		$elements = json_decode(json_encode($elements), 1);
 		if (strpos($shareeType, 'exact ') === 0) {
@@ -60,15 +93,35 @@ class ShareesContext implements Context, SnippetAcceptingContext {
 
 		$sharees = [];
 		foreach ($elements[$shareeType] as $element) {
-			$sharees[] = [$element['label'], $element['value']['shareType'], $element['value']['shareWith']];
+			if (is_int(key($element))) {
+				// this is a list of elements instead of just one item, so return the list
+				foreach ($element as $innerItem) {
+					$sharees[] = [
+						$innerItem['label'],
+						$innerItem['value']['shareType'],
+						$innerItem['value']['shareWith']
+					];
+				}
+			} else {
+				$sharees[] = [
+					$element['label'],
+					$element['value']['shareType'],
+					$element['value']['shareWith']
+				];
+			}
 		}
 		return $sharees;
 	}
 
+	/**
+	 * @return void
+	 */
 	protected function resetAppConfigs() {
-		$this->modifyServerConfig('core', 'shareapi_only_share_with_group_members', 'no');
-		$this->modifyServerConfig('core', 'shareapi_allow_share_dialog_user_enumeration', 'yes');
-		$this->modifyServerConfig('core', 'shareapi_share_dialog_user_enumeration_group_members', 'no');
-		$this->modifyServerConfig('core', 'shareapi_allow_group_sharing', 'yes');
+		// Remember the current capabilities
+		$this->getCapabilitiesCheckResponse();
+		$this->savedCapabilitiesXml = $this->getCapabilitiesXml();
+		// Set the required starting values for testing
+		$this->setupCommonSharingConfigs();
+		$this->setupCommonFederationConfigs();
 	}
 }

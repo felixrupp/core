@@ -19,7 +19,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -63,6 +63,8 @@ class Setup {
 	 * @param IConfig $config
 	 * @param IniGetWrapper $iniWrapper
 	 * @param \OC_Defaults $defaults
+	 * @param ILogger $logger
+	 * @param ISecureRandom $random
 	 */
 	function __construct(IConfig $config,
 						 IniGetWrapper $iniWrapper,
@@ -203,12 +205,18 @@ class Setup {
 			\OC\Setup::protectDataDirectory();
 		}
 
-		if (\OC_Util::runningOnMac()) {
+		if (!\OC_Util::runningOn('linux')) {
+			if (\OC_Util::runningOn('mac')) {
+				$os = 'Mac OS X';
+			} else {
+				$os = PHP_OS;
+			}
+
 			$errors[] = [
 				'error' => $this->l10n->t(
-					'Mac OS X is not supported and %s will not work properly on this platform. ' .
+					'%s is not supported and %s will not work properly on this platform. ' .
 					'Use it at your own risk! ',
-					$this->defaults->getName()
+					[$os, $this->defaults->getName()]
 				),
 				'hint' => $this->l10n->t('For the best results, please consider using a GNU/Linux server instead.')
 			];

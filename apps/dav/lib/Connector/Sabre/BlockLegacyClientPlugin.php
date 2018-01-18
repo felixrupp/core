@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,9 +23,8 @@
 namespace OCA\DAV\Connector\Sabre;
 
 use OCP\IConfig;
-use Sabre\HTTP\RequestInterface;
 use Sabre\DAV\ServerPlugin;
-use Sabre\DAV\Exception;
+use Sabre\HTTP\RequestInterface;
 
 /**
  * Class BlockLegacyClientPlugin is used to detect old legacy sync clients and

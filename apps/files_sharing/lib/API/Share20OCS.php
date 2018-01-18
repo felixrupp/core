@@ -4,7 +4,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,20 +22,23 @@
  */
 namespace OCA\Files_Sharing\API;
 
+use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
+use OCP\IConfig;
 use OCP\IGroupManager;
 use OCP\IL10N;
-use OCP\IUserManager;
 use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\IUser;
-use OCP\Files\IRootFolder;
-use OCP\Lock\LockedException;
-use OCP\Share\IShare;
-use OCP\Share\IManager;
-use OCP\Share\Exceptions\ShareNotFound;
-use OCP\Share\Exceptions\GenericShareException;
+use OCP\IUserManager;
 use OCP\Lock\ILockingProvider;
+use OCP\Lock\LockedException;
+use OCP\Share\Exceptions\GenericShareException;
+use OCP\Share\Exceptions\ShareNotFound;
+use OCP\Share\IManager;
+use OCP\Share\IShare;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 /**
  * Class Share20OCS
@@ -60,6 +63,16 @@ class Share20OCS {
 	private $currentUser;
 	/** @var IL10N */
 	private $l;
+	/** @var IConfig */
+	private $config;
+
+	/**
+	 * @var string
+	 */
+	private $additionalInfoField;
+
+	/** @var \Symfony\Component\EventDispatcher\EventDispatcherInterface  */
+	private $eventDispatcher;
 
 	/**
 	 * Share20OCS constructor.
@@ -71,6 +84,9 @@ class Share20OCS {
 	 * @param IRootFolder $rootFolder
 	 * @param IURLGenerator $urlGenerator
 	 * @param IUser $currentUser
+	 * @param IL10N $l10n
+	 * @param IConfig $config
+	 * @param EventDispatcher $eventDispatcher
 	 */
 	public function __construct(
 			IManager $shareManager,
@@ -80,7 +96,9 @@ class Share20OCS {
 			IRootFolder $rootFolder,
 			IURLGenerator $urlGenerator,
 			IUser $currentUser,
-			IL10N $l10n
+			IL10N $l10n,
+			IConfig $config,
+			EventDispatcher $eventDispatcher
 	) {
 		$this->shareManager = $shareManager;
 		$this->userManager = $userManager;
@@ -90,6 +108,24 @@ class Share20OCS {
 		$this->urlGenerator = $urlGenerator;
 		$this->currentUser = $currentUser;
 		$this->l = $l10n;
+		$this->config = $config;
+		$this->additionalInfoField = $this->config->getAppValue('core', 'user_additional_info_field', '');
+		$this->eventDispatcher = $eventDispatcher;
+	}
+
+	/**
+	 * Returns the additional info to display behind the display name as configured.
+	 *
+	 * @param IUser $user user for which to retrieve the additional info
+	 * @return string|null additional info or null if none to be displayed
+	 */
+	private function getAdditionalUserInfo(IUser $user) {
+		if ($this->additionalInfoField === 'email') {
+			return $user->getEMailAddress();
+		} else if ($this->additionalInfoField === 'id') {
+			return $user->getUID();
+		}
+		return null;
 	}
 
 	/**
@@ -144,6 +180,9 @@ class Share20OCS {
 			$sharedWith = $this->userManager->get($share->getSharedWith());
 			$result['share_with'] = $share->getSharedWith();
 			$result['share_with_displayname'] = $sharedWith !== null ? $sharedWith->getDisplayName() : $share->getSharedWith();
+			if ($sharedWith !== null) {
+				$result['share_with_additional_info'] = $this->getAdditionalUserInfo($sharedWith);
+			}
 		} else if ($share->getShareType() === \OCP\Share::SHARE_TYPE_GROUP) {
 			$group = $this->groupManager->get($share->getSharedWith());
 			$result['share_with'] = $share->getSharedWith();
@@ -241,6 +280,7 @@ class Share20OCS {
 	 * @return \OC\OCS\Result
 	 */
 	public function createShare() {
+		$event = new GenericEvent(null);
 		$share = $this->shareManager->newShare();
 
 		if (!$this->shareManager->shareApiEnabled()) {
@@ -256,6 +296,15 @@ class Share20OCS {
 		}
 
 		$userFolder = $this->rootFolder->getUserFolder($this->currentUser->getUID());
+		$event->setArgument('userFolder', $userFolder);
+		$event->setArgument('path', $path);
+		$event->setArgument('name', $name);
+		$event->setArgument('run', true);
+		//Dispatch an event to see if creating shares is blocked by any app
+		$this->eventDispatcher->dispatch('share.beforeCreate', $event);
+		if ($event->getArgument('run') === false) {
+			return new \OC\OCS\Result(null, 403, $this->l->t('No permission to create share'));
+		}
 		try {
 			$path = $userFolder->get($path);
 		} catch (NotFoundException $e) {
@@ -270,10 +319,17 @@ class Share20OCS {
 			return new \OC\OCS\Result(null, 404, 'Could not create share');
 		}
 
+		$shareType = (int)$this->request->getParam('shareType', '-1');
+
 		// Parse permissions (if available)
 		$permissions = $this->request->getParam('permissions', null);
 		if ($permissions === null) {
-			$permissions = \OCP\Constants::PERMISSION_ALL;
+			if ($shareType !== \OCP\Share::SHARE_TYPE_LINK) {
+				$permissions = $this->config->getAppValue('core', 'shareapi_default_permissions', \OCP\Constants::PERMISSION_ALL);
+				$permissions |= \OCP\Constants::PERMISSION_READ;
+			} else {
+				$permissions = \OCP\Constants::PERMISSION_ALL;
+			}
 		} else {
 			$permissions = (int)$permissions;
 		}
@@ -286,8 +342,6 @@ class Share20OCS {
 		if ($permissions === 0) {
 			return new \OC\OCS\Result(null, 400, $this->l->t('Cannot remove all permissions'));
 		}
-
-		$shareType = (int)$this->request->getParam('shareType', '-1');
 
 		// link shares can have create-only without read (anonymous upload)
 		if ($shareType !== \OCP\Share::SHARE_TYPE_LINK && $permissions !== \OCP\Constants::PERMISSION_CREATE) {
@@ -430,12 +484,16 @@ class Share20OCS {
 
 		$share->getNode()->unlock(\OCP\Lock\ILockingProvider::LOCK_SHARED);
 
+		$event = new GenericEvent(null, []);
+		$event->setArgument('output', $output);
+		$event->setArgument('result', 'success');
+		$this->eventDispatcher->dispatch('share.afterCreate', $event);
 		return new \OC\OCS\Result($output);
 	}
 
 	/**
 	 * @param \OCP\Files\File|\OCP\Files\Folder $node
-	 * @param boolean $includeTags 
+	 * @param boolean $includeTags
 	 * @return \OC\OCS\Result
 	 */
 	private function getSharedWithMe($node = null, $includeTags) {

@@ -4,7 +4,7 @@
  * ownCloud - App Framework
  *
  * @author Bernhard Posselt
- * @copyright 2012 Bernhard Posselt <dev@bernhard-posselt.com>
+ * @copyright Copyright (c) 2012 Bernhard Posselt <dev@bernhard-posselt.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -27,9 +27,9 @@ namespace Test\AppFramework\Http;
 
 use DateTime;
 use DateTimeZone;
+use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\Response;
-use OCP\AppFramework\Http;
 use Test\TestCase;
 
 
@@ -95,7 +95,7 @@ class ResponseTest extends TestCase {
 	public function testAddHeaderValueNullDeletesIt(){
 		$this->childResponse->addHeader('hello', 'world');
 		$this->childResponse->addHeader('hello', null);
-		$this->assertEquals(2, count($this->childResponse->getHeaders()));
+		$this->assertCount(2, $this->childResponse->getHeaders());
 	}
 
 
@@ -192,7 +192,7 @@ class ResponseTest extends TestCase {
 
 
 	public function testRenderReturnNullByDefault(){
-		$this->assertEquals(null, $this->childResponse->render());
+		$this->assertNull($this->childResponse->render());
 	}
 
 

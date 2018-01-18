@@ -2,7 +2,7 @@
 /**
  * @author Robin Appelman <icewind@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,10 +25,8 @@ use OC\Core\Command\Base;
 use OCP\ICertificate;
 use OCP\ICertificateManager;
 use OCP\IL10N;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ListCertificates extends Base {
@@ -47,7 +45,7 @@ class ListCertificates extends Base {
 	protected function configure() {
 		$this
 			->setName('security:certificates')
-			->setDescription('list trusted certificates');
+			->setDescription('List trusted certificates.');
 		parent::configure();
 	}
 

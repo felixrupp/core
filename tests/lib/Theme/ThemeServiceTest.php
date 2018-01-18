@@ -3,33 +3,27 @@
 namespace Test\Theme;
 
 use OC\Theme\ThemeService;
-use org\bovigo\vfs\vfsStream;
-use org\bovigo\vfs\vfsStreamDirectory;
 
 class ThemeServiceTest extends \PHPUnit\Framework\TestCase {
-
-	/**
-	 * @var vfsStreamDirectory
-	 */
-	private $root;
-
-	protected function setUp() {
-		$this->root = vfsStream::setup();
-		parent::setUp();
-	}
 
 	public function testCreatesThemeByGivenName() {
 		$themeService = new ThemeService('theme-name');
 		$theme = $themeService->getTheme();
 		$this->assertEquals('theme-name', $theme->getName());
-		$this->assertEquals('themes/theme-name/', $theme->getDirectory());
+		$this->assertEquals('themes/theme-name', $theme->getDirectory());
 	}
 
 	public function testCreatesEmptyThemeIfDefaultDoesNotExist() {
-		$structure = [];
-		$this->root = vfsStream::setup('root', null, $structure);
+		$themeService = $this->getMockBuilder(ThemeService::class)
+			->disableOriginalConstructor()
+			->setMethods(['defaultThemeExists'])
+			->getMock();
 
-		$themeService = new ThemeService('', $this->root->url() . '/themes/default');
+		$themeService->expects($this->any())
+			->method('defaultThemeExists')
+			->willReturn(false);
+
+		$themeService->__construct('');
 		$theme = $themeService->getTheme();
 
 		$this->assertEquals('', $theme->getName());
@@ -37,19 +31,20 @@ class ThemeServiceTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	public function testCreatesDefaultThemeIfItExists() {
-		$structure = [
-			'themes' => [
-				'default' => []
-			]
-		];
+		$themeService = $this->getMockBuilder(ThemeService::class)
+			->disableOriginalConstructor()
+			->setMethods(['defaultThemeExists'])
+			->getMock();
 
-		$this->root = vfsStream::setup('root', null, $structure);
+		$themeService->expects($this->any())
+			->method('defaultThemeExists')
+			->willReturn(true);
 
-		$themeService = new ThemeService('', $this->root->url() . '/themes/default');
+		$themeService->__construct('');
 		$theme = $themeService->getTheme();
 
 		$this->assertEquals('default', $theme->getName());
-		$this->assertEquals('themes/default/', $theme->getDirectory());
+		$this->assertEquals('themes/default', $theme->getDirectory());
 	}
 
 	public function testSetAppThemeSetsName() {

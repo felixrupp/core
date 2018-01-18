@@ -322,7 +322,6 @@
 			this.$fileList.on('click','td.filename>a.name, td.filesize, td.date', _.bind(this._onClickFile, this));
 
 			this.$fileList.on('change', 'td.filename>.selectCheckBox', _.bind(this._onClickFileCheckbox, this));
-			this.$el.on('show', _.bind(this._onShow, this));
 			this.$el.on('urlChanged', _.bind(this._onUrlChanged, this));
 			this.$el.find('.select-all').click(_.bind(this._onClickSelectAll, this));
 			this.$el.find('.download').click(_.bind(this._onClickDownloadSelected, this));
@@ -547,21 +546,16 @@
 		},
 
 		/**
-		 * Event handler when leaving previously hidden state
-		 */
-		_onShow: function(e) {
-			this.reload();
-		},
-
-		/**
 		 * Event handler for when the URL changed
 		 */
 		_onUrlChanged: function(e) {
 			if (e && _.isString(e.dir)) {
 				var currentDir = this.getCurrentDirectory();
 				// this._currentDirectory is NULL when fileList is first initialised
-				if( (this._currentDirectory || this.$el.find('#dir').val()) && currentDir === e.dir) {
-					return;
+				if (!e.force) {
+					if( (this._currentDirectory || this.$el.find('#dir').val()) && currentDir === e.dir) {
+						return;
+					}
 				}
 				this.changeDirectory(e.dir, false, true);
 			}
@@ -2051,10 +2045,16 @@
 						self.showFileBusyState(tr, true);
 						tr.attr('data-file', newName);
 						var basename = newName;
-						if (newName.indexOf('.') > 0 && tr.data('type') !== 'dir') {
-							basename = newName.substr(0, newName.lastIndexOf('.'));
+						if (tr.data('type') !== 'dir') {
+							var extension = '';
+							if (newName.indexOf('.') > 0) {
+								var lastDotIndex = newName.lastIndexOf('.');
+								basename = newName.substr(0, lastDotIndex);
+								extension = newName.substr(lastDotIndex);
+							}
+							td.find('a.name span.nametext span.extension').text(extension);
 						}
-						td.find('a.name span.nametext').text(basename);
+						td.find('a.name span.nametext span.innernametext').text(basename);
 						td.children('a.name').show();
 
 						var path = tr.attr('data-path') || self.getCurrentDirectory();
@@ -2699,7 +2699,7 @@
 					return false;
 				}
 
-				var dropTarget = $(e.originalEvent.target);
+				var dropTarget = $(e.originalEvent.delegatedEvent.target);
 				// check if dropped inside this container and not another one
 				if (dropTarget.length
 					&& !self.$el.is(dropTarget) // dropped on list directly

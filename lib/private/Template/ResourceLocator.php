@@ -9,7 +9,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -28,11 +28,11 @@
 
 namespace OC\Template;
 
-use OC\Theme\Theme;
+use OCP\Theme\ITheme;
 
 abstract class ResourceLocator {
 	/**
-	 * @var Theme
+	 * @var ITheme
 	 */
 	protected $theme;
 
@@ -48,7 +48,7 @@ abstract class ResourceLocator {
 
 	/**
 	 * @param \OCP\ILogger $logger
-	 * @param Theme $theme
+	 * @param ITheme $theme
 	 * @param array $core_map
 	 * @param array $party_map
 	 */

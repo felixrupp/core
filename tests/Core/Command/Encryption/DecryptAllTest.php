@@ -2,7 +2,7 @@
 /**
  * @author Björn Schießle <schiessle@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -89,7 +89,7 @@ class DecryptAllTest extends TestCase {
 			->method('disableApp')
 			->with('files_trashbin');
 
-		// on destruct wi disable single-user-mode again and enable the trash bin
+		// on destruct we disable single-user-mode again and enable the trash bin
 		$this->config->expects($this->at(2))
 			->method('setSystemValue')
 			->with('singleuser', false);
@@ -189,7 +189,7 @@ class DecryptAllTest extends TestCase {
 			->method('setAppValue')
 			->with('core', 'encryption_enabled', 'no');
 
-		// make sure that we enable encryption again after a exception was thrown
+		// make sure that we enable encryption again after an exception was thrown
 		$this->config->expects($this->at(3))
 			->method('setAppValue')
 			->with('core', 'encryption_enabled', 'yes');

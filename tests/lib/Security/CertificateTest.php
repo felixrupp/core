@@ -2,7 +2,7 @@
 /**
  * @author Lukas Reschke <lukas@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 
 namespace Test\Security;
 
-use \OC\Security\Certificate;
+use OC\Security\Certificate;
 
 class CertificateTest extends \Test\TestCase {
 
@@ -67,7 +67,7 @@ class CertificateTest extends \Test\TestCase {
 
 	public function testGetCommonName() {
 		$this->assertSame('security.owncloud.com', $this->goodCertificate->getCommonName());
-		$this->assertSame(null, $this->invalidCertificate->getCommonName());
+		$this->assertNull($this->invalidCertificate->getCommonName());
 	}
 
 	public function testGetOrganization() {
@@ -92,15 +92,15 @@ class CertificateTest extends \Test\TestCase {
 	}
 
 	public function testIsExpired() {
-		$this->assertSame(false, $this->goodCertificate->isExpired());
-		$this->assertSame(false, $this->invalidCertificate->isExpired());
-		$this->assertSame(true, $this->expiredCertificate->isExpired());
+		$this->assertFalse($this->goodCertificate->isExpired());
+		$this->assertFalse($this->invalidCertificate->isExpired());
+		$this->assertTrue($this->expiredCertificate->isExpired());
 	}
 
 	public function testGetIssuerName() {
 		$this->assertSame('security.owncloud.com', $this->goodCertificate->getIssuerName());
-		$this->assertSame(null, $this->invalidCertificate->getIssuerName());
-		$this->assertSame(null, $this->expiredCertificate->getIssuerName());
+		$this->assertNull($this->invalidCertificate->getIssuerName());
+		$this->assertNull($this->expiredCertificate->getIssuerName());
 	}
 
 	public function testGetIssuerOrganization() {

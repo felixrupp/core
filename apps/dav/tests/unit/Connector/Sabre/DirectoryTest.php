@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,9 +24,9 @@
 
 namespace OCA\DAV\Tests\Unit\Connector\Sabre;
 
-use OCP\Files\ForbiddenException;
 use OC\Files\FileInfo;
 use OCA\DAV\Connector\Sabre\Directory;
+use OCP\Files\ForbiddenException;
 
 class TestDoubleFileView extends \OC\Files\View {
 
@@ -208,7 +208,7 @@ class DirectoryTest extends \Test\TestCase {
 		$dir = new Directory($this->view, $this->info);
 		$nodes = $dir->getChildren();
 
-		$this->assertEquals(2, count($nodes));
+		$this->assertCount(2, $nodes);
 
 		// calling a second time just returns the cached values,
 		// does not call getDirectoryContents again

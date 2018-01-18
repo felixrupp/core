@@ -2,7 +2,7 @@
 /**
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,8 +22,8 @@
 namespace OCA\DAV\Tests\unit\AppInfo\Migrations;
 
 use OCA\DAV\Migrations\Version20170202213905;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use Test\TestCase;
 
 require_once (str_replace('/dav/tests/unit/AppInfo/', '/dav/appinfo/', __DIR__) . '/Version20170202213905.php');

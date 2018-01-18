@@ -3,7 +3,7 @@
  * @author Georg Ehrke <georg@owncloud.com>
  * @author Olivier Paroz <owncloud@interfasys.ch>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -149,7 +149,7 @@ class PreviewTest extends TestCase {
 
 		$preview->deletePreview();
 
-		$this->assertSame(false, $this->rootView->file_exists($thumbCacheFile));
+		$this->assertFalse($this->rootView->file_exists($thumbCacheFile));
 	}
 
 	/**
@@ -176,11 +176,11 @@ class PreviewTest extends TestCase {
 		$thumbCacheFolder = '/' . self::TEST_PREVIEW_USER1 . '/' . Preview::THUMBNAILS_FOLDER .
 			'/' . $fileId . '/';
 
-		$this->assertSame(true, $this->rootView->is_dir($thumbCacheFolder), "$thumbCacheFolder \n");
+		$this->assertTrue($this->rootView->is_dir($thumbCacheFolder), "$thumbCacheFolder \n");
 
 		$preview->deleteAllPreviews();
 
-		$this->assertSame(false, $this->rootView->is_dir($thumbCacheFolder));
+		$this->assertFalse($this->rootView->is_dir($thumbCacheFolder));
 	}
 
 	public function txtBlacklist() {
@@ -239,7 +239,7 @@ class PreviewTest extends TestCase {
 		$preview->getPreview();
 		$image = $preview->getPreview();
 
-		$this->assertSame(false, $image->valid());
+		$this->assertFalse($image->valid());
 	}
 
 	/**
@@ -330,10 +330,10 @@ class PreviewTest extends TestCase {
 		// There should be no cached thumbnails
 		$thumbnailFolder = '/' . self::TEST_PREVIEW_USER1 . '/' . Preview::THUMBNAILS_FOLDER .
 			'/' . $sampleFileId;
-		$this->assertSame(false, $this->rootView->is_dir($thumbnailFolder));
+		$this->assertFalse($this->rootView->is_dir($thumbnailFolder));
 
 		$image = $preview->getPreview();
-		$this->assertNotSame(false, $image);
+		$this->assertNotFalse($image);
 
 		$maxThumbCacheFile = $this->buildCachePath(
 			$sampleFileId, $this->maxPreviewWidth, $this->maxPreviewHeight, true, '-max'
@@ -425,7 +425,7 @@ class PreviewTest extends TestCase {
 
 		// We try to deleted the preview
 		$preview->deletePreview();
-		$this->assertNotSame(false, $preview->isCached($fileId));
+		$this->assertNotFalse($preview->isCached($fileId));
 
 		$preview->deleteAllPreviews();
 	}
@@ -483,7 +483,7 @@ class PreviewTest extends TestCase {
 		$preview = $this->createPreview($previewWidth, $previewHeight);
 
 		$image = $preview->getPreview();
-		$this->assertNotSame(false, $image);
+		$this->assertNotFalse($image);
 
 		list($expectedWidth, $expectedHeight) =
 			$this->simulatePreviewDimensions($previewWidth, $previewHeight);
@@ -570,7 +570,7 @@ class PreviewTest extends TestCase {
 			$height
 		);
 
-		$this->assertSame(true, $preview->isFileValid());
+		$this->assertTrue($preview->isFileValid());
 
 		$preview->setKeepAspect($this->keepAspect);
 		$preview->setScalingup($this->scalingUp);
@@ -637,7 +637,7 @@ class PreviewTest extends TestCase {
 		$preview = $this->createPreview($previewWidth, $previewHeight);
 
 		$image = $preview->getPreview();
-		$this->assertNotSame(false, $image);
+		$this->assertNotFalse($image);
 
 		// A thumbnail of the asked dimensions should also have been created (within the constraints of the max preview)
 		list($limitedPreviewWidth, $limitedPreviewHeight) =
@@ -663,7 +663,7 @@ class PreviewTest extends TestCase {
 		$this->assertSame($expectedCachedBigger, $isCached);
 
 		$image = $preview->getPreview();
-		$this->assertNotSame(false, $image);
+		$this->assertNotFalse($image);
 	}
 
 	/**

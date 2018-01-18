@@ -15,7 +15,7 @@
  * @author Tim Dettrick <t.dettrick@uq.edu.au>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -34,15 +34,14 @@
 
 namespace OCA\Files_External\Lib\Storage;
 
-use Guzzle\Http\Url;
 use Guzzle\Http\Exception\ClientErrorResponseException;
+use Guzzle\Http\Url;
 use Icewind\Streams\IteratorDirectory;
 use OpenCloud;
 use OpenCloud\Common\Exceptions;
+use OpenCloud\ObjectStore\Resource\DataObject;
 use OpenCloud\OpenStack;
 use OpenCloud\Rackspace;
-use OpenCloud\ObjectStore\Resource\DataObject;
-use OpenCloud\ObjectStore\Exception;
 
 class Swift extends \OCP\Files\Storage\StorageAdapter {
 

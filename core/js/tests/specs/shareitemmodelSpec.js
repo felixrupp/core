@@ -2,7 +2,7 @@
 * ownCloud
 *
 * @author Vincent Petry
-* @copyright 2015 Vincent Petry <pvince81@owncloud.com>
+* @copyright Copyright (c) 2015 Vincent Petry <pvince81@owncloud.com>
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -25,6 +25,7 @@ describe('OC.Share.ShareItemModel', function() {
 	var fetchSharesDeferred, fetchReshareDeferred;
 	var fileInfoModel, configModel, model;
 	var oldCurrentUser;
+	var capsSpec;
 
 	beforeEach(function() {
 		oldCurrentUser = OC.currentUser;
@@ -56,8 +57,15 @@ describe('OC.Share.ShareItemModel', function() {
 			configModel: configModel,
 			fileInfoModel: fileInfoModel
 		});
+		capsSpec = sinon.stub(OC, 'getCapabilities');
+		capsSpec.returns({
+			'files_sharing': {
+				'default_permissions': OC.PERMISSION_ALL
+			}
+		});
 	});
 	afterEach(function() {
+		capsSpec.restore(); 
 		if (fetchSharesStub) {
 			fetchSharesStub.restore();
 		}
@@ -559,7 +567,22 @@ describe('OC.Share.ShareItemModel', function() {
 				});
 				expect(
 					testWithPermissions(OC.PERMISSION_UPDATE | OC.PERMISSION_SHARE)
-				).toEqual(OC.PERMISSION_READ | OC.PERMISSION_UPDATE | OC.PERMISSION_UPDATE);
+				).toEqual(OC.PERMISSION_READ | OC.PERMISSION_UPDATE);
+			});
+			it('uses default permissions from capabilities', function() {
+				capsSpec.returns({
+					'files_sharing': {
+						'default_permissions': OC.PERMISSION_READ | OC.PERMISSION_CREATE | OC.PERMISSION_SHARE
+					}
+				});
+				configModel.set('isResharingAllowed', true);
+				model.set({
+					reshare: {},
+					shares: []
+				});
+				expect(
+					testWithPermissions(OC.PERMISSION_ALL)
+				).toEqual(OC.PERMISSION_READ | OC.PERMISSION_CREATE | OC.PERMISSION_SHARE);
 			});
 		});
 	});

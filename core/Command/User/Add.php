@@ -4,7 +4,7 @@
  * @author Laurens Post <lkpost@scept.re>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -64,31 +64,31 @@ class Add extends Command {
 			->addArgument(
 				'uid',
 				InputArgument::REQUIRED,
-				'User ID used to login (must only contain a-z, A-Z, 0-9, -, _ and @)'
+				'User ID used to login (must only contain a-z, A-Z, 0-9, -, _ and @).'
 			)
 			->addOption(
 				'password-from-env',
 				null,
 				InputOption::VALUE_NONE,
-				'read password from environment variable OC_PASS'
+				'Read password from the OC_PASS environment variable.'
 			)
 			->addOption(
 				'display-name',
 				null,
 				InputOption::VALUE_OPTIONAL,
-				'User name used in the web UI (can contain any characters)'
+				'User name used in the web UI (can contain any characters).'
 			)
 			->addOption(
 				'email',
 				null,
 				InputOption::VALUE_OPTIONAL,
-				'Email address for the user'
+				'Email address for the user.'
 			)
 			->addOption(
 				'group',
 				'g',
 				InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
-				'groups the user should be added to (The group will be created if it does not exist)'
+				'The groups the user should be added to (The group will be created if it does not exist).'
 			);
 	}
 

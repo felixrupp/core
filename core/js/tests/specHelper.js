@@ -2,7 +2,7 @@
 * ownCloud
 *
 * @author Vincent Petry
-* @copyright 2014 Vincent Petry <pvince81@owncloud.com>
+* @copyright Copyright (c) 2014 Vincent Petry <pvince81@owncloud.com>
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -87,8 +87,7 @@ window.firstDay = 0;
 /* jshint camelcase: false */
 window.oc_debug = true;
 window.oc_isadmin = false;
-// FIXME: oc_webroot is supposed to be only the path!!!
-window.oc_webroot = location.href + '/';
+window.oc_webroot = '/owncloud';
 window.oc_appswebroots = {
 	"files": window.oc_webroot + '/apps/files/'
 };
@@ -137,6 +136,9 @@ window.isPhantom = /phantom/i.test(navigator.userAgent);
 				return url;
 			}
 			return r[1];
+		},
+		buildAbsoluteUrl: function(relativeUrl) {
+			return window.location.protocol + '//' + window.location.host + relativeUrl;
 		}
 	};
 
@@ -182,6 +184,7 @@ window.isPhantom = /phantom/i.test(navigator.userAgent);
 		// reset pop state handlers
 		OC.Util.History._handlers = [];
 
+		$(window).off('beforeunload');
 	});
 })();
 

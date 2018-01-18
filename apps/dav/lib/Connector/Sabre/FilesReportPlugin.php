@@ -4,7 +4,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,20 +25,19 @@ namespace OCA\DAV\Connector\Sabre;
 
 use OC\Files\View;
 use OCA\DAV\Files\Xml\FilterRequest;
-use Sabre\DAV\Exception\PreconditionFailed;
+use OCP\Files\Folder;
+use OCP\IGroupManager;
+use OCP\ITagManager;
+use OCP\IUserSession;
+use OCP\SystemTag\ISystemTagManager;
+use OCP\SystemTag\ISystemTagObjectMapper;
+use OCP\SystemTag\TagNotFoundException;
 use Sabre\DAV\Exception\BadRequest;
+use Sabre\DAV\Exception\PreconditionFailed;
+use Sabre\DAV\PropFind;
 use Sabre\DAV\ServerPlugin;
 use Sabre\DAV\Tree;
 use Sabre\DAV\Xml\Element\Response;
-use Sabre\DAV\Xml\Response\MultiStatus;
-use Sabre\DAV\PropFind;
-use OCP\SystemTag\ISystemTagObjectMapper;
-use OCP\IUserSession;
-use OCP\Files\Folder;
-use OCP\IGroupManager;
-use OCP\SystemTag\ISystemTagManager;
-use OCP\SystemTag\TagNotFoundException;
-use OCP\ITagManager;
 
 class FilesReportPlugin extends ServerPlugin {
 

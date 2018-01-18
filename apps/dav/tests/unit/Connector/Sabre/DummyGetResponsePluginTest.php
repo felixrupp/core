@@ -4,7 +4,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -66,6 +66,6 @@ class DummyGetResponsePluginTest extends TestCase {
 			->method('setStatus')
 			->with(200);
 
-		$this->assertSame(false, $this->dummyGetResponsePlugin->httpGet($request, $response));
+		$this->assertFalse($this->dummyGetResponsePlugin->httpGet($request, $response));
 	}
 }

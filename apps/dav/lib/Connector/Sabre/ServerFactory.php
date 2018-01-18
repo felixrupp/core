@@ -9,7 +9,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -28,6 +28,7 @@
 
 namespace OCA\DAV\Connector\Sabre;
 
+use OCA\DAV\DAV\FileCustomPropertiesBackend;
 use OCA\DAV\Files\BrowserErrorPagePlugin;
 use OCP\Files\Mount\IMountManager;
 use OCP\IConfig;
@@ -100,7 +101,9 @@ class ServerFactory {
 		$server->setBaseUri($baseUri);
 
 		// Load plugins
+		$server->addPlugin(new \OCA\DAV\Connector\Sabre\CorsPlugin($this->userSession));
 		$server->addPlugin(new \OCA\DAV\Connector\Sabre\MaintenancePlugin($this->config));
+		$server->addPlugin(new \OCA\DAV\Connector\Sabre\ValidateRequestPlugin('webdav'));
 		$server->addPlugin(new \OCA\DAV\Connector\Sabre\BlockLegacyClientPlugin($this->config));
 		$server->addPlugin(new \Sabre\DAV\Auth\Plugin($authBackend));
 		// FIXME: The following line is a workaround for legacy components relying on being able to send a GET to /
@@ -175,10 +178,11 @@ class ServerFactory {
 					\OC::$server->getGroupManager(),
 					$userFolder
 				));
+
 				// custom properties plugin must be the last one
 				$server->addPlugin(
 					new \Sabre\DAV\PropertyStorage\Plugin(
-						new \OCA\DAV\Connector\Sabre\CustomPropertiesBackend(
+						new FileCustomPropertiesBackend(
 							$objectTree,
 							$this->databaseConnection,
 							$this->userSession->getUser()

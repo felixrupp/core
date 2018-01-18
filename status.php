@@ -13,7 +13,7 @@
  * @author Philipp Schaffrath <github@philippschaffrath.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -36,7 +36,9 @@ try {
 
 	# show the version details based on config.php parameter, 
 	# but do not expose the servername in the public via url
-	$values = \OCP\Util::getStatusInfo(null,true);
+	$values = \OCP\Util::getStatusInfo(
+		null,
+		\OC::$server->getConfig()->getSystemValue('show_server_hostname', false) !== true);
 
 	if (OC::$CLI) {
 		print_r($values);

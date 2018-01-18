@@ -13,12 +13,11 @@ namespace Test\SystemTag;
 use OC\SystemTag\SystemTagManager;
 use OC\SystemTag\SystemTagObjectMapper;
 use OCP\IDBConnection;
+use OCP\IGroupManager;
 use OCP\SystemTag\ISystemTag;
 use OCP\SystemTag\ISystemTagManager;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Test\TestCase;
-use OCP\IUserManager;
-use OCP\IGroupManager;
 
 /**
  * Class TestSystemTagManager
@@ -119,7 +118,7 @@ class SystemTagManagerTest extends TestCase {
 		$this->assertCount(count($testTags), $tagList);
 
 		foreach ($testTagsById as $testTagId => $testTag) {
-			$this->assertTrue(isset($tagList[$testTagId]));
+			$this->assertArrayHasKey($testTagId, $tagList);
 			$this->assertSameTag($tagList[$testTagId], $testTag);
 		}
 	}
@@ -232,7 +231,7 @@ class SystemTagManagerTest extends TestCase {
 		$this->assertCount(count($testTagsById), $tagList);
 
 		foreach ($testTagsById as $testTagId => $testTag) {
-			$this->assertTrue(isset($tagList[$testTagId]));
+			$this->assertArrayHasKey($testTagId, $tagList);
 			$this->assertSameTag($tagList[$testTagId], $testTag);
 		}
 	}

@@ -5,7 +5,7 @@
  * @author Stefan Weil <sw@weilnetz.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -51,7 +51,7 @@ class LockPlugin extends ServerPlugin {
 	public function getLock(RequestInterface $request) {
 		// we can't listen on 'beforeMethod:PUT' due to order of operations with setting up the tree
 		// so instead we limit ourselves to the PUT method manually
-		if ($request->getMethod() !== 'PUT' || isset($_SERVER['HTTP_OC_CHUNKED'])) {
+		if ($request->getMethod() !== 'PUT' || \OC_FileChunking::isWebdavChunk()) {
 			return;
 		}
 		try {
@@ -69,7 +69,7 @@ class LockPlugin extends ServerPlugin {
 	}
 
 	public function releaseLock(RequestInterface $request) {
-		if ($request->getMethod() !== 'PUT' || isset($_SERVER['HTTP_OC_CHUNKED'])) {
+		if ($request->getMethod() !== 'PUT' || \OC_FileChunking::isWebdavChunk()) {
 			return;
 		}
 		try {

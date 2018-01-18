@@ -1,7 +1,7 @@
 <?php
 /**
 * @author Tom Needham
-* @copyright 2016 Tom Needham tom@owncloud.com
+* @copyright Copyright (c) 2016 Tom Needham tom@owncloud.com
 *
 * This file is licensed under the Affero General Public License version 3 or
 * later.
@@ -13,9 +13,9 @@ namespace Tests\Settings\Panels\Personal;
 use OC\Settings\Panels\Personal\Profile;
 use OCP\IConfig;
 use OCP\IGroupManager;
+use OCP\IUser;
 use OCP\IUserSession;
 use OCP\L10N\IFactory;
-use OCP\IUser;
 
 /**
 * @package Tests\Settings\Panels\Personal
@@ -51,7 +51,7 @@ class ProfileTest extends \Test\TestCase {
 	}
 
 	public function testGetPriority() {
-		$this->assertTrue(is_integer($this->panel->getPriority()));
+		$this->assertInternalType('int', $this->panel->getPriority());
 		$this->assertTrue($this->panel->getPriority() > 90);
 	}
 

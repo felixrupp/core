@@ -3,24 +3,26 @@
  * ownCloud
  *
  * @author Artur Neumann <artur@jankaritech.com>
- * @copyright 2017 Artur Neumann artur@jankaritech.com
+ * @copyright Copyright (c) 2017 Artur Neumann artur@jankaritech.com
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License,
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or any later version.
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public
- * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>
  *
  */
 namespace TestHelpers;
 
+use GuzzleHttp\Message\FutureResponse;
+use GuzzleHttp\Message\ResponseInterface;
 use GuzzleHttp\Stream\Stream;
 use PHPUnit_Framework_Assert;
 
@@ -32,21 +34,22 @@ use PHPUnit_Framework_Assert;
  */
 class UploadHelper {
 	/**
-	 * 
+	 *
 	 * @param string $baseUrl             URL of owncloud
-	 * e.g. http://localhost:8080
-	 * should include the subfolder if owncloud runs in a subfolder
-	 * e.g. http://localhost:8080/owncloud-core
+	 *                                    e.g. http://localhost:8080
+	 *                                    should include the subfolder
+	 *                                    if owncloud runs in a subfolder
+	 *                                    e.g. http://localhost:8080/owncloud-core
 	 * @param string $user
 	 * @param string $password
-	 * @param string $source 
+	 * @param string $source
 	 * @param string $destination
 	 * @param array  $headers
 	 * @param int    $davPathVersionToUse (1|2)
 	 * @param int    $chunkingVersion     (1|2|null)
-	 * if set to null chunking will not be used
+	 *                                    if set to null chunking will not be used
 	 * @param int    $noOfChunks          how many chunks do we want to upload
-	 * @return \GuzzleHttp\Message\FutureResponse|\GuzzleHttp\Message\ResponseInterface|NULL
+	 * @return FutureResponse|ResponseInterface|NULL
 	 */
 	public static function upload(
 		$baseUrl,
@@ -59,9 +62,9 @@ class UploadHelper {
 		$chunkingVersion = null,
 		$noOfChunks = 1
 	) {
-	
+
 		//simple upload with no chunking
-		if ($chunkingVersion === null) {
+		if (is_null($chunkingVersion)) {
 			$data = Stream::factory(fopen($source, 'r'));
 			return WebDavHelper::makeDavRequest(
 				$baseUrl,
@@ -80,7 +83,7 @@ class UploadHelper {
 			$chunkingId = 'chunking-' . (string)rand(1000, 9999);
 			$v2ChunksDestination = '/uploads/' . $user . '/' . $chunkingId;
 		}
-		
+
 		//prepare chunking version specific stuff
 		if ($chunkingVersion === 1) {
 			$headers['OC-Chunked'] = '1';
@@ -91,18 +94,18 @@ class UploadHelper {
 				$password,
 				'MKCOL',
 				$v2ChunksDestination,
-				[], null, null,
+				$headers, null, null,
 				$davPathVersionToUse,
 				"uploads"
 			);
 		}
-		
+
 		//upload chunks
 		foreach ($chunks as $index => $chunk) {
 			$data = Stream::factory($chunk);
 			if ($chunkingVersion === 1) {
 				$filename = $destination . "-" . $chunkingId . "-" .
-							count($chunks) . '-' . ( string ) $index;
+					count($chunks) . '-' . ( string ) $index;
 				$davRequestType = "files";
 			} elseif ($chunkingVersion === 2) {
 				$filename = $v2ChunksDestination . '/' . (string)($index);
@@ -124,9 +127,9 @@ class UploadHelper {
 		//finish upload for new chunking
 		if ($chunkingVersion === 2) {
 			$source = $v2ChunksDestination . '/.file';
-			$finalDestination = $baseUrl . "/" . 
-						WebDavHelper::getDavPath($user, $davPathVersionToUse) .
-						$destination;
+			$finalDestination = $baseUrl . "/" .
+				WebDavHelper::getDavPath($user, $davPathVersionToUse) .
+				$destination;
 			$result = WebDavHelper::makeDavRequest(
 				$baseUrl,
 				$user,
@@ -147,10 +150,10 @@ class UploadHelper {
 	 * returns an array of chunks with the content of the file
 	 *
 	 * @param string $file
-	 * @param number $noOfChunks
+	 * @param int $noOfChunks
 	 * @return array $string
 	 */
-	public static function chunkFile($file, $noOfChunks = 1) { 
+	public static function chunkFile($file, $noOfChunks = 1) {
 		$size = filesize($file);
 		$chunkSize = ceil($size / $noOfChunks);
 		$chunks = [];
@@ -159,6 +162,10 @@ class UploadHelper {
 			$chunks[] = fread($fp, $chunkSize);
 		}
 		fclose($fp);
+		if (count($chunks) === 0) {
+			// chunk an empty file
+			$chunks[] = '';
+		}
 		return $chunks;
 	}
 
@@ -170,6 +177,9 @@ class UploadHelper {
 	 * @return void
 	 */
 	public static function createFileSpecificSize($name, $size) {
+		if (file_exists($name)) {
+			unlink($name);
+		}
 		$file = fopen($name, 'w');
 		fseek($file, max($size - 1, 0), SEEK_CUR);
 		if ($size) {

@@ -6,7 +6,7 @@
  * @author Semih Serhat Karakaya <karakayasemi@itu.edu.tr>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -258,6 +258,13 @@ class LoginController extends Controller {
 	 */
 	protected function getDefaultUrl() {
 		return OC_Util::getDefaultPageUrl();
+	}
+
+	/**
+	 * @return ISession
+	 */
+	public function getSession() {
+		return $this->session;
 	}
 
 }

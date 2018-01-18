@@ -6,7 +6,6 @@ use OC\Encryption\Util;
 use OC\Files\Storage\Temporary;
 use OC\Files\View;
 use OC\User\Manager;
-use OCP\IUserManager;
 use Test\Files\Storage\Storage;
 
 class EncryptionTest extends Storage {
@@ -167,6 +166,7 @@ class EncryptionTest extends Storage {
 
 		$this->mountManager = $this->getMockBuilder('\OC\Files\Mount\Manager')
 			->disableOriginalConstructor()->getMock();
+		$this->mountManager->expects($this->any())->method('findByStorageId')->willReturn([]);
 
 		$this->instance = $this->getMockBuilder('\OC\Files\Storage\Wrapper\Encryption')
 			->setConstructorArgs(

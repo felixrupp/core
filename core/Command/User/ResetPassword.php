@@ -8,7 +8,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -48,17 +48,17 @@ class ResetPassword extends Command {
 	protected function configure() {
 		$this
 			->setName('user:resetpassword')
-			->setDescription('Resets the password of the named user')
+			->setDescription('Resets the password of the named user.')
 			->addArgument(
 				'user',
 				InputArgument::REQUIRED,
-				'Username to reset password'
+				'The user\'s name.'
 			)
 			->addOption(
 				'password-from-env',
 				null,
 				InputOption::VALUE_NONE,
-				'read password from environment variable OC_PASS'
+				'Read the password from the OC_PASS environment variable.'
 			)
 		;
 	}

@@ -14,7 +14,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -38,13 +38,12 @@ $application->registerRoutes($this, [
 	'resources' => [
 		'groups' => ['url' => '/settings/users/groups'],
 		'users' => ['url' => '/settings/users/users'],
-		'AuthSettings' => ['url' => '/settings/personal/authtokens'],
+		'auth_settings' => ['url' => '/settings/personal/authtokens'],
 	],
 	'routes' => [
 		['name' => 'MailSettings#setMailSettings', 'url' => '/settings/admin/mailsettings', 'verb' => 'POST'],
 		['name' => 'MailSettings#storeCredentials', 'url' => '/settings/admin/mailsettings/credentials', 'verb' => 'POST'],
 		['name' => 'MailSettings#sendTestMail', 'url' => '/settings/admin/mailtest', 'verb' => 'POST'],
-		['name' => 'Encryption#startMigration', 'url' => '/settings/admin/startmigration', 'verb' => 'POST'],
 		['name' => 'AppSettings#listApps', 'url' => '/settings/apps/list', 'verb' => 'GET'],
 		['name' => 'Users#setDisplayName', 'url' => '/settings/users/{username}/displayName', 'verb' => 'POST'],
 		['name' => 'Users#setMailAddress', 'url' => '/settings/users/{id}/mailAddress', 'verb' => 'PUT'],
@@ -63,6 +62,9 @@ $application->registerRoutes($this, [
 		['name' => 'SettingsPage#getPersonal', 'url' => '/settings/personal', 'verb' => 'GET'],
 		['name' => 'SettingsPage#getAdmin', 'url' => '/settings/admin', 'verb' => 'GET'],
 		['name' => 'Users#changeMail', 'url' => '/settings/mailaddress/change/{token}/{userId}', 'verb' => 'GET'],
+		['name' => 'Cors#getDomains', 'url' => '/settings/domains', 'verb' => 'GET'],
+		['name' => 'Cors#addDomain', 'url' => '/settings/domains', 'verb' => 'POST'],
+		['name' => 'Cors#removeDomain', 'url' => '/settings/domains/{id}', 'verb' => 'DELETE']
 	]
 ]);
 
@@ -84,7 +86,7 @@ $this->create('settings_ajax_togglesubadmins', '/settings/ajax/togglesubadmins.p
 $this->create('settings_users_changepassword', '/settings/users/changepassword')
 	->post()
 	->action('OC\Settings\ChangePassword\Controller', 'changeUserPassword');
-$this->create('settings_ajax_changegorupname', '/settings/ajax/changegroupname.php')
+$this->create('settings_ajax_changegroupname', '/settings/ajax/changegroupname.php')
 	->actionInclude('settings/ajax/changegroupname.php');
 // personal
 $this->create('settings_personal_changepassword', '/settings/personal/changepassword')

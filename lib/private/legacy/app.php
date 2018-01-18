@@ -28,7 +28,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -49,7 +49,6 @@ use OC\App\InfoParser;
 use OC\App\Platform;
 use OC\Installer;
 use OC\Repair;
-use OC\HintException;
 
 /**
  * This class manages the apps. It allows them to register and integrate in the
@@ -133,9 +132,29 @@ class OC_App {
 		// once all authentication apps are loaded we can validate the session
 		if (is_null($types) || in_array('authentication', $types)) {
 			if (\OC::$server->getUserSession()) {
+				$request = \OC::$server->getRequest();
+				$session = \OC::$server->getUserSession();
 				$davUser = \OC::$server->getUserSession()->getSession()->get(\OCA\DAV\Connector\Sabre\Auth::DAV_AUTHENTICATED);
 				if (is_null($davUser)) {
-					\OC::$server->getUserSession()->validateSession();
+					$session->validateSession();
+				} else {
+					/** @var \OC\Authentication\Token\DefaultTokenProvider $tokenProvider */
+					$tokenProvider = \OC::$server->query('\OC\Authentication\Token\DefaultTokenProvider');
+					$token = null;
+					try {
+						$token = $tokenProvider->getToken($session->getSession()->getId());
+					} catch (\Exception $ex) {
+						$password = null;
+						if (isset($_SERVER['PHP_AUTH_PW'])) {
+							$password = $_SERVER['PHP_AUTH_PW'];
+						}
+
+						$session->createSessionToken($request, $session->getUser()->getUID(), $session->getLoginName(), $password);
+					}
+
+					if ($token) {
+						$tokenProvider->updateToken($token);
+					}
 				}
 			}
 		}
@@ -189,9 +208,9 @@ class OC_App {
 	 */
 	private static function enableThemeIfApplicable($app) {
 		if (self::isType($app, 'theme')) {
-			/** @var \OC\Theme\ThemeService $themeManager */
-			$themeManager = \OC::$server->query('ThemeService');
-			$themeManager->setAppTheme($app);
+			/** @var \OCP\Theme\IThemeService $themeService */
+			$themeService = \OC::$server->query('ThemeService');
+			$themeService->setAppTheme($app);
 		}
 	}
 
@@ -225,8 +244,12 @@ class OC_App {
 			\OC::$server->getLogger()->logException($ex);
 			$blacklist = \OC::$server->getAppManager()->getAlwaysEnabledApps();
 			if (!in_array($app, $blacklist)) {
-				\OC::$server->getLogger()->warning('Could not load app "' . $app . '", it will be disabled', array('app' => 'core'));
-				self::disable($app);
+				if (!self::isType($app, ['authentication', 'filesystem'])) {
+					\OC::$server->getLogger()->warning('Could not load app "' . $app . '", it will be disabled', array('app' => 'core'));
+					self::disable($app);
+				} else {
+					\OC::$server->getLogger()->warning('Could not load app "' . $app . '", see exception above', array('app' => 'core'));
+				}
 			}
 			throw $ex;
 		}
@@ -475,13 +498,14 @@ class OC_App {
 				"icon" => $urlGenerator->imagePath("settings", "admin.svg")
 			];
 
-			//SubAdmins are also allowed to access user management
+			$hasUserManagementPrivileges = false;
 			$userObject = \OC::$server->getUserSession()->getUser();
-			$isSubAdmin = false;
 			if($userObject !== null) {
-				$isSubAdmin = \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
+				//Admin and SubAdmins are allowed to access user management
+				$hasUserManagementPrivileges = \OC::$server->getGroupManager()->isAdmin($userObject->getUID())
+					|| \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
 			}
-			if ($isSubAdmin) {
+			if ($hasUserManagementPrivileges) {
 				// admin users menu
 				$settings[] = [
 					"id" => "core_users",
@@ -531,72 +555,29 @@ class OC_App {
 		return null;
 	}
 
-
-	/**
-	 * search for an app in all app-directories
-	 *
-	 * @param string $appId
-	 * @return false|string
-	 */
-	protected static function findAppInDirectories($appId) {
-		$sanitizedAppId = self::cleanAppId($appId);
-		if($sanitizedAppId !== $appId) {
-			return false;
-		}
-		static $app_dir = [];
-
-		if (isset($app_dir[$appId])) {
-			return $app_dir[$appId];
-		}
-
-		$possibleApps = [];
-		foreach (OC::$APPSROOTS as $dir) {
-			if (file_exists($dir['path'] . '/' . $appId)) {
-				$possibleApps[] = $dir;
-			}
-		}
-
-		if (empty($possibleApps)) {
-			return false;
-		} elseif (count($possibleApps) === 1) {
-			$dir = array_shift($possibleApps);
-			$app_dir[$appId] = $dir;
-			return $dir;
-		} else {
-			$versionToLoad = [];
-			foreach ($possibleApps as $possibleApp) {
-				$version = self::getAppVersionByPath($possibleApp['path'] . '/' . $appId);
-				if (empty($versionToLoad) || version_compare($version, $versionToLoad['version'], '>')) {
-					$versionToLoad = [
-						'dir' => $possibleApp,
-						'version' => $version,
-					];
-				}
-			}
-			$app_dir[$appId] = $versionToLoad['dir'];
-			return $versionToLoad['dir'];
-			//TODO - write test
-		}
-	}
-
 	/**
 	 * Get the directory for the given app.
-	 * If the app is defined in multiple directories, the first one is taken. (false if not found)
+	 * If the app exists in multiple directories, the most recent version is taken.
+	 * (false if not found)
 	 *
 	 * @param string $appId
 	 * @return string|false
 	 */
 	public static function getAppPath($appId) {
-		if ($appId === null || trim($appId) === '') {
-			return false;
-		}
-
-		if (($dir = self::findAppInDirectories($appId)) != false) {
-			return $dir['path'] . '/' . $appId;
-		}
-		return false;
+		return \OC::$server->getAppManager()->getAppPath($appId);
 	}
 
+	/**
+	 * Get the web path for the given app.
+	 * If the app exists in multiple directories, the most recent version is taken.
+	 * (false if not found)
+	 *
+	 * @param string $appId
+	 * @return string|false
+	 */
+	public static function getAppWebPath($appId) {
+		return \OC::$server->getAppManager()->getAppWebPath($appId);
+	}
 
 	/**
 	 * check if an app's directory is writable
@@ -607,20 +588,6 @@ class OC_App {
 	public static function isAppDirWritable($appId) {
 		$path = self::getAppPath($appId);
 		return ($path !== false) ? is_writable($path) : false;
-	}
-
-	/**
-	 * Get the path for the given app on the access
-	 * If the app is defined in multiple directories, the first one is taken. (false if not found)
-	 *
-	 * @param string $appId
-	 * @return string|false
-	 */
-	public static function getAppWebPath($appId) {
-		if (($dir = self::findAppInDirectories($appId)) != false) {
-			return OC::$WEBROOT . $dir['url'] . '/' . $appId;
-		}
-		return false;
 	}
 
 	/**
@@ -647,24 +614,6 @@ class OC_App {
 		$infoFile = $path . '/appinfo/info.xml';
 		$appData = self::getAppInfo($infoFile, true);
 		return isset($appData['version']) ? $appData['version'] : '';
-	}
-
-	/**
-	 * @return false|string
-	 */
-	public static function getDefaultEnabledAppTheme() {
-		$apps = self::getAllApps();
-		$parser = new InfoParser();
-		foreach ($apps as $app) {
-			$info = $parser->parse(self::getAppPath($app) . '/appinfo/info.xml');
-			if (is_array($info)) {
-				$info = OC_App::parseAppInfo($info);
-			}
-			if (isset($info['default_enable']) && in_array('theme', $info['types'])) {
-				return $app;
-			}
-		}
-		return false;
 	}
 
 	/**

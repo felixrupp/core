@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,12 +23,12 @@
  */
 namespace OCA\DAV\Tests\unit\Connector\Sabre;
 
-use Test\TestCase;
-use OCA\DAV\Connector\Sabre\File;
 use OCA\DAV\Connector\Sabre\Directory;
-use Sabre\DAV\Tree;
+use OCA\DAV\Connector\Sabre\File;
 use OCA\DAV\Connector\Sabre\QuotaPlugin;
 use OCA\DAV\Upload\FutureFile;
+use Sabre\DAV\Tree;
+use Test\TestCase;
 
 /**
  * Copyright (c) 2013 Thomas Müller <thomas.mueller@tmit.eu>
@@ -116,6 +116,11 @@ class QuotaPluginTest extends TestCase {
 			[-2, ['X-EXPECTED-ENTITY-LENGTH' => '1024']],
 			[-2, ['CONTENT-LENGTH' => '512']],
 			[-2, ['OC-TOTAL-LENGTH' => '1024', 'CONTENT-LENGTH' => '512']],
+			// \OCP\Files\FileInfo::SPACE-UNLIMITED = -3
+			[-3, []],
+			[-3, ['X-EXPECTED-ENTITY-LENGTH' => '1024']],
+			[-3, ['CONTENT-LENGTH' => '512']],
+			[-3, ['OC-TOTAL-LENGTH' => '1024', 'CONTENT-LENGTH' => '512']],
 		];
 	}
 
@@ -159,6 +164,13 @@ class QuotaPluginTest extends TestCase {
 			[-2, 128, ['X-EXPECTED-ENTITY-LENGTH' => '1024']],
 			[-2, 128, ['CONTENT-LENGTH' => '512']],
 			[-2, 128, ['OC-TOTAL-LENGTH' => '1024', 'CONTENT-LENGTH' => '512']],
+			// \OCP\Files\FileInfo::SPACE-UNLIMITED = -3
+			[-3, 0, ['X-EXPECTED-ENTITY-LENGTH' => '1024']],
+			[-3, 0, ['CONTENT-LENGTH' => '512']],
+			[-3, 0, ['OC-TOTAL-LENGTH' => '1024', 'CONTENT-LENGTH' => '512']],
+			[-3, 128, ['X-EXPECTED-ENTITY-LENGTH' => '1024']],
+			[-3, 128, ['CONTENT-LENGTH' => '512']],
+			[-3, 128, ['OC-TOTAL-LENGTH' => '1024', 'CONTENT-LENGTH' => '512']],
 		];
 	}
 

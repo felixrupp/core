@@ -10,7 +10,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@
 namespace OCA\Provisioning_API;
 
 use OC\OCS\Result;
-use \OC_Helper;
+use OC_Helper;
 use OCP\API;
 use OCP\Files\NotFoundException;
 use OCP\IGroup;
@@ -100,7 +100,7 @@ class Users {
 			}
 
 			if($offset === null) {
-				$offset = 0; 
+				$offset = 0;
 			}
 
 			$users = [];
@@ -153,7 +153,7 @@ class Users {
 				return new Result(null, 106, 'no group specified (required for subadmins)');
 			}
 		}
-		
+
 		try {
 			$newUser = $this->userManager->createUser($userId, $password);
 			$this->logger->info('Successful addUser call with userid: '.$userId, ['app' => 'ocs_api']);
@@ -219,7 +219,7 @@ class Users {
 		return new Result($data);
 	}
 
-	/** 
+	/**
 	 * edit users
 	 *
 	 * @param array $parameters
@@ -440,7 +440,7 @@ class Users {
 				return new Result(null, 997);
 			}
 		}
-		
+
 	}
 
 	/**
@@ -475,8 +475,8 @@ class Users {
 			return new Result(null, API::RESPOND_UNAUTHORISED);
 		}
 
-		$groupId = !empty($_POST['groupid']) ? $_POST['groupid'] : null;
-		if($groupId === null) {
+		$groupId = isset($_POST['groupid']) ? $_POST['groupid'] : null;
+		if (($groupId === '') || ($groupId === null) || ($groupId === false)) {
 			return new Result(null, 101);
 		}
 
@@ -511,8 +511,8 @@ class Users {
 			return new Result(null, API::RESPOND_UNAUTHORISED);
 		}
 
-		$group = !empty($parameters['_delete']['groupid']) ? $parameters['_delete']['groupid'] : null;
-		if($group === null) {
+		$group = isset($parameters['_delete']['groupid']) ? $parameters['_delete']['groupid'] : null;
+		if (($group === '') || ($group === null) || ($group === false)) {
 			return new Result(null, 101);
 		}
 

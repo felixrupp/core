@@ -5,7 +5,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,20 +24,20 @@
 
 namespace OCA\FederatedFileSharing;
 
+use OC\Share20\Exception\InvalidShare;
 use OC\Share20\Share;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\IRootFolder;
+use OCP\Files\Node;
+use OCP\Files\NotFoundException;
 use OCP\IConfig;
+use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\ILogger;
 use OCP\IUserManager;
+use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\IShare;
 use OCP\Share\IShareProvider;
-use OC\Share20\Exception\InvalidShare;
-use OCP\Share\Exceptions\ShareNotFound;
-use OCP\Files\NotFoundException;
-use OCP\IDBConnection;
-use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\Files\Node;
 
 /**
  * Class FederatedShareProvider

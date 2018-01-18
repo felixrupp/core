@@ -2,7 +2,7 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -45,22 +45,22 @@ class GetConfig extends Base {
 
 		$this
 			->setName('config:app:get')
-			->setDescription('Get an app config value')
+			->setDescription('Get an app config value.')
 			->addArgument(
 				'app',
 				InputArgument::REQUIRED,
-				'Name of the app'
+				'Name of the app.'
 			)
 			->addArgument(
 				'name',
 				InputArgument::REQUIRED,
-				'Name of the config to get'
+				'Name of the config to get.'
 			)
 			->addOption(
 				'default-value',
 				null,
 				InputOption::VALUE_OPTIONAL,
-				'If no default value is set and the config does not exist, the command will exit with 1'
+				'If no default value is set and the config does not exist, the command will exit with 1.'
 			)
 		;
 	}

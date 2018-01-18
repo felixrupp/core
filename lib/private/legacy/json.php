@@ -12,7 +12,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -116,17 +116,19 @@ class OC_JSON{
 
 
 	/**
-	 * Check if the user is a subadmin, send json error msg if not
+	 * Check if the user has administration privileges, send json error msg if not
 	 * @deprecated Use annotation based ACLs from the AppFramework instead
 	 */
 	public static function checkSubAdminUser() {
+		$hasUserManagementPrivileges = false;
 		$userObject = \OC::$server->getUserSession()->getUser();
-		$isSubAdmin = false;
 		if($userObject !== null) {
-			$isSubAdmin = \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
+			//Admin and SubAdmins are allowed to access user management
+			$hasUserManagementPrivileges = \OC::$server->getGroupManager()->isAdmin($userObject->getUID())
+				|| \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
 		}
 
-		if(!$isSubAdmin) {
+		if(!$hasUserManagementPrivileges) {
 			$l = \OC::$server->getL10N('lib');
 			self::error(['data' => ['message' => $l->t('Authentication error'), 'error' => 'authentication_error']]);
 			exit();

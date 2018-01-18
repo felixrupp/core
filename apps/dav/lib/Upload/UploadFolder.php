@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -34,8 +34,8 @@ class UploadFolder implements ICollection {
 	}
 
 	function createFile($name, $data = null) {
-		// TODO: verify name - should be a simple number
-		$this->node->createFile($name, $data);
+		// need to bypass hooks for individual chunks
+		$this->node->createFileDirectly($name, $data);
 	}
 
 	function createDirectory($name) {
@@ -43,20 +43,20 @@ class UploadFolder implements ICollection {
 	}
 
 	function getChild($name) {
-		if ($name === '.file') {
-			return new FutureFile($this->node, '.file');
+		if ($name === FutureFile::getFutureFileName()) {
+			return new FutureFile($this->node, FutureFile::getFutureFileName());
 		}
 		return $this->node->getChild($name);
 	}
 
 	function getChildren() {
 		$children = $this->node->getChildren();
-		$children[] = new FutureFile($this->node, '.file');
+		$children[] = new FutureFile($this->node, FutureFile::getFutureFileName());
 		return $children;
 	}
 
 	function childExists($name) {
-		if ($name === '.file') {
+		if ($name === FutureFile::getFutureFileName()) {
 			return true;
 		}
 		return $this->node->childExists($name);

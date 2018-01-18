@@ -2,7 +2,7 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,9 +21,10 @@
 
 namespace OCA\Testing\AppInfo;
 
-use OCA\Testing\Config;
 use OCA\Testing\BigFileID;
+use OCA\Testing\Config;
 use OCA\Testing\Locking\Provisioning;
+use OCA\Testing\Occ;
 use OCP\API;
 
 $config = new Config(
@@ -69,6 +70,16 @@ API::register(
 	'post',
 	'/apps/testing/api/v1/increasefileid',
 	[$bigFileID, 'increaseFileIDsBeyondMax32bits'],
+	'testing',
+	API::ADMIN_AUTH
+);
+
+$occ = new Occ(\OC::$server->getRequest());
+
+API::register(
+	'post',
+	'/apps/testing/api/v1/occ',
+	[$occ, 'execute'],
 	'testing',
 	API::ADMIN_AUTH
 );

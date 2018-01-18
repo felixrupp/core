@@ -9,7 +9,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -33,14 +33,13 @@ use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Cache\QueryCacheProfile;
 use Doctrine\Common\EventManager;
-use Doctrine\DBAL\Exception\ConstraintViolationException;
+use Doctrine\DBAL\Driver\ServerInfoAwareConnection;
 use Doctrine\DBAL\Platforms\MySqlPlatform;
 use Doctrine\DBAL\Schema\Schema;
 use OC\DB\QueryBuilder\QueryBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\PreConditionNotMetException;
-use OCP\Util;
 
 class Connection extends \Doctrine\DBAL\Connection implements IDBConnection {
 	/**
@@ -249,6 +248,21 @@ class Connection extends \Doctrine\DBAL\Connection implements IDBConnection {
 		return $this->adapter->insertIfNotExist($table, $input, $compare);
 	}
 
+	/**
+	 * Attempt to update a row, else insert a new one
+	 *
+	 * @param string $table The table name (will replace *PREFIX* with the actual prefix)
+	 * @param array $input data that should be inserted into the table  (column name => value)
+	 * @param array|null $compare List of values that should be checked for "if not exists"
+	 *				If this is null or an empty array, all keys of $input will be compared
+	 *				Please note: text fields (clob) must not be used in the compare array
+	 * @return int number of affected rows
+	 * @throws \Doctrine\DBAL\DBALException
+	 */
+	public function upsert($table, $input, array $compare = null) {
+		return $this->adapter->upsert($table, $input, $compare);
+	}
+
 	private function getType($value) {
 		if (is_bool($value)) {
 			return IQueryBuilder::PARAM_BOOL;
@@ -438,5 +452,28 @@ class Connection extends \Doctrine\DBAL\Connection implements IDBConnection {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Returns the version of the related platform if applicable.
+	 *
+	 * Returns null if either the driver is not capable to create version
+	 * specific platform instances, no explicit server version was specified
+	 * or the underlying driver connection cannot determine the platform
+	 * version without having to query it (performance reasons).
+	 *
+	 * @return null|string
+	 */
+	public function getDatabaseVersionString()
+	{
+		// Automatic platform version detection.
+		if ($this->_conn instanceof ServerInfoAwareConnection &&
+			! $this->_conn->requiresQueryForServerVersion()
+		) {
+			return $this->_conn->getServerVersion();
+		}
+
+		// Unable to detect platform version.
+		return null;
 	}
 }

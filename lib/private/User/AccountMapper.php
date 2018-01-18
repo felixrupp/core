@@ -4,7 +4,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,8 +25,10 @@ namespace OC\User;
 
 
 use OC\DB\QueryBuilder\Literal;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\Mapper;
+use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 use OCP\IConfig;
 use OCP\IDBConnection;
 
@@ -108,15 +110,19 @@ class AccountMapper extends Mapper {
 			throw new \InvalidArgumentException('$email must be defined');
 		}
 		$qb = $this->db->getQueryBuilder();
+		// RFC 5321 says that only domain name is case insensitive, but in practice
+		// it's the whole email
 		$qb->select('*')
 			->from($this->getTableName())
-			->where($qb->expr()->eq('email', $qb->createNamedParameter($email)));
+			->where($qb->expr()->eq($qb->createFunction('LOWER(`email`)'), $qb->createFunction('LOWER(' . $qb->createNamedParameter($email) . ')')));
 
 		return $this->findEntities($qb->getSQL(), $qb->getParameters());
 	}
 
 	/**
 	 * @param string $uid
+	 * @throws DoesNotExistException if the account does not exist
+	 * @throws MultipleObjectsReturnedException if more than one account exists
 	 * @return Account
 	 */
 	public function getByUid($uid) {

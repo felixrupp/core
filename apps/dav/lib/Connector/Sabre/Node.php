@@ -15,7 +15,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -35,7 +35,9 @@
 namespace OCA\DAV\Connector\Sabre;
 
 use OC\Files\Mount\MoveableMount;
+use OCA\DAV\Connector\Sabre\Exception\Forbidden;
 use OCA\DAV\Connector\Sabre\Exception\InvalidPath;
+use OCP\Files\ForbiddenException;
 use OCP\Share\Exceptions\ShareNotFound;
 use OCP\Share\IManager;
 
@@ -126,15 +128,30 @@ abstract class Node implements \Sabre\DAV\INode {
 			throw new \Sabre\DAV\Exception\Forbidden();
 		}
 
+		// verify path of the source
+		$this->verifyPath();
+
 		list($parentPath,) = \Sabre\HTTP\URLUtil::splitPath($this->path);
 		list(, $newName) = \Sabre\HTTP\URLUtil::splitPath($name);
 
-		// verify path of the target
-		$this->verifyPath();
+		// verify path of target
+		if (\OC\Files\Filesystem::isForbiddenFileOrDir($parentPath . '/' . $newName)) {
+			throw new \Sabre\DAV\Exception\Forbidden();
+		}
+
+		try {
+			$this->fileView->verifyPath($parentPath, $newName);
+		} catch (\OCP\Files\InvalidPathException $ex) {
+			throw new InvalidPath($ex->getMessage());
+		}
 
 		$newPath = $parentPath . '/' . $newName;
 
-		$this->fileView->rename($this->path, $newPath);
+		try {
+			$this->fileView->rename($this->path, $newPath);
+		} catch (ForbiddenException $ex) { 
+			throw new Forbidden($ex->getMessage(), $ex->getRetry());
+		} 
 
 		$this->path = $newPath;
 
@@ -164,6 +181,7 @@ abstract class Node implements \Sabre\DAV\INode {
 	 *  Even if the modification time is set to a custom value the access time is set to now.
 	 */
 	public function touch($mtime) {
+		$mtime = $this->sanitizeMtime($mtime);
 		$this->fileView->touch($this->path, $mtime);
 		$this->refreshInfo();
 	}
@@ -366,7 +384,22 @@ abstract class Node implements \Sabre\DAV\INode {
 		$this->fileView->changeLock($this->path, $type);
 	}
 
+	/**
+	 * @return \OCP\Files\FileInfo
+	 */
 	public function getFileInfo() {
 		return $this->info;
+	}
+
+	protected function sanitizeMtime ($mtimeFromRequest) {
+		$mtime = (float) $mtimeFromRequest;
+		if ($mtime >= PHP_INT_MAX) {
+			$mtime = PHP_INT_MAX;
+		} elseif ($mtime <= (PHP_INT_MAX*-1)) {
+			$mtime = (PHP_INT_MAX*-1);
+		} else {
+			$mtime = (int) $mtimeFromRequest;
+		}
+		return $mtime;
 	}
 }

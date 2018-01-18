@@ -43,6 +43,9 @@
 			};
 		this._baseUrl = url;
 
+		this._rootSections = _.filter(this._root.split('/'), function(section) { return section !== '';});
+		this._rootSections = _.map(this._rootSections, window.decodeURIComponent);
+
 		var clientOptions = {
 			baseUrl: this._baseUrl,
 			xmlNamespaces: {
@@ -241,6 +244,33 @@
 		},
 
 		/**
+		 * Parse sub-path from href
+		 *
+		 * @param {String} path href path
+		 * @return {String} sub-path section
+		 */
+		_extractPath: function(path) {
+			var pathSections = path.split('/');
+			pathSections = _.filter(pathSections, function(section) { return section !== '';});
+
+			var i = 0;
+			for (i = 0; i < this._rootSections.length; i++) {
+				if (this._rootSections[i] !== decodeURIComponent(pathSections[i])) {
+					// mismatch
+					return null;
+				}
+			}
+
+			// build the sub-path from the remaining sections
+			var subPath = '';
+			while (i < pathSections.length) {
+				subPath += '/' + decodeURIComponent(pathSections[i]);
+				i++;
+			}
+			return subPath;
+		},
+
+		/**
 		 * Parse Webdav result
 		 *
 		 * @param {Object} response XML object
@@ -248,16 +278,11 @@
 		 * @return {Array.<FileInfo>} array of file info
 		 */
 		_parseFileInfo: function(response) {
-			var path = response.href;
-			if (path.substr(0, this._root.length) === this._root) {
-				path = path.substr(this._root.length);
+			var path = this._extractPath(response.href);
+			// invalid subpath
+			if (path === null) {
+				return null;
 			}
-
-			if (path.charAt(path.length - 1) === '/') {
-				path = path.substr(0, path.length - 1);
-			}
-
-			path = decodeURIComponent(path);
 
 			if (response.propStat.length === 0 || response.propStat[0].status !== 'HTTP/1.1 200 OK') {
 				return null;
@@ -356,9 +381,14 @@
 		 */
 		_parseResult: function(responses) {
 			var self = this;
-			return _.map(responses, function(response) {
-				return self._parseFileInfo(response);
-			});
+			var fileInfos = [];
+			for (var i = 0; i < responses.length; i++) {
+				var fileInfo = self._parseFileInfo(responses[i]);
+				if (fileInfo !== null) {
+					fileInfos.push(fileInfo);
+				}
+			}
+			return fileInfos;
 		},
 
 		/**
@@ -370,6 +400,29 @@
 		 */
 		_isSuccessStatus: function(status) {
 			return status >= 200 && status <= 299;
+		},
+
+		/**
+		 * Parse the Sabre exception out of the given response, if any
+		 *
+		 * @param {Object} response object
+		 * @return {Object} array of parsed message and exception (only the first one)
+		 */
+		_getSabreException: function(response) {
+			var result = {};
+			if (!response.body) {
+				return result;
+			}
+			var xml = response.xhr.responseXML;
+			var messages = xml.getElementsByTagNameNS('http://sabredav.org/ns', 'message');
+			var exceptions = xml.getElementsByTagNameNS('http://sabredav.org/ns', 'exception');
+			if (messages.length) {
+				result.message = messages[0].textContent;
+			}
+			if (exceptions.length) {
+				result.exception = exceptions[0].textContent;
+			}
+			return result;
 		},
 
 		/**
@@ -425,7 +478,8 @@
 					}
 					deferred.resolve(result.status, results);
 				} else {
-					deferred.reject(result.status);
+					result = _.extend(result, self._getSabreException(result));
+					deferred.reject(result.status, result);
 				}
 			});
 			return promise;
@@ -499,7 +553,8 @@
 					var results = self._parseResult(result.body);
 					deferred.resolve(result.status, results);
 				} else {
-					deferred.reject(result.status);
+					result = _.extend(result, self._getSabreException(result));
+					deferred.reject(result.status, result);
 				}
 			});
 			return promise;
@@ -538,7 +593,8 @@
 					if (self._isSuccessStatus(result.status)) {
 						deferred.resolve(result.status, self._parseResult([result.body])[0]);
 					} else {
-						deferred.reject(result.status);
+						result = _.extend(result, self._getSabreException(result));
+						deferred.reject(result.status, result);
 					}
 				}
 			);
@@ -568,7 +624,8 @@
 					if (self._isSuccessStatus(result.status)) {
 						deferred.resolve(result.status, result.body);
 					} else {
-						deferred.reject(result.status);
+						result = _.extend(result, self._getSabreException(result));
+						deferred.reject(result.status, result);
 					}
 				}
 			);
@@ -617,7 +674,8 @@
 					if (self._isSuccessStatus(result.status)) {
 						deferred.resolve(result.status);
 					} else {
-						deferred.reject(result.status);
+						result = _.extend(result, self._getSabreException(result));
+						deferred.reject(result.status, result);
 					}
 				}
 			);
@@ -641,7 +699,51 @@
 					if (self._isSuccessStatus(result.status)) {
 						deferred.resolve(result.status);
 					} else {
-						deferred.reject(result.status);
+						result = _.extend(result, self._getSabreException(result));
+						deferred.reject(result.status, result);
+					}
+				}
+			);
+			return promise;
+		},
+
+		_moveOrCopy: function(operation, path, destinationPath, allowOverwrite, headers, options) {
+			if (!path) {
+				throw 'Missing argument "path"';
+			}
+			if (!destinationPath) {
+				throw 'Missing argument "destinationPath"';
+			}
+			if (operation !== 'MOVE' && operation !== 'COPY') {
+				throw 'Invalid operation';
+			}
+
+			var self = this;
+			var deferred = $.Deferred();
+			var promise = deferred.promise();
+			options = _.extend({
+				'pathIsUrl' : false,
+				'destinationPathIsUrl' : false
+			}, options);
+			headers = _.extend({}, headers, {
+				'Destination' : options.destinationPathIsUrl ? destinationPath : this._buildUrl(destinationPath)
+			});
+
+			if (!allowOverwrite) {
+				headers['Overwrite'] = 'F';
+			}
+
+			this._client.request(
+				operation,
+				options.pathIsUrl ? path : this._buildUrl(path),
+				headers
+			).then(
+				function(result) {
+					if (self._isSuccessStatus(result.status)) {
+						deferred.resolve(result.status);
+					} else {
+						result = _.extend(result, self._getSabreException(result));
+						deferred.reject(result.status, result);
 					}
 				}
 			);
@@ -681,39 +783,24 @@
 		 *
 		 * @return {Promise} promise
 		 */
-		move: function(path, destinationPath, allowOverwrite, headers) {
-			if (!path) {
-				throw 'Missing argument "path"';
-			}
-			if (!destinationPath) {
-				throw 'Missing argument "destinationPath"';
-			}
+		move: function(path, destinationPath, allowOverwrite, headers, options) {
+			return this._moveOrCopy('MOVE', path, destinationPath, allowOverwrite, headers, options);
+		},
 
-			var self = this;
-			var deferred = $.Deferred();
-			var promise = deferred.promise();
-			headers = _.extend({}, headers, {
-				'Destination' : this._buildUrl(destinationPath)
-			});
-
-			if (!allowOverwrite) {
-				headers['Overwrite'] = 'F';
-			}
-
-			this._client.request(
-				'MOVE',
-				this._buildUrl(path),
-				headers
-			).then(
-				function(response) {
-					if (self._isSuccessStatus(response.status)) {
-						deferred.resolve(response.status);
-					} else {
-						deferred.reject(response.status);
-					}
-				}
-			);
-			return promise;
+		/**
+		 * Copies path to another path
+		 *
+		 * @param {String} path path to copy
+		 * @param {String} destinationPath destination path
+		 * @param {boolean} [allowOverwrite=false] true to allow overwriting,
+		 * false otherwise
+		 * @param {Object} [headers=null] additional headers
+		 *
+		 * @return {Promise} promise
+		 * @since 10.0.5
+		 */
+		copy: function(path, destinationPath, allowOverwrite, headers, options) {
+			return this._moveOrCopy('COPY', path, destinationPath, allowOverwrite, headers, options);
 		},
 
 		/**
@@ -810,7 +897,7 @@
 
 		var client = new OC.Files.Client({
 			host: OC.getHost(),
-			root: OC.linkToRemoteBase('dav') + '/files/' + encodeURIComponent(OC.getCurrentUser().uid) + '/',
+			root: OC.linkToRemoteBase('webdav'),
 			useHTTPS: OC.getProtocol() === 'https'
 		});
 		OC.Files._defaultClient = client;

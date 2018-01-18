@@ -1,7 +1,7 @@
 <?php
 /**
  * @author Tom Needham
- * @copyright 2016 Tom Needham tom@owncloud.com
+ * @copyright Copyright (c) 2016 Tom Needham tom@owncloud.com
  *
  * This file is licensed under the Affero General Public License version 3 or
  * later.
@@ -13,6 +13,7 @@ namespace Tests\Settings\Panels\Admin;
 use OC\Settings\Panels\Admin\FileSharing;
 use OC\Settings\Panels\Helper;
 use OCP\IConfig;
+use OCP\IL10N;
 
 /**
  * @package Tests\Settings\Panels\Admin
@@ -30,7 +31,8 @@ class FileSharingTest extends \Test\TestCase {
 		parent::setUp();
 		$this->config = $this->getMockBuilder(IConfig::class)->getMock();
 		$this->helper = $this->getMockBuilder(Helper::class)->getMock();
-		$this->panel = new FileSharing($this->config, $this->helper);
+		$l10n = $this->getMockBuilder(IL10N::class)->getMock();
+		$this->panel = new FileSharing($this->config, $this->helper, $l10n);
 	}
 
 	public function testGetSection() {
@@ -38,9 +40,9 @@ class FileSharingTest extends \Test\TestCase {
 	}
 
 	public function testGetPriority() {
-		$this->assertTrue(is_integer($this->panel->getPriority()));
-		$this->assertTrue($this->panel->getPriority() > -100);
-		$this->assertTrue($this->panel->getPriority() < 100);
+		$this->assertInternalType('int', $this->panel->getPriority());
+		$this->assertGreaterThan(-100, $this->panel->getPriority());
+		$this->assertLessThan(100, $this->panel->getPriority());
 	}
 
 	public function testGetPanelEnabled() {

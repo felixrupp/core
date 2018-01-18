@@ -7,7 +7,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -27,11 +27,13 @@
 namespace OCA\FederatedFileSharing\Tests;
 
 use OC\Files\Filesystem;
+use OC\HTTPHelper;
 use OCA\FederatedFileSharing\DiscoveryManager;
 use OCA\FederatedFileSharing\FederatedShareProvider;
 use OCA\FederatedFileSharing\RequestHandler;
 use OCP\IUserManager;
 use OCP\Share\IShare;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 /**
  * Class RequestHandlerTest
@@ -61,12 +63,15 @@ class RequestHandlerTest extends TestCase {
 
 	/** @var  \OCA\FederatedFileSharing\AddressHandler | PHPUnit_Framework_MockObject_MockObject */
 	private $addressHandler;
-	
+
 	/** @var  IUserManager | \PHPUnit_Framework_MockObject_MockObject */
 	private $userManager;
 
 	/** @var  IShare | \PHPUnit_Framework_MockObject_MockObject */
 	private $share;
+
+	/** @var HTTPHelper */
+	private $oldHttpHelper;
 
 	protected function setUp() {
 		parent::setUp();
@@ -96,7 +101,7 @@ class RequestHandlerTest extends TestCase {
 		$this->addressHandler = $this->getMockBuilder('OCA\FederatedFileSharing\AddressHandler')
 			->disableOriginalConstructor()->getMock();
 		$this->userManager = $this->createMock('OCP\IUserManager');
-		
+
 		$this->registerHttpHelper($httpHelperMock);
 
 		$this->s2s = new RequestHandler(
@@ -106,7 +111,8 @@ class RequestHandlerTest extends TestCase {
 			\OC::$server->getRequest(),
 			$this->notifications,
 			$this->addressHandler,
-			$this->userManager
+			$this->userManager,
+			\OC::$server->getEventDispatcher()
 		);
 
 		$this->connection = \OC::$server->getDatabaseConnection();
@@ -157,7 +163,15 @@ class RequestHandlerTest extends TestCase {
 		$_POST['shareWith'] = self::TEST_FILES_SHARING_API_USER2;
 		$_POST['remoteId'] = 1;
 
+		$called = array();
+		\OC::$server->getEventDispatcher()->addListener('\OCA\FederatedFileSharing::remote_shareReceived', function ($event) use (&$called) {
+			$called[] = '\OCA\FederatedFileSharing::remote_shareReceived';
+			array_push($called, $event);
+		});
+
 		$result = $this->s2s->createShare(null);
+
+		$this->assertInstanceOf(GenericEvent::class, $called[1]);
 
 		$this->assertTrue($result->succeeded());
 
@@ -186,7 +200,8 @@ class RequestHandlerTest extends TestCase {
 					\OC::$server->getRequest(),
 					$this->notifications,
 					$this->addressHandler,
-					$this->userManager
+					$this->userManager,
+					\OC::$server->getEventDispatcher()
 				]
 			)->setMethods(['executeDeclineShare', 'verifyShare'])->getMock();
 
@@ -249,9 +264,8 @@ class RequestHandlerTest extends TestCase {
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			$toDelete
 		);
 
@@ -265,7 +279,7 @@ class RequestHandlerTest extends TestCase {
 			$remainingShares[$r['user']] = isset($remainingShares[$r['user']]) ? $remainingShares[$r['user']] + 1 : 1;
 		}
 
-		$this->assertSame($remainingUsers, count($remainingShares));
+		$this->assertCount($remainingUsers, $remainingShares);
 
 		foreach ($expected as $key => $value) {
 			if ($key === $toDelete) {
@@ -304,7 +318,7 @@ class RequestHandlerTest extends TestCase {
 		$query->execute();
 		$dummyEntries = $query->fetchAll();
 
-		$this->assertSame(10, count($dummyEntries));
+		$this->assertCount(10, $dummyEntries);
 	}
 
 	/**
@@ -367,7 +381,7 @@ class RequestHandlerTest extends TestCase {
 		if ($found) {
 			$this->assertEquals($expected, $result);
 		} else {
-			$this->assertSame(false, $result);
+			$this->assertFalse($result);
 		}
 	}
 

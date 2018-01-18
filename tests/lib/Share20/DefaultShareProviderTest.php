@@ -2,7 +2,7 @@
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,16 +21,16 @@
 namespace Test\Share20;
 
 use OC\Authentication\Token\DefaultTokenMapper;
+use OC\Share20\DefaultShareProvider;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use OCP\IGroup;
+use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
-use OCP\IGroupManager;
-use OCP\Files\IRootFolder;
-use OC\Share20\DefaultShareProvider;
 use OCP\Share;
 use Test\TestCase;
 
@@ -169,8 +169,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertEquals('shareOwner', $share->getShareOwner());
 		$this->assertEquals($ownerPath, $share->getNode());
 		$this->assertEquals(13, $share->getPermissions());
-		$this->assertEquals(null, $share->getToken());
-		$this->assertEquals(null, $share->getExpirationDate());
+		$this->assertNull($share->getToken());
+		$this->assertNull($share->getExpirationDate());
 		$this->assertEquals('myTarget', $share->getTarget());
 	}
 
@@ -204,8 +204,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertEquals('sharedBy', $share->getSharedBy());
 		$this->assertEquals('shareOwner', $share->getShareOwner());
 		$this->assertEquals(13, $share->getPermissions());
-		$this->assertEquals(null, $share->getToken());
-		$this->assertEquals(null, $share->getExpirationDate());
+		$this->assertNull($share->getToken());
+		$this->assertNull($share->getExpirationDate());
 		$this->assertEquals('myTarget', $share->getTarget());
 	}
 
@@ -248,8 +248,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertEquals('shareOwner', $share->getShareOwner());
 		$this->assertEquals($ownerPath, $share->getNode());
 		$this->assertEquals(13, $share->getPermissions());
-		$this->assertEquals(null, $share->getToken());
-		$this->assertEquals(null, $share->getExpirationDate());
+		$this->assertNull($share->getToken());
+		$this->assertNull($share->getExpirationDate());
 		$this->assertEquals('myTarget', $share->getTarget());
 	}
 
@@ -291,8 +291,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertEquals('shareOwner', $share->getShareOwner());
 		$this->assertEquals($ownerPath, $share->getNode());
 		$this->assertEquals(13, $share->getPermissions());
-		$this->assertEquals(null, $share->getToken());
-		$this->assertEquals(null, $share->getExpirationDate());
+		$this->assertNull($share->getToken());
+		$this->assertNull($share->getExpirationDate());
 		$this->assertEquals('myTarget', $share->getTarget());
 	}
 
@@ -329,8 +329,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertSame('user0', $share->getShareOwner());
 		$this->assertSame($node, $share->getNode());
 		$this->assertEquals(0, $share->getPermissions());
-		$this->assertEquals(null, $share->getToken());
-		$this->assertEquals(null, $share->getExpirationDate());
+		$this->assertNull($share->getToken());
+		$this->assertNull($share->getExpirationDate());
 		$this->assertEquals('userTarget', $share->getTarget());
 	}
 
@@ -585,8 +585,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertEquals('shareOwner', $children[0]->getShareOwner());
 		$this->assertEquals($ownerPath, $children[0]->getNode());
 		$this->assertEquals(2, $children[0]->getPermissions());
-		$this->assertEquals(null, $children[0]->getToken());
-		$this->assertEquals(null, $children[0]->getExpirationDate());
+		$this->assertNull($children[0]->getToken());
+		$this->assertNull($children[0]->getExpirationDate());
 		$this->assertEquals('myTarget1', $children[0]->getTarget());
 
 		//Child2
@@ -596,8 +596,8 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertEquals('shareOwner', $children[1]->getShareOwner());
 		$this->assertEquals($ownerPath, $children[1]->getNode());
 		$this->assertEquals(4, $children[1]->getPermissions());
-		$this->assertEquals(null, $children[1]->getToken());
-		$this->assertEquals(null, $children[1]->getExpirationDate());
+		$this->assertNull($children[1]->getToken());
+		$this->assertNull($children[1]->getExpirationDate());
 		$this->assertEquals('myTarget2', $children[1]->getTarget());
 	}
 
@@ -786,7 +786,7 @@ class DefaultShareProviderTest extends TestCase {
 		$this->assertSame('sharedBy', $share->getSharedBy());
 		$this->assertSame('secrettoken', $share->getToken());
 		$this->assertSame('password', $share->getPassword());
-		$this->assertSame(null, $share->getSharedWith());
+		$this->assertNull($share->getSharedWith());
 		$this->assertSame('some_name', $share->getName());
 	}
 
@@ -826,7 +826,7 @@ class DefaultShareProviderTest extends TestCase {
 			['home::shareOwner', 'files/test.txt', 'files/test2.txt'],
 			// regular file on external storage
 			['smb::whatever', 'files/test.txt', 'files/test2.txt'],
-			// regular file on external storage in trashbin-like folder, 
+			// regular file on external storage in trashbin-like folder,
 			['smb::whatever', 'files_trashbin/files/test.txt', 'files_trashbin/files/test2.txt'],
 		];
 	}
@@ -2277,7 +2277,7 @@ class DefaultShareProviderTest extends TestCase {
 		$share2 = $this->provider->update($share);
 
 		$this->assertEquals($id, $share2->getId());
-		$this->assertEquals(null, $share->getPassword());
+		$this->assertNull($share->getPassword());
 		$this->assertSame('user4', $share2->getSharedBy());
 		$this->assertSame('user5', $share2->getShareOwner());
 		$this->assertSame(1, $share2->getPermissions());

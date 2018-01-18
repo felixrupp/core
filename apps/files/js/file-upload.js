@@ -37,12 +37,11 @@ OC.FileUpload = function(uploader, data) {
 	if (!data) {
 		throw 'Missing "data" argument in OC.FileUpload constructor';
 	}
-	var path = '';
+	var basePath = '';
 	if (this.uploader.fileList) {
-		path = OC.joinPaths(this.uploader.fileList.getCurrentDirectory(), this.getFile().name);
-	} else {
-		path = this.getFile().name;
+		basePath = this.uploader.fileList.getCurrentDirectory();
 	}
+	var path = OC.joinPaths(basePath, this.getFile().relativePath || '', this.getFile().name);
 	this.id = 'web-file-upload-' + md5(path) + '-' + (new Date()).getTime();
 };
 OC.FileUpload.CONFLICT_MODE_DETECT = 0;
@@ -251,6 +250,10 @@ OC.FileUpload.prototype = {
 			this.data.headers['Authorization'] =
 				'Basic ' + btoa(userName + ':' + (password || ''));
 		}
+		this.data.headers['requesttoken'] = OC.requestToken;
+
+		// prevent global error handler to kick in on timeout
+		this.data.allowAuthErrors = true;
 
 		var chunkFolderPromise;
 		if ($.support.blobSlice
@@ -259,7 +262,7 @@ OC.FileUpload.prototype = {
 		) {
 			data.isChunked = true;
 			chunkFolderPromise = this.uploader.davClient.createDirectory(
-				'uploads/' + encodeURIComponent(OC.getCurrentUser().uid) + '/' + encodeURIComponent(this.getId())
+				'uploads/' + OC.getCurrentUser().uid + '/' + this.getId()
 			);
 			// TODO: if fails, it means same id already existed, need to retry
 		} else {
@@ -284,18 +287,29 @@ OC.FileUpload.prototype = {
 		}
 
 		var uid = OC.getCurrentUser().uid;
+		var mtime = this.getFile().lastModified;
+		var size = this.getFile().size;
+		var headers = {};
+		if (mtime) {
+			headers['X-OC-Mtime'] = mtime / 1000;
+		}
+		if (size) {
+			headers['OC-Total-Length'] = size;
+
+		}
+
 		return this.uploader.davClient.move(
-			'uploads/' + encodeURIComponent(uid) + '/' + encodeURIComponent(this.getId()) + '/.file',
-			'files/' + encodeURIComponent(uid) + '/' + OC.joinPaths(this.getFullPath(), this.getFileName()),
+			'uploads/' + uid + '/' + this.getId() + '/.file',
+			'files/' + uid + '/' + OC.joinPaths(this.getFullPath(), this.getFileName()),
 			true,
-			{'X-OC-Mtime': this.getFile().lastModified / 1000}
+			headers
 		);
 	},
 
 	_deleteChunkFolder: function() {
 		// delete transfer directory for this upload
 		this.uploader.davClient.remove(
-			'uploads/' + encodeURIComponent(OC.getCurrentUser().uid) + '/' + encodeURIComponent(this.getId())
+			'uploads/' + OC.getCurrentUser().uid + '/' + this.getId()
 		);
 	},
 
@@ -327,15 +341,50 @@ OC.FileUpload.prototype = {
 	 */
 	getResponse: function() {
 		var response = this.data.response();
-		if (typeof response.result !== 'string') {
+		if (response.errorThrown) {
+			if (response.errorThrown === 'timeout') {
+				return {
+					status: 0,
+					message: t('core', 'Upload timeout for file "{file}"', {file: this.getFileName()})
+				};
+			}
+
+			// attempt parsing Sabre exception is available
+			var xml = response.jqXHR.responseXML;
+			if (xml.documentElement.localName === 'error' && xml.documentElement.namespaceURI === 'DAV:') {
+				var messages = xml.getElementsByTagNameNS('http://sabredav.org/ns', 'message');
+				var exceptions = xml.getElementsByTagNameNS('http://sabredav.org/ns', 'exception');
+				if (messages.length) {
+					response.message = messages[0].textContent;
+				}
+				if (exceptions.length) {
+					response.exception = exceptions[0].textContent;
+				}
+				return response;
+			}
+		}
+
+		if (typeof response.result !== 'string' && response.result) {
 			//fetch response from iframe
 			response = $.parseJSON(response.result[0].body.innerText);
 			if (!response) {
 				// likely due to internal server error
 				response = {status: 500};
 			}
-		} else {
+		} else if (response.result) {
 			response = response.result;
+		} else {
+			if (response.jqXHR.status === 0 && response.jqXHR.statusText === 'error') {
+				// timeout (IE11)
+				return {
+					status: 0,
+					message: t('core', 'Upload timeout for file "{file}"', {file: this.getFileName()})
+				};
+			}
+			return {
+				status: response.jqXHR.status,
+				message: t('core', 'Unknown error "{error}" uploading file "{file}"', {error: response.jqXHR.statusText, file: this.getFileName()})
+			};
 		}
 		return response;
 	},
@@ -572,7 +621,13 @@ OC.Uploader.prototype = _.extend({
 	 * Clear uploads
 	 */
 	clear: function() {
-		this._uploads = {};
+		var remainingUploads = {};
+		_.each(this._uploads, function(upload, key) {
+			if (!upload.isDone) {
+				remainingUploads[key] = upload;
+			}
+		});
+		this._uploads = remainingUploads;
 		this._knownDirs = {};
 	},
 	/**
@@ -737,6 +792,7 @@ OC.Uploader.prototype = _.extend({
 
 	_hideProgressBar: function() {
 		var self = this;
+		window.clearInterval(this._progressBarInterval);
 		$('#uploadprogresswrapper .stop').fadeOut();
 		$('#uploadprogressbar').fadeOut(function() {
 			self.$uploadEl.trigger(new $.Event('resized'));
@@ -746,6 +802,28 @@ OC.Uploader.prototype = _.extend({
 	_showProgressBar: function() {
 		$('#uploadprogressbar').fadeIn();
 		this.$uploadEl.trigger(new $.Event('resized'));
+		if (this._progressBarInterval) {
+			window.clearInterval(this._progressBarInterval);
+		}
+		this._progressBarInterval = window.setInterval(_.bind(this._updateProgressBar, this), 1000);
+		this._lastProgress = 0;
+		this._lastProgressStalledSeconds = 0;
+	},
+	
+	_updateProgressBar: function() {
+		var progress = parseInt($('#uploadprogressbar').attr('data-loaded'), 10);
+		var total = parseInt($('#uploadprogressbar').attr('data-total'), 10);
+		if (progress !== this._lastProgress) {
+			this._lastProgress = progress;
+			this._lastProgressStalledSeconds = 0;
+		} else {
+			if (this._lastProgressStalledSeconds < 1) {
+				this._lastProgressStalledSeconds++;
+			} else if (progress >= total) {
+				// change message if we stalled at 100%
+				$('#uploadprogressbar .label .desktop').text(t('core', 'Processing files...'));
+			}
+		}
 	},
 
 	/**
@@ -976,6 +1054,7 @@ OC.Uploader.prototype = _.extend({
 						status = upload.getResponseStatus();
 					}
 					self.log('fail', e, upload);
+					self._hideProgressBar();
 
 					if (data.textStatus === 'abort') {
 						self.showUploadCancelMessage();
@@ -997,7 +1076,12 @@ OC.Uploader.prototype = _.extend({
 						self.cancelUploads();
 					} else {
 						// HTTP connection problem or other error
-						OC.Notification.show(data.errorThrown, {type: 'error'});
+						var message = '';
+						if (upload) {
+							var response = upload.getResponse();
+							message = response.message;
+						}
+						OC.Notification.show(message || data.errorThrown, {type: 'error'});
 					}
 
 					if (upload) {
@@ -1013,6 +1097,7 @@ OC.Uploader.prototype = _.extend({
 					var upload = self.getUpload(data);
 					var that = $(this);
 					self.log('done', e, upload);
+					upload.isDone = true;
 
 					var status = upload.getResponseStatus();
 					if (status < 200 || status >= 300) {
@@ -1094,6 +1179,8 @@ OC.Uploader.prototype = _.extend({
 					}
 					var smoothRemainingSeconds = (bufferTotal / bufferSize); //seconds
 					var h = moment.duration(smoothRemainingSeconds, "seconds").humanize();
+					$('#uploadprogressbar').attr('data-loaded', data.loaded);
+					$('#uploadprogressbar').attr('data-total', data.total);
 					$('#uploadprogressbar .label .mobile').text(h);
 					$('#uploadprogressbar .label .desktop').text(h);
 					$('#uploadprogressbar').attr('original-title',
@@ -1137,18 +1224,26 @@ OC.Uploader.prototype = _.extend({
 				fileupload.on('fileuploaddone', function(e, data) {
 					var upload = self.getUpload(data);
 					upload.done().then(function() {
-						self._hideProgressBar();
 						self.trigger('done', e, upload);
-					}).fail(function(status) {
+						// defer because sometimes the current upload is still in pending
+						// state but frees itself afterwards
+						_.defer(function() {
+							// don't hide if there are more files to process
+							if (!self.isProcessing()) {
+								self._hideProgressBar();
+							}
+						});
+					}).fail(function(status, response) {
+						var message = response.message;
 						self._hideProgressBar();
 						if (status === 507) {
 							// not enough space
-							OC.Notification.show(t('files', 'Not enough free space'), {type: 'error'});
+							OC.Notification.show(message || t('files', 'Not enough free space'), {type: 'error'});
 							self.cancelUploads();
 						} else if (status === 409) {
-							OC.Notification.show(t('files', 'Target folder does not exist any more'), {type: 'error'});
+							OC.Notification.show(message || t('files', 'Target folder does not exist any more'), {type: 'error'});
 						} else {
-							OC.Notification.show(t('files', 'Error when assembling chunks, status code {status}', {status: status}), {type: 'error'});
+							OC.Notification.show(message || t('files', 'Error when assembling chunks, status code {status}', {status: status}), {type: 'error'});
 						}
 						self.trigger('fail', e, data);
 					});

@@ -4,7 +4,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,9 +23,6 @@
 
 namespace OC\Files\Config;
 
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use OC\Files\Filesystem;
-use OCA\Files_Sharing\SharedMount;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\Config\ICachedMountInfo;
 use OCP\Files\Config\IUserMountCache;
@@ -203,7 +200,8 @@ class UserMountCache implements IUserMountCache {
 			$builder = $this->connection->getQueryBuilder();
 			$query = $builder->select('storage_id', 'root_id', 'user_id', 'mount_point')
 				->from('mounts')
-				->where($builder->expr()->eq('user_id', $builder->createPositionalParameter($user->getUID())));
+				->where($builder->expr()->eq('user_id', $builder->createPositionalParameter($user->getUID())))
+				->orderBy('storage_id');
 
 			$rows = $query->execute()->fetchAll();
 

@@ -5,7 +5,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,10 +25,13 @@
 namespace OCA\Files_Sharing\Tests\External;
 
 use OC\Files\Storage\StorageFactory;
-use OCA\FederatedFileSharing\DiscoveryManager;
 use OCA\Files_Sharing\External\Manager;
 use OCA\Files_Sharing\External\MountProvider;
 use OCA\Files_Sharing\Tests\TestCase;
+use OCP\Share\Events\AcceptShare;
+use OCP\Share\Events\DeclineShare;
+use OCP\Share\Events\ShareEvent;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Test\Traits\UserTrait;
 
 /**
@@ -48,7 +51,7 @@ class ManagerTest extends TestCase {
 	private $mountManager;
 
 	/** @var \PHPUnit_Framework_MockObject_MockObject */
-	private $httpHelper;
+	private $eventDispatcher;
 
 	private $uid;
 
@@ -65,19 +68,15 @@ class ManagerTest extends TestCase {
 		$this->createUser($this->uid);
 		$this->user = \OC::$server->getUserManager()->get($this->uid);
 		$this->mountManager = new \OC\Files\Mount\Manager();
-		$this->httpHelper = $httpHelper = $this->getMockBuilder('\OC\HTTPHelper')->disableOriginalConstructor()->getMock();
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
-		/** @var \OC\HTTPHelper $httpHelper */
+		$this->eventDispatcher = $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+
+		/** @var EventDispatcherInterface $eventDispatcher */
 		$this->manager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			$this->mountManager,
 			new StorageFactory(),
-			$httpHelper,
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			$eventDispatcher,
 			$this->uid
 		);
 		$this->mountProvider = new MountProvider(\OC::$server->getDatabaseConnection(), function() {
@@ -109,7 +108,7 @@ class ManagerTest extends TestCase {
 		$shareData3['token'] = 'token3';
 
 		// Add a share for "user"
-		$this->assertSame(null, call_user_func_array([$this->manager, 'addShare'], $shareData1));
+		$this->assertNull(call_user_func_array([$this->manager, 'addShare'], $shareData1));
 		$openShares = $this->manager->getOpenShares();
 		$this->assertCount(1, $openShares);
 		$this->assertExternalShareEntry($shareData1, $openShares[0], 1, '{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
@@ -119,7 +118,7 @@ class ManagerTest extends TestCase {
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
 
 		// Add a second share for "user" with the same name
-		$this->assertSame(null, call_user_func_array([$this->manager, 'addShare'], $shareData2));
+		$this->assertNull(call_user_func_array([$this->manager, 'addShare'], $shareData2));
 		$openShares = $this->manager->getOpenShares();
 		$this->assertCount(2, $openShares);
 		$this->assertExternalShareEntry($shareData1, $openShares[0], 1, '{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
@@ -131,9 +130,11 @@ class ManagerTest extends TestCase {
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}-1');
 
-		$this->httpHelper->expects($this->at(0))
-			->method('post')
-			->with($this->stringStartsWith('http://localhost/ocs/v1.php/cloud/shares/' . $openShares[0]['remote_id']), $this->anything());
+		$this->eventDispatcher->expects($this->at(0))
+			->method('dispatch')
+			->with(AcceptShare::class, $this->callback(function($event) use ($openShares) {
+				return $this->verifyShareEvent($event, $openShares[0], AcceptShare::class); }
+				));
 
 		// Accept the first share
 		$this->manager->acceptShare($openShares[0]['id']);
@@ -154,7 +155,7 @@ class ManagerTest extends TestCase {
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}-1');
 
 		// Add another share for "user" with the same name
-		$this->assertSame(null, call_user_func_array([$this->manager, 'addShare'], $shareData3));
+		$this->assertNull(call_user_func_array([$this->manager, 'addShare'], $shareData3));
 		$openShares = $this->manager->getOpenShares();
 		$this->assertCount(2, $openShares);
 		$this->assertExternalShareEntry($shareData2, $openShares[0], 2, '{{TemporaryMountPointName#' . $shareData2['name'] . '}}-1');
@@ -166,9 +167,11 @@ class ManagerTest extends TestCase {
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}-1');
 
-		$this->httpHelper->expects($this->at(0))
-			->method('post')
-			->with($this->stringStartsWith('http://localhost/ocs/v1.php/cloud/shares/' . $openShares[1]['remote_id'] . '/decline'), $this->anything());
+		$this->eventDispatcher->expects($this->at(0))
+			->method('dispatch')
+			->with(DeclineShare::class, $this->callback(function($event) use ($openShares) {
+				return $this->verifyShareEvent($event, $openShares[1], DeclineShare::class); }
+			));
 
 		// Decline the third share
 		$this->manager->declineShare($openShares[1]['id']);
@@ -193,12 +196,16 @@ class ManagerTest extends TestCase {
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}-1');
 
-		$this->httpHelper->expects($this->at(0))
-			->method('post')
-			->with($this->stringStartsWith('http://localhost/ocs/v1.php/cloud/shares/' . $openShares[0]['remote_id'] . '/decline'), $this->anything());
-		$this->httpHelper->expects($this->at(1))
-			->method('post')
-			->with($this->stringStartsWith('http://localhost/ocs/v1.php/cloud/shares/' . $acceptedShares[0]['remote_id'] . '/decline'), $this->anything());
+		$this->eventDispatcher->expects($this->at(0))
+			->method('dispatch')
+			->with(DeclineShare::class, $this->callback(function($event) use ($openShares) {
+				return $this->verifyShareEvent($event, $openShares[0], DeclineShare::class); }
+			));
+		$this->eventDispatcher->expects($this->at(1))
+			->method('dispatch')
+			->with(DeclineShare::class, $this->callback(function($event) use ($acceptedShares) {
+				return $this->verifyShareEvent($event, $acceptedShares[0], DeclineShare::class); }
+			));
 
 		$this->manager->removeUserShares($this->uid);
 		$this->assertEmpty(self::invokePrivate($this->manager, 'getShares', [null]), 'Asserting all shares for the user have been deleted');
@@ -208,6 +215,14 @@ class ManagerTest extends TestCase {
 		$this->assertNotMount($shareData1['name']);
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
 		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}-1');
+	}
+
+	/**
+	 * Verify that a share event matches a given share
+	 *
+	 */
+	protected function verifyShareEvent(ShareEvent $event, $share, $expectedClass) {
+		return $share['remote_id'] == $event->getRemoteId() && get_class($event) === $expectedClass;
 	}
 
 	/**
@@ -249,5 +264,84 @@ class ManagerTest extends TestCase {
 
 	private function getFullPath($path) {
 		return '/' . $this->uid . '/files' . $path;
+	}
+
+	public function testRemoveShare() {
+		/*$shareData1 = [
+			'remote' => 'http://localhost',
+			'token' => 'token1',
+			'password' => '',
+			'name' => '/SharedFolder',
+			'owner' => 'foobar',
+			'accepted' => false,
+			'user' => $this->uid,
+		];
+		$shareData2 = $shareData1;
+		$shareData2['token'] = 'token2';
+		$shareData3 = $shareData1;
+		$shareData3['token'] = 'token3';
+
+		// Add a share for "user"
+		$this->assertNull(call_user_func_array([$this->manager, 'addShare'], $shareData1));
+		$openShares = $this->manager->getOpenShares();
+		$this->assertCount(1, $openShares);
+		$this->assertExternalShareEntry($shareData1, $openShares[0], 1, '{{TemporaryMountPointName#' . $shareData1['name'] . '}}');
+
+		$this->setupMounts();
+		$this->assertNotMount('SharedFolder');
+		$this->assertNotMount('{{TemporaryMountPointName#' . $shareData1['name'] . '}}');*/
+
+
+		$this->mountManager = $this->createMock(\OC\Files\Mount\Manager::class);
+		$idbConnection = $this->createMock(\OCP\IDBConnection::class);
+		$prepare = $this->createMock(\Doctrine\DBAL\Driver\Statement::class);
+		$prepare->method('execute')
+			->willReturn(true);
+		$idbConnection->method('prepare')
+			->willReturn($prepare);
+		$storageFactory = $this->createMock(\OCP\Files\Storage\IStorageFactory::class);
+		$this->manager = new Manager(
+			$idbConnection,
+			$this->mountManager,
+			$storageFactory,
+			\OC::$server->getNotificationManager(),
+			\OC::$server->getEventDispatcher(),
+			$this->uid
+		);
+
+		$mountpointobj = $this->createMock(\OC\Files\Mount\MountPoint::class);
+		$this->mountManager->method('find')
+			->willReturn($mountpointobj);
+		$storage = $this->createMock(\OC\Files\Storage\Storage::class);
+		$fileCache = $this->createMock(\OC\Files\Cache\Cache::class);
+		$storage->method('getCache')
+			->willReturn($fileCache);
+		$mountpointobj->method('getStorage')
+			->willReturn($storage);
+
+		$iqueryBuilder = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+		$iqueryBuilder->method('select')
+			->willReturn($iqueryBuilder);
+		$iqueryBuilder->method('from')
+			->willReturn($iqueryBuilder);
+		$iqueryBuilder->method('where')
+			->willReturn($iqueryBuilder);
+		$iqueryBuilder->method('delete')
+			->willReturn($iqueryBuilder);
+		$expressionBuilder = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
+		$iqueryBuilder->method('expr')
+			->willReturn($expressionBuilder);
+		$idbConnection->method('getQueryBuilder')
+			->willReturn($iqueryBuilder);
+
+		$called = array();
+		\OC::$server->getEventDispatcher()->addListener('\OCA\Files_Sharing::unshareEvent', function($event) use (&$called) {
+			$called[] = '\OCA\Files_Sharing::unshareEvent';
+			array_push($called, $event);
+		});
+
+		$this->manager->removeShare('/SharedFolder');
+		$this->assertSame('\OCA\Files_Sharing::unshareEvent', $called[0]);
+		$this->assertArrayHasKey('user', $called[1]);
 	}
 }

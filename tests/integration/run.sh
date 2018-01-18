@@ -73,14 +73,21 @@ export TEST_SERVER_URL="http://localhost:$PORT/ocs/"
 export TEST_SERVER_FED_URL="http://localhost:$PORT_FED/ocs/"
 
 #Set up personalized skeleton
-PREVIOUS_SKELETON_DIR=$($OCC config:system:get skeletondirectory)
+PREVIOUS_SKELETON_DIR=$($OCC --no-warnings config:system:get skeletondirectory)
 $OCC config:system:set skeletondirectory --value="$(pwd)/skeleton"
 
 #Enable external storage app
 $OCC config:app:set core enable_external_storage --value=yes
 $OCC config:system:set files_external_allow_create_new_local --value=true
 
-$OCC app:enable testing
+PREVIOUS_TESTING_APP_STATUS=$($OCC --no-warnings app:list "^testing$")
+if [[ "$PREVIOUS_TESTING_APP_STATUS" =~ ^Disabled: ]]
+then
+	$OCC app:enable testing
+	TESTING_ENABLED_BY_SCRIPT=true;
+else
+	TESTING_ENABLED_BY_SCRIPT=false;
+fi
 
 mkdir -p work/local_storage || { echo "Unable to create work folder" >&2; exit 1; }
 OUTPUT_CREATE_STORAGE=`$OCC files_external:create local_storage local null::null -c datadir=$SCRIPT_PATH/work/local_storage` 
@@ -106,9 +113,11 @@ elif test "$OC_TEST_ENCRYPTION_USER_KEYS_ENABLED" = "1"; then
 fi
 
 if test "$BEHAT_FILTER_TAGS"; then
-	BEHAT_FILTER_TAGS="$BEHAT_FILTER_TAGS&&~@skip"
+    if [[ $BEHAT_FILTER_TAGS != *@skip* ]]; then
+    	BEHAT_FILTER_TAGS="$BEHAT_FILTER_TAGS&&~@skip"
+   	fi
 else
-	BEHAT_FILTER_TAGS="~@skip"
+	BEHAT_FILTER_TAGS="~@skip&&~@masterkey_encryption"
 fi
 
 if test "$BEHAT_FILTER_TAGS"; then
@@ -132,7 +141,10 @@ $OCC files_external:delete -y $ID_STORAGE
 #Disable external storage app
 $OCC config:app:set core enable_external_storage --value=no
 
-$OCC app:disable testing
+# Put back state of the testing app
+if test "$TESTING_ENABLED_BY_SCRIPT" = true; then
+	$OCC app:disable testing
+fi
 
 # Put back personalized skeleton
 if test "A$PREVIOUS_SKELETON_DIR" = "A"; then
@@ -167,4 +179,3 @@ fi
 
 echo "runsh: Exit code: $RESULT"
 exit $RESULT
-

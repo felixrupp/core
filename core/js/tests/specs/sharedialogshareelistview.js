@@ -2,7 +2,7 @@
  * ownCloud
  *
  * @author Tom Needham
- * @copyright 2015 Tom Needham <tom@owncloud.com>
+ * @copyright Copyright (c) 2015 Tom Needham <tom@owncloud.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -92,6 +92,41 @@ describe('OC.Share.ShareDialogShareeListView', function () {
 		updateShareStub.restore();
 	});
 
+	describe('rendering', function() {
+		it('Renders shares', function() {
+			shareModel.set('shares', [{
+					id: 100,
+					item_source: 123,
+					permissions: 1,
+					share_type: OC.Share.SHARE_TYPE_USER,
+					share_with: 'user1',
+					share_with_displayname: 'User One',
+					share_with_additional_info: 'user1@example.com'
+				}, {
+					id: 101,
+					item_source: 123,
+					permissions: 1,
+					share_type: OC.Share.SHARE_TYPE_GROUP,
+					share_with: 'group1',
+					share_with_displayname: 'Group One'
+				}]
+			);
+			listView.render();
+
+			expect(listView.$('li').length).toEqual(2);
+
+			var $li = listView.$('li').eq(0);
+			expect($li.attr('data-share-id')).toEqual('100');
+			expect($li.find('.username').text()).toEqual('User One');
+			expect($li.find('.user-additional-info').text()).toEqual('(user1@example.com)');
+
+			$li = listView.$('li').eq(1);
+			expect($li.attr('data-share-id')).toEqual('101');
+			expect($li.find('.username').text()).toEqual('Group One (group)');
+			expect($li.find('.user-additional-info').length).toEqual(0);
+		});
+	});
+
 	describe('Manages checkbox events correctly', function () {
 		it('Checks cruds boxes when edit box checked', function () {
 			shareModel.set('shares', [{
@@ -137,7 +172,8 @@ describe('OC.Share.ShareDialogShareeListView', function () {
 			expect(listView.$el.find('li.cruds').hasClass('hidden')).toEqual(false);
 		});
 
-		it('sends notification to user when checkbox clicked', function () {
+		it('sends notification to user when button clicked', function () {
+			var notifStub = sinon.stub(OC.Notification, 'show');
 			shareModel.set('shares', [{
 				id: 100,
 				item_source: 123,
@@ -147,10 +183,46 @@ describe('OC.Share.ShareDialogShareeListView', function () {
 				share_with_displayname: 'User One'
 			}]);
 			listView.render();
-			var notificationStub = sinon.stub(listView.model, 'sendNotificationForShare');
+			var deferred = new $.Deferred();
+			var notificationStub = sinon.stub(listView.model, 'sendNotificationForShare').returns(deferred.promise());
+			listView.$el.find("input[name='mailNotification']").click();
+			// spinner appears
+			expect(listView.$el.find('.mailNotificationSpinner').hasClass('hidden')).toEqual(false);
+			expect(notificationStub.called).toEqual(true);
+			notificationStub.restore();
+
+			deferred.resolve({status: 'success'});
+			expect(notifStub.calledOnce).toEqual(true);
+			notifStub.restore();
+
+			// button is removed
+			expect(listView.$el.find("input[name='mailNotification']").length).toEqual(0);
+
+		});
+		it('displays error if email notification not sent', function () {
+			var notifStub = sinon.stub(OC.dialogs, 'alert');
+			shareModel.set('shares', [{
+				id: 100,
+				item_source: 123,
+				permissions: 1,
+				share_type: OC.Share.SHARE_TYPE_USER,
+				share_with: 'user1',
+				share_with_displayname: 'User One'
+			}]);
+			listView.render();
+			var deferred = new $.Deferred();
+			var notificationStub = sinon.stub(listView.model, 'sendNotificationForShare').returns(deferred.promise());
 			listView.$el.find("input[name='mailNotification']").click();
 			expect(notificationStub.called).toEqual(true);
 			notificationStub.restore();
+
+			deferred.resolve({status: 'error', data: {message: 'message'}});
+			expect(notifStub.calledOnce).toEqual(true);
+			notifStub.restore();
+
+			// button is still there
+			expect(listView.$el.find("input[name='mailNotification']").length).toEqual(1);
+			expect(listView.$el.find("input[name='mailNotification']").hasClass('hidden')).toEqual(false);
 		});
 
 	});

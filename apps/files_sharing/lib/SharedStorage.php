@@ -13,7 +13,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,15 +32,15 @@
 
 namespace OCA\Files_Sharing;
 
-use OC\Files\Filesystem;
 use OC\Files\Cache\FailedCache;
+use OC\Files\Filesystem;
+use OC\Files\Storage\FailedStorage;
+use OC\User\NoUserException;
 use OCP\Constants;
 use OCP\Files\Cache\ICacheEntry;
+use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
 use OCP\Lock\ILockingProvider;
-use OC\Files\Storage\FailedStorage;
-use OCP\Files\NotFoundException;
-use OC\User\NoUserException;
 
 /**
  * Convert target path to source path and pass the function call to the correct storage provider

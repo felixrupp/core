@@ -9,7 +9,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -134,7 +134,7 @@ class OC_DB {
 		}
 		self::raiseExceptionOnError($stmt, 'Could not prepare statement');
 		if ($stmt instanceof OC_DB_StatementWrapper) {
-			$result = $stmt->execute($parameters);
+			$result = $stmt->execute($parameters === null ? [] : $parameters);
 			self::raiseExceptionOnError($result, 'Could not execute statement');
 		} else {
 			if (is_object($stmt)) {

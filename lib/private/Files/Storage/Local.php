@@ -17,7 +17,7 @@
  * @author Tigran Mkrtchyan <tigran.mkrtchyan@desy.de>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -41,7 +41,7 @@ use OCP\Files\ForbiddenException;
 /**
  * for local filestore, we only have to map the paths
  */
-class Local extends \OC\Files\Storage\Common {
+class Local extends Common {
 	protected $datadir;
 
 	protected $dataDirLength;
@@ -180,7 +180,12 @@ class Local extends \OC\Files\Storage\Common {
 			return false;
 		}
 		if (PHP_INT_SIZE === 4) {
-			return (int) exec ('stat -c %Y '. escapeshellarg ($fullPath));
+			if (\OC_Util::runningOn('linux')) {
+				return (int) exec ('stat -c %Y '. escapeshellarg ($fullPath));
+			} else if (\OC_Util::runningOn('bsd') || \OC_Util::runningOn('mac')) {
+				return (int) exec ('stat -f %m '. escapeshellarg ($fullPath));
+			}
+			return false;
 		}
 		return filemtime($fullPath);
 	}
@@ -367,6 +372,12 @@ class Local extends \OC\Files\Storage\Common {
 		if ($realPath) {
 			$realPath = $realPath . '/';
 		}
+
+		// Is broken symlink?
+		if (is_link($fullPath) && !file_exists($fullPath)) {
+			throw new ForbiddenException("$fullPath is a broken/dead symlink", false);
+		}
+
 		if (substr($realPath, 0, $this->dataDirLength) === $this->realDataDir) {
 			return $fullPath;
 		} else {
@@ -407,7 +418,7 @@ class Local extends \OC\Files\Storage\Common {
 	 * @param string $targetInternalPath
 	 * @return bool
 	 */
-	public function copyFromStorage(\OCP\Files\Storage $sourceStorage, $sourceInternalPath, $targetInternalPath) {
+	public function copyFromStorage(\OCP\Files\Storage $sourceStorage, $sourceInternalPath, $targetInternalPath, $preserveMtime = false) {
 		if ($sourceStorage->instanceOfStorage('\OC\Files\Storage\Local')) {
 			/**
 			 * @var \OC\Files\Storage\Local $sourceStorage
@@ -415,7 +426,7 @@ class Local extends \OC\Files\Storage\Common {
 			$rootStorage = new Local(['datadir' => '/']);
 			return $rootStorage->copy($sourceStorage->getSourcePath($sourceInternalPath), $this->getSourcePath($targetInternalPath));
 		} else {
-			return parent::copyFromStorage($sourceStorage, $sourceInternalPath, $targetInternalPath);
+			return parent::copyFromStorage($sourceStorage, $sourceInternalPath, $targetInternalPath, $preserveMtime);
 		}
 	}
 

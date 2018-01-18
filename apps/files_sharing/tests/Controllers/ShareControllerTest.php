@@ -10,7 +10,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Cloutier <vincent1cloutier@gmail.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,14 +32,14 @@ namespace OCA\Files_Sharing\Tests\Controllers;
 use OC\Files\Filesystem;
 use OCA\FederatedFileSharing\FederatedShareProvider;
 use OCA\Files_Sharing\Controllers\ShareController;
-use OCP\Share\Exceptions\ShareNotFound;
 use OCP\AppFramework\Http\NotFoundResponse;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\ISession;
+use OCP\IURLGenerator;
 use OCP\IUserManager;
 use OCP\Security\ISecureRandom;
-use OCP\IURLGenerator;
+use OCP\Share\Exceptions\ShareNotFound;
 
 /**
  * @group DB
@@ -362,7 +362,6 @@ class ShareControllerTest extends \Test\TestCase {
 			'mimetype' => 'text/plain',
 			'dirToken' => 'token',
 			'sharingToken' => 'token',
-			'server2serversharing' => true,
 			'protected' => 'true',
 			'dir' => '',
 			'downloadURL' => null,

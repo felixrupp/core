@@ -2,7 +2,7 @@
 /**
  * @author Thomas Citharel <tcit@tcit.fr>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,8 +22,9 @@ namespace OCA\DAV\Tests\unit\CalDAV\Publishing;
 
 use OCA\DAV\CalDAV\Publishing\Xml\Publisher;
 use Sabre\Xml\Writer;
+use PHPUnit\Framework\TestCase;
 
-class PublisherTest extends \PHPUnit_Framework_TestCase {
+class PublisherTest extends TestCase {
 
 	const NS_CALENDARSERVER = 'http://calendarserver.org/ns/';
 

@@ -13,7 +13,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tobias Kaminsky <tobias@kaminsky.me>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -1334,8 +1334,9 @@ class Preview {
 	 */
 	public static function post_delete($args, $prefix = '') {
 		$path = Files\Filesystem::normalizePath($args['path']);
+		$user = isset($args['user']) ? $args['user'] : \OC_User::getUser();
 
-		$preview = new Preview(\OC_User::getUser(), $prefix, $path);
+		$preview = new Preview($user, $prefix, $path);
 		$preview->deleteAllPreviews();
 	}
 

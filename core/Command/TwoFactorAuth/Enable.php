@@ -2,7 +2,7 @@
 /**
  * @author Christoph Wurst <christoph@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -46,7 +46,7 @@ class Enable extends Base {
 		parent::configure();
 
 		$this->setName('twofactorauth:enable');
-		$this->setDescription('Enable two-factor authentication for a user');
+		$this->setDescription('Enable two-factor authentication for a user.');
 		$this->addArgument('uid', InputArgument::REQUIRED);
 	}
 

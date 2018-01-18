@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author v1r0x <vinzenz.rosenkranz@gmail.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@
 
 namespace OCP\AppFramework\Http;
 
-use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http;
 
 

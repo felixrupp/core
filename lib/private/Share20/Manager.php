@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -421,7 +421,7 @@ class Manager implements IManager {
 		}
 
 		// Verify if the user can share with this group
-		if ($this->shareWithGroupMembersOnly()) {
+		if ($this->shareWithMembershipGroupOnly()) {
 			$sharedBy = $this->userManager->get($share->getSharedBy());
 			$sharedWith = $this->groupManager->get($share->getSharedWith());
 			if (is_null($sharedWith) || !$sharedWith->inGroup($sharedBy)) {
@@ -644,6 +644,7 @@ class Manager implements IManager {
 			'shareWith' => $share->getSharedWith(),
 			'itemTarget' => $share->getTarget(),
 			'fileTarget' => $share->getTarget(),
+			'passwordEnabled' => (!is_null($share->getPassword()) and ($share->getPassword() !== '')),
 		];
 
 		\OC_Hook::emit('OCP\Share', 'post_shared', $postHookData);
@@ -706,9 +707,10 @@ class Manager implements IManager {
 				}
 			}
 
+			//Verify the expiration date
+			$this->validateExpirationDate($share);
+
 			if ($share->getExpirationDate() != $originalShare->getExpirationDate()) {
-				//Verify the expiration date
-				$this->validateExpirationDate($share);
 				$expirationDateUpdated = true;
 			}
 		}
@@ -1300,6 +1302,14 @@ class Manager implements IManager {
 	 */
 	public function shareWithGroupMembersOnly() {
 		return $this->config->getAppValue('core', 'shareapi_only_share_with_group_members', 'no') === 'yes';
+	}
+
+	/**
+	 * check if user can only share with groups he's member of
+	 * @return bool
+	 */
+	public function shareWithMembershipGroupOnly() {
+		return $this->config->getAppValue('core', 'shareapi_only_share_with_membership_groups', 'no') === 'yes';
 	}
 
 	/**

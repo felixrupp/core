@@ -14,7 +14,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -420,7 +420,7 @@ class Request implements \ArrayAccess, \Countable, IRequest {
 		// 'application/json' must be decoded manually.
 		if (strpos($this->getHeader('Content-Type'), 'application/json') !== false) {
 			$params = json_decode(file_get_contents($this->inputStream), true);
-			if(count($params) > 0) {
+			if(is_array($params) && count($params) > 0) {
 				$this->items['params'] = $params;
 				if($this->method === 'POST') {
 					$this->items['post'] = $params;

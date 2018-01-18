@@ -2,7 +2,7 @@
 /**
  * @author Phil Davis <phil@jankaritech.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -44,11 +44,11 @@ class ListGroups extends Base {
 
 		$this
 			->setName('group:list')
-			->setDescription('list groups')
+			->setDescription('List groups.')
 			->addArgument(
 				'search-pattern',
 				InputArgument::OPTIONAL,
-				'Restrict the list to groups whose name contains the string'
+				'Restrict the list to groups whose name contains the string.'
 			)
 		;
 	}

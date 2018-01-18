@@ -6,7 +6,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,7 +32,6 @@ use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\GenericEvent;
 
@@ -62,12 +61,12 @@ class Repair extends Command {
 	protected function configure() {
 		$this
 			->setName('maintenance:repair')
-			->setDescription('repair this installation')
+			->setDescription('Repair the installation.')
 			->addOption(
 				'include-expensive',
 				null,
 				InputOption::VALUE_NONE,
-				'Use this option when you want to include resource and load expensive tasks');
+				'Use this option when you want to include resource and load expensive tasks.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output) {

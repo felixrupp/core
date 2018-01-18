@@ -4,7 +4,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,7 +24,6 @@
 namespace OCA\Files_Sharing\API;
 
 use OC\Files\Filesystem;
-use OCA\FederatedFileSharing\DiscoveryManager;
 use OCA\Files_Sharing\External\Manager;
 use Symfony\Component\EventDispatcher\GenericEvent;
 
@@ -37,17 +36,12 @@ class Remote {
 	 * @return \OC_OCS_Result
 	 */
 	public static function getOpenShares($params) {
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
 		$externalManager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			\OC_User::getUser()
 		);
 
@@ -61,17 +55,12 @@ class Remote {
 	 * @return \OC_OCS_Result
 	 */
 	public static function acceptShare($params) {
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
 		$externalManager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			\OC_User::getUser()
 		);
 
@@ -103,17 +92,12 @@ class Remote {
 	 * @return \OC_OCS_Result
 	 */
 	public static function declineShare($params) {
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
 		$externalManager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			\OC_User::getUser()
 		);
 
@@ -162,17 +146,12 @@ class Remote {
 	 * @return \OC_OCS_Result
 	 */
 	public static function getShares($params) {
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
 		$externalManager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			\OC_User::getUser()
 		);
 
@@ -190,17 +169,12 @@ class Remote {
 	 * @return \OC_OCS_Result
 	 */
 	public static function getShare($params) {
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
 		$externalManager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			\OC_User::getUser()
 		);
 
@@ -221,17 +195,12 @@ class Remote {
 	 * @return \OC_OCS_Result
 	 */
 	public static function unshare($params) {
-		$discoveryManager = new DiscoveryManager(
-			\OC::$server->getMemCacheFactory(),
-			\OC::$server->getHTTPClientService()
-		);
 		$externalManager = new Manager(
 			\OC::$server->getDatabaseConnection(),
 			Filesystem::getMountManager(),
 			Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			\OC_User::getUser()
 		);
 

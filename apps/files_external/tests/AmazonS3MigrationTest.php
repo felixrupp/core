@@ -6,7 +6,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -85,8 +85,8 @@ class AmazonS3MigrationTest extends \Test\TestCase {
 		}
 		$storages = $this->getStorages();
 
-		$this->assertTrue(isset($storages[$this->newId]));
-		$this->assertFalse(isset($storages[$this->oldId]));
+		$this->assertArrayHasKey($this->newId, $storages);
+		$this->assertArrayNotHasKey($this->oldId, $storages);
 		$this->assertSame((int)$oldCache->getNumericStorageId(), (int)$storages[$this->newId]);
 
 		list($storageId, $path) = \OC\Files\Cache\Cache::getById($fileId);
@@ -111,8 +111,8 @@ class AmazonS3MigrationTest extends \Test\TestCase {
 		}
 		$storages = $this->getStorages();
 
-		$this->assertTrue(isset($storages[$this->newId]));
-		$this->assertFalse(isset($storages[$this->oldId]));
+		$this->assertArrayHasKey($this->newId, $storages);
+		$this->assertArrayNotHasKey($this->oldId, $storages);
 
 		$this->assertNull(\OC\Files\Cache\Cache::getById($fileId), 'old filecache has not been cleared');
 	}

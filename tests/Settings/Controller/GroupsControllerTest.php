@@ -1,7 +1,7 @@
 <?php
 /**
  * @author Lukas Reschke
- * @copyright 2014 Lukas Reschke lukas@owncloud.com
+ * @copyright Copyright (c) 2014 Lukas Reschke lukas@owncloud.com
  *
  * This file is licensed under the Affero General Public License version 3 or
  * later.
@@ -10,9 +10,8 @@
 
 namespace Tests\Settings\Controller;
 
-use OC\Group\Group;
 use OC\Group\MetaData;
-use \OC\Settings\Application;
+use OC\Settings\Application;
 use OC\Settings\Controller\GroupsController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -31,20 +30,28 @@ class GroupsControllerTest extends \Test\TestCase {
 	protected function setUp() {
 		$app = new Application();
 		$this->container = $app->getContainer();
+
 		$this->container['AppName'] = 'settings';
+
 		$this->container['GroupManager'] = $this->getMockBuilder('\OCP\IGroupManager')
 			->disableOriginalConstructor()->getMock();
+		$this->container['GroupManager']
+			->expects($this->any())
+			->method('isAdmin')
+			->will($this->returnValue(true));
+
 		$this->container['UserSession'] = $this->getMockBuilder('\OC\User\Session')
 			->disableOriginalConstructor()->getMock();
+
 		$this->container['L10N'] = $this->getMockBuilder('\OCP\IL10N')
 			->disableOriginalConstructor()->getMock();
-		$this->container['IsAdmin'] = true;
 		$this->container['L10N']
 			->expects($this->any())
 					->method('t')
 					->will($this->returnCallback(function($text, $parameters = []) {
 							return vsprintf($text, $parameters);
 					}));
+
 		$this->groupsController = $this->container['GroupsController'];
 
 	}
@@ -96,11 +103,10 @@ class GroupsControllerTest extends \Test\TestCase {
 		$user = $this->getMockBuilder('\OC\User\User')
 			->disableOriginalConstructor()->getMock();
 		$this->container['UserSession']
-			->expects($this->once())
+			->expects($this->any())
 			->method('getUser')
 			->will($this->returnValue($user));
-		$user
-			->expects($this->once())
+		$user->expects($this->any())
 			->method('getUID')
 			->will($this->returnValue('MyAdminUser'));
 		$this->container['GroupManager']
@@ -189,11 +195,11 @@ class GroupsControllerTest extends \Test\TestCase {
 		$user = $this->getMockBuilder('\OC\User\User')
 			->disableOriginalConstructor()->getMock();
 		$this->container['UserSession']
-			->expects($this->once())
+			->expects($this->any())
 			->method('getUser')
 			->will($this->returnValue($user));
 		$user
-			->expects($this->once())
+			->expects($this->any())
 			->method('getUID')
 			->will($this->returnValue('MyAdminUser'));
 		$this->container['GroupManager']
@@ -297,13 +303,26 @@ class GroupsControllerTest extends \Test\TestCase {
 		$this->assertEquals($expectedResponse, $response);
 	}
 
-	public function testDestroySuccessful() {
+	public function destroyData() {
+		return [
+			['ExistingGroup'],
+			['a/b'],
+			['a*2&&bc//f!!'],
+			['!c@\\$%^&*()|2']
+		];
+	}
+
+	/**
+	 * Test destroy works with special characters also
+	 * @dataProvider destroyData
+	 */
+	public function testDestroySuccessful($groupName) {
 		$group = $this->getMockBuilder('\OC\Group\Group')
 			->disableOriginalConstructor()->getMock();
 		$this->container['GroupManager']
 			->expects($this->once())
 			->method('get')
-			->with('ExistingGroup')
+			->with($groupName)
 			->will($this->returnValue($group));
 		$group
 			->expects($this->once())
@@ -313,11 +332,11 @@ class GroupsControllerTest extends \Test\TestCase {
 		$expectedResponse = new DataResponse(
 			[
 				'status' => 'success',
-				'data' => ['groupname' => 'ExistingGroup']
+				'data' => ['groupname' => $groupName]
 			],
 			Http::STATUS_NO_CONTENT
 		);
-		$response = $this->groupsController->destroy('ExistingGroup');
+		$response = $this->groupsController->destroy($groupName);
 		$this->assertEquals($expectedResponse, $response);
 	}
 

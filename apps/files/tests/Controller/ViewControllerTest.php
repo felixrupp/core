@@ -6,7 +6,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -27,19 +27,19 @@ namespace OCA\Files\Tests\Controller;
 
 use OC\L10N\L10NString;
 use OCA\Files\Controller\ViewController;
+use OCP\App\IAppManager;
 use OCP\AppFramework\Http;
-use OCP\IUser;
-use OCP\Template;
-use Test\TestCase;
+use OCP\AppFramework\Http\RedirectResponse;
+use OCP\Files\Folder;
+use OCP\IConfig;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
-use OCP\AppFramework\Http\RedirectResponse;
-use OCP\IL10N;
-use OCP\IConfig;
+use OCP\IUser;
 use OCP\IUserSession;
+use OCP\Template;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use OCP\Files\Folder;
-use OCP\App\IAppManager;
+use Test\TestCase;
 
 /**
  * Class ViewControllerTest
@@ -87,21 +87,21 @@ class ViewControllerTest extends TestCase {
 		$this->rootFolder = $this->createMock('\OCP\Files\Folder');
 		$this->viewController = $this->getMockBuilder('\OCA\Files\Controller\ViewController')
 			->setConstructorArgs([
-			'files',
-			$this->request,
-			$this->urlGenerator,
-			$this->l10n,
-			$this->config,
-			$this->eventDispatcher,
-			$this->userSession,
-			$this->appManager,
-			$this->rootFolder
-		])
-		->setMethods([
-			'getStorageInfo',
-			'renderScript'
-		])
-		->getMock();
+				'files',
+				$this->request,
+				$this->urlGenerator,
+				$this->l10n,
+				$this->config,
+				$this->eventDispatcher,
+				$this->userSession,
+				$this->appManager,
+				$this->rootFolder
+			])
+			->setMethods([
+				'getStorageInfo',
+				'renderScript'
+			])
+			->getMock();
 	}
 
 	public function testIndexWithIE8RedirectAndDirDefined() {
@@ -179,6 +179,13 @@ class ViewControllerTest extends TestCase {
 			->method('getAppValue')
 			->will($this->returnArgument(2));
 
+		$this->urlGenerator->method('linkTo')
+			->with('', 'remote.php')
+			->willReturn('/owncloud/remote.php');
+		$this->urlGenerator->method('getAbsoluteUrl')
+			->with('/owncloud/remote.php/dav/files/' . $this->user->getUID() . '/')
+			->willReturn('http://example.org/owncloud/remote.php/dav/files/' . $this->user->getUID() . '/');
+
 		$nav = new Template('files', 'appnavigation');
 		$nav->assign('navigationItems', [
 			[
@@ -200,7 +207,7 @@ class ViewControllerTest extends TestCase {
 				'icon' => '',
 			],
 			[
-			'id' => 'sharingin',
+				'id' => 'sharingin',
 				'appname' => 'files_sharing',
 				'script' => 'list.php',
 				'order' => 10,
@@ -209,7 +216,7 @@ class ViewControllerTest extends TestCase {
 				'icon' => '',
 			],
 			[
-			'id' => 'sharingout',
+				'id' => 'sharingout',
 				'appname' => 'files_sharing',
 				'script' => 'list.php',
 				'order' => 15,
@@ -245,6 +252,7 @@ class ViewControllerTest extends TestCase {
 				'icon' => '',
 			],
 		]);
+		$nav->assign('webdavUrl', 'http://example.org/owncloud/remote.php/dav/files/' . $this->user->getUID() . '/');
 
 		$expected = new Http\TemplateResponse(
 			'files',

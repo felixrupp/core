@@ -65,6 +65,11 @@
 		<label for="onlyShareWithGroupMembers"><?php p($l->t('Restrict users to only share with users in their groups'));?></label><br/>
 	</p>
 	<p class="<?php if ($_['shareAPIEnabled'] === 'no') p('hidden');?>">
+		<input type="checkbox" name="shareapi_only_share_with_membership_groups" id="onlyShareWithMembershipGroups" class="checkbox"
+			   value="1" <?php if ($_['onlyShareWithMembershipGroups']) print_unescaped('checked="checked"'); ?> />
+		<label for="onlyShareWithMembershipGroups"><?php p($l->t('Restrict users to only share with groups they are member of'));?></label><br/>
+	</p>
+	<p class="<?php if ($_['shareAPIEnabled'] === 'no') p('hidden');?>">
 		<input type="checkbox" name="shareapi_allow_mail_notification" id="allowMailNotification" class="checkbox"
 			   value="1" <?php if ($_['allowMailNotification'] === 'yes') print_unescaped('checked="checked"'); ?> />
 		<label for="allowMailNotification"><?php p($l->t('Allow users to send mail notification for shared files to other users'));?></label><br/>
@@ -75,7 +80,7 @@
 		<label for="shareapiExcludeGroups"><?php p($l->t('Exclude groups from sharing'));?></label><br/>
 	</p>
 	<p id="selectExcludedGroups" class="indent <?php if (!$_['shareExcludeGroups'] || $_['shareAPIEnabled'] === 'no') p('hidden'); ?>">
-		<input name="shareapi_exclude_groups_list" type="hidden" id="excludedGroups" value="<?php p($_['shareExcludedGroupsList']) ?>" style="width: 400px"/>
+		<input name="shareapi_exclude_groups_list" class="noautosave" type="hidden" id="excludedGroups" value="<?php p($_['shareExcludedGroupsList']) ?>" style="width: 400px"/>
 		<br />
 		<em><?php p($l->t('These groups will still be able to receive shares, but not to initiate them.')); ?></em>
 	</p>
@@ -88,5 +93,25 @@
 		<input type="checkbox" name="shareapi_share_dialog_user_enumeration_group_members" value="1" id="shareapi_share_dialog_user_enumeration_group_members" class="checkbox"
 			<?php if ($_['shareDialogUserEnumerationGroupMembers'] === 'yes') print_unescaped('checked="checked"'); ?> />
 		<label for="shareapi_share_dialog_user_enumeration_group_members"><?php p($l->t('Restrict enumeration to group members'));?></label><br />
+	</p>
+	<p class="nocheckbox <?php if ($_['shareAPIEnabled'] === 'no') p('hidden');?>">
+		<input type="hidden" name="shareapi_default_permissions" id="shareApiDefaultPermissions" class="checkbox"
+		value="<?php p($_['shareApiDefaultPermissions']) ?>" />
+		<?php p($l->t('Default user and group share permissions'));?>
+	</p>
+	<p id="shareApiDefaultPermissionsSection" class="indent <?php if ($_['shareAPIEnabled'] === 'no') p('hidden'); ?>">
+		<?php foreach ($_['shareApiDefaultPermissionsCheckboxes'] as $perm): ?>
+		<input type="checkbox" name="shareapi_default_permission_<?php p($perm['id']) ?>" id="shareapi_default_permission_<?php p($perm['id']) ?>"
+			class="noautosave checkbox" value="<?php p($perm['value']) ?>" <?php if (($_['shareApiDefaultPermissions'] & $perm['value']) !== 0) print_unescaped('checked="checked"'); ?> />
+		<label for="shareapi_default_permission_<?php p($perm['id']) ?>"><?php p($perm['label']);?></label>
+		<?php endforeach ?>
+	</p>
+	<p class="<?php if ($_['shareAPIEnabled'] === 'no') p('hidden');?>">
+		<label for="coreUserAdditionalInfo"><?php p($l->t('Extra field to display in autocomplete results'));?></label><br/>
+		<select name="user_additional_info_field" id="coreUserAdditionalInfo" data-value="<?php p($_['coreUserAdditionalInfo']) ?>">
+			<option value=''><?php p($l->t('None')) ?></option>
+			<option value='id'><?php p($l->t('User ID')) ?></option>
+			<option value='email'><?php p($l->t('Email address')) ?></option>
+		</select>
 	</p>
 </div>

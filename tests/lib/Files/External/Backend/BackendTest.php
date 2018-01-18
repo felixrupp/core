@@ -2,7 +2,7 @@
 /**
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -20,8 +20,6 @@
  */
 
 namespace Test\Files\External\Backend;
-
-use \OCP\Files\External\Backend\Backend;
 
 class BackendTest extends \Test\TestCase {
 

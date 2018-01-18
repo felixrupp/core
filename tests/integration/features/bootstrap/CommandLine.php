@@ -2,7 +2,7 @@
 /**
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,11 +32,12 @@ trait CommandLine {
 	/**
 	 * Invokes an OCC command
 	 *
-	 * @param string OCC command, the part behind "occ". For example: "files:transfer-ownership"
+	 * @param array $args of the occ command
+	 * @param bool $escaping
 	 * @return int exit code
 	 */
 	public function runOcc($args = [], $escaping = true) {
-		if ($escaping === true){
+		if ($escaping === true) {
 			$args = array_map(function($arg) {
 				return escapeshellarg($arg);
 			}, $args);
@@ -70,7 +71,7 @@ trait CommandLine {
 	public function findExceptions() {
 		$exceptions = [];
 		$captureNext = false;
-		// the exception text usually appears after an "[Exception"] row
+		// the exception text usually appears after an "[Exception]" row
 		foreach (explode("\n", $this->lastStdErr) as $line) {
 			if (preg_match('/\[Exception\]/', $line)) {
 				$captureNext = true;
@@ -94,9 +95,8 @@ trait CommandLine {
 	 */
 	public function findLines($input, $text) {
 		$results = [];
-		// the exception text usually appears after an "[Exception"] row
 		foreach (explode("\n", $input) as $line) {
-			if (strpos($line, $text) >= 0) {
+			if (strpos($line, $text) !== false) {
 				$results[] = $line;
 			}
 		}
@@ -150,7 +150,7 @@ trait CommandLine {
 	public function theCommandOutputContainsTheText($text) {
 		$lines = $this->findLines($this->lastStdOut, $text);
 		if (empty($lines)) {
-			throw new \Exception('The command did not output the expected text on stdout "' . $exceptionText . '"');
+			throw new \Exception('The command did not output the expected text on stdout "' . $text . '"');
 		}
 	}
 
@@ -160,7 +160,85 @@ trait CommandLine {
 	public function theCommandErrorOutputContainsTheText($text) {
 		$lines = $this->findLines($this->lastStdErr, $text);
 		if (empty($lines)) {
-			throw new \Exception('The command did not output the expected text on stderr "' . $exceptionText . '"');
+			throw new \Exception('The command did not output the expected text on stderr "' . $text . '"');
 		}
+	}
+
+	private $lastTransferPath;
+
+	private function findLastTransferFolderForUser($sourceUser, $targetUser) {
+		$foundPaths = [];
+		$results = $this->listFolder($targetUser, '', 1);
+		foreach ($results as $path => $data) {
+			$path = rawurldecode($path);
+			$parts = explode(' ', $path);
+			if (basename($parts[0]) !== 'transferred') {
+				continue;
+			}
+			if (isset($parts[2]) && $parts[2] === $sourceUser) {
+				// store timestamp as key
+				$foundPaths[] = [
+					'date' => strtotime(trim($parts[4], '/')),
+					'path' => $path,
+				];
+			}
+		}
+
+		if (empty($foundPaths)) {
+			return null;
+		}
+
+		usort($foundPaths, function($a, $b) {
+			return $a['date'] - $b['date'];
+		});
+
+		$davPath = rtrim($this->getDavFilesPath($targetUser), '/');
+
+		$foundPath = end($foundPaths)['path'];
+		// strip dav path
+		return substr($foundPath, strlen($davPath) + 1);
+	}
+
+	/**
+	 * @When /^transferring ownership from "([^"]+)" to "([^"]+)"/
+	 */
+	public function transferringOwnership($user1, $user2) {
+		if ($this->runOcc(['files:transfer-ownership', $user1, $user2]) === 0) {
+			$this->lastTransferPath = $this->findLastTransferFolderForUser($user1, $user2);
+		} else {
+			// failure
+			$this->lastTransferPath = null;
+		}
+	}
+
+	/**
+	 * @When /^recreating masterkey by deleting old one and encrypting the filesystem/
+	 */
+	public function recreateMasterKey() {
+		if ($this->runOcc(['encryption:recreate-master-key', '-y']) === 0) {
+			return $this->lastCode;
+		}
+	}
+
+	/**
+	 * @When /^transferring ownership of path "([^"]+)" from "([^"]+)" to "([^"]+)"/
+	 */
+	public function transferringOwnershipPath($path, $user1, $user2) {
+		$path = '--path=' . $path;
+		if ($this->runOcc(['files:transfer-ownership', $path, $user1, $user2]) === 0) {
+			$this->lastTransferPath = $this->findLastTransferFolderForUser($user1, $user2);
+		} else {
+			// failure
+			$this->lastTransferPath = null;
+		}
+	}
+
+	/**
+	 * @When /^using received transfer folder of "([^"]+)" as dav path$/
+	 */
+	public function usingTransferFolderAsDavPath($user) {
+		$davPath = $this->getDavFilesPath($user);
+		$davPath = rtrim($davPath, '/') . $this->lastTransferPath;
+		$this->usingDavPath($davPath);
 	}
 }

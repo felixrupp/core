@@ -3,7 +3,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,6 +24,8 @@ namespace OCA\Files_External\Command;
 
 use OC\Core\Command\Base;
 use OC\User\NoUserException;
+use OCP\Files\External\Auth\InvalidAuth;
+use OCP\Files\External\Backend\InvalidBackend;
 use OCP\Files\External\IStorageConfig;
 use OCP\Files\External\Service\IGlobalStoragesService;
 use OCP\Files\External\Service\IUserStoragesService;
@@ -192,7 +194,11 @@ class ListCommand extends Base {
 				'enable_sharing' => false,
 				'encoding_compatibility' => false
 			];
-			$rows = array_map(function (IStorageConfig $config) use ($userId, $defaultMountOptions, $full) {
+			$countInvalid = 0;
+			$rows = array_map(function (IStorageConfig $config) use ($userId, $defaultMountOptions, $full, &$countInvalid) {
+				if ($config->getBackend() instanceof InvalidBackend || $config->getAuthMechanism() instanceof InvalidAuth) {
+					$countInvalid++;
+				}
 				$storageConfig = $config->getBackendOptions();
 				$keys = array_keys($storageConfig);
 				$values = array_values($storageConfig);
@@ -256,6 +262,14 @@ class ListCommand extends Base {
 			$table->setHeaders($headers);
 			$table->setRows($rows);
 			$table->render();
+
+			if ($countInvalid > 0) {
+				$output->writeln(
+					"<error>Number of invalid storages found: $countInvalid.\n" .
+					"The listed configuration details are likely incomplete.\n" .
+					"Please make sure that all related apps that provide these storages are enabled or delete these.</error>"
+				);
+			}
 		}
 	}
 

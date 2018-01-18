@@ -9,7 +9,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -88,7 +88,7 @@ class MDB2SchemaManager {
 		} else if ($platform instanceof PostgreSqlPlatform) {
 			return new PostgreSqlMigrator($this->conn, $random, $config, $dispatcher);
 		} else {
-			return new NoCheckMigrator($this->conn, $random, $config, $dispatcher);
+			return new Migrator($this->conn, $random, $config, $dispatcher);
 		}
 	}
 

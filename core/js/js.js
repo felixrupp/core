@@ -68,6 +68,13 @@ var OC = {
 	 */
 	webroot: oc_webroot,
 
+	/**
+	 * Capabilities
+	 *
+	 * @type array
+	 */
+	_capabilities: window.oc_capabilities || null,
+
 	appswebroots: (typeof oc_appswebroots !== 'undefined') ? oc_appswebroots : false,
 	/**
 	 * Currently logged in user or null if none
@@ -296,6 +303,15 @@ var OC = {
 	 */
 	getRootPath: function () {
 		return OC.webroot;
+	},
+
+	/**
+	 * Returns the capabilities
+	 *
+	 * @return {array} capabilities
+	 */
+	getCapabilities: function() {
+		return OC._capabilities;
 	},
 
 	/**
@@ -1734,7 +1750,7 @@ OC.Util = {
 	* regular expression to parse size in bytes from a humanly readable string
 	* see computerFileSize(string)
 	*/
-	_computerFileSizeRegexp: /^[\s+]?([0-9]*)(\.([0-9]+))?( +)?([kmgtp]?b?)$/i,
+	_computerFileSizeRegexp: /^([0-9]*)(\.([0-9]+))?( +)?([kmgtp]?b?)$/i,
 
 	/**
 	 * Returns a file size in bytes from a humanly readable string

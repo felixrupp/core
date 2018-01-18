@@ -2,7 +2,7 @@
 /**
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -78,7 +78,7 @@ class SettingsManagerTest extends TestCase {
 
 	public function testGetBuiltInPanel() {
 		$panel = $this->settingsManager->getBuiltInPanel('OC\Settings\Panels\Personal\Profile');
-		$this->assertNotEquals(false, $panel);
+		$this->assertNotFalse($panel);
 		$this->assertEquals('OC\Settings\Panels\Personal\Profile', get_class($panel));
 	}
 

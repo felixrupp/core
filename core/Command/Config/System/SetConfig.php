@@ -3,7 +3,7 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -46,30 +46,30 @@ class SetConfig extends Base {
 
 		$this
 			->setName('config:system:set')
-			->setDescription('Set a system config value')
+			->setDescription('Set a system config value.')
 			->addArgument(
 				'name',
 				InputArgument::REQUIRED | InputArgument::IS_ARRAY,
-				'Name of the config parameter, specify multiple for array parameter'
+				'Name of the config parameter, specify multiple for array parameter.'
 			)
 			->addOption(
 				'type',
 				null,
 				InputOption::VALUE_REQUIRED,
-				'Value type [string, integer, double, boolean]',
+				'Value type [string, integer, double, boolean].',
 				'string'
 			)
 			->addOption(
 				'value',
 				null,
 				InputOption::VALUE_REQUIRED,
-				'The new value of the config'
+				'The new value of the config.'
 			)
 			->addOption(
 				'update-only',
 				null,
 				InputOption::VALUE_NONE,
-				'Only updates the value, if it is not set before, it is not being added'
+				'Only updates the value, if it is not set before, it is not being added.'
 			)
 		;
 	}

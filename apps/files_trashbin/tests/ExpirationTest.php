@@ -3,7 +3,7 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,7 +21,6 @@
  */
 
 use OCA\Files_Trashbin\Expiration;
-use \OCA\Files_Trashbin\Tests;
 
 class ExpirationTest extends \Test\TestCase {
 	const SECONDS_PER_DAY = 86400; //60*60*24

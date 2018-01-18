@@ -3,34 +3,34 @@
  * ownCloud
  *
  * @author Artur Neumann <artur@jankaritech.com>
- * @copyright 2017 Artur Neumann artur@jankaritech.com
+ * @copyright Copyright (c) 2017 Artur Neumann artur@jankaritech.com
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License,
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or any later version.
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public
- * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>
  *
  */
 namespace TestHelpers;
 
 /**
  * Helper to administer Tags
- * 
+ *
  * @author Artur Neumann <artur@jankaritech.com>
  *
  */
 class TagsHelper {
 	/**
 	 * tags a file
-	 * 
+	 *
 	 * @param string $baseUrl
 	 * @param string $taggingUser
 	 * @param string $password
@@ -52,7 +52,7 @@ class TagsHelper {
 		$fileID = WebDavHelper::getFileIdForPath(
 			$baseUrl, $fileOwner, $password, $fileName
 		);
-		
+
 		$tag = self::requestTagByDisplayName(
 			$baseUrl, $taggingUser, $password, $tagName
 		);
@@ -67,11 +67,11 @@ class TagsHelper {
 
 	/**
 	 * get all tags of a user
-	 * 
+	 *
 	 * @param string $baseUrl
 	 * @param string $user
 	 * @param string $password
-	 * @param string $withGroups
+	 * @param bool $withGroups
 	 * @return array
 	 */
 	public static function requestTagsForUser(
@@ -82,30 +82,32 @@ class TagsHelper {
 	) {
 		$baseUrl = WebDavHelper::sanitizeUrl($baseUrl, true);
 		$client = WebDavHelper::getSabreClient($baseUrl, $user, $password);
-		$properties = [ 
-				'{http://owncloud.org/ns}id',
-				'{http://owncloud.org/ns}display-name',
-				'{http://owncloud.org/ns}user-visible',
-				'{http://owncloud.org/ns}user-assignable',
-				'{http://owncloud.org/ns}can-assign' 
+		$properties = [
+			'{http://owncloud.org/ns}id',
+			'{http://owncloud.org/ns}display-name',
+			'{http://owncloud.org/ns}user-visible',
+			'{http://owncloud.org/ns}user-assignable',
+			'{http://owncloud.org/ns}can-assign'
 		];
 		if ($withGroups) {
 			array_push($properties, '{http://owncloud.org/ns}groups');
 		}
 		$appPath = '/systemtags/';
-		$fullUrl = $baseUrl . WebDavHelper::getDavPath($user, 2, "systemtags") . $appPath;
+		$fullUrl = $baseUrl
+			. WebDavHelper::getDavPath($user, 2, "systemtags")
+			. $appPath;
 		$response = $client->propfind($fullUrl, $properties, 1);
 		return $response;
 	}
 
 	/**
 	 * find a tag by its name
-	 * 
+	 *
 	 * @param string $baseUrl
 	 * @param string $user
 	 * @param string $password
 	 * @param string $tagDisplayName
-	 * @param string $withGroups
+	 * @param bool $withGroups
 	 * @return array
 	 */
 	public static function requestTagByDisplayName(
@@ -117,7 +119,7 @@ class TagsHelper {
 	) {
 		$tagList = self::requestTagsForUser($baseUrl, $user, $password, $withGroups);
 		foreach ($tagList as $path => $tagData) {
-			if (!empty($tagData) 
+			if (!empty($tagData)
 				&& $tagData['{http://owncloud.org/ns}display-name'] === $tagDisplayName
 			) {
 				return $tagData;
@@ -151,15 +153,15 @@ class TagsHelper {
 	) {
 		$tagsPath = '/systemtags/';
 		$body = [
-				'name' => $name,
-				'userVisible' => $userVisible,
-				'userAssignable' => $userAssignable,
+			'name' => $name,
+			'userVisible' => $userVisible,
+			'userAssignable' => $userAssignable,
 		];
 
-		if ($groups !== null) {
+		if (!is_null($groups)) {
 			$body['groups'] = $groups;
 		}
-		
+
 		$response = WebDavHelper::makeDavRequest(
 			$baseUrl,
 			$user,
@@ -179,7 +181,7 @@ class TagsHelper {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param string $baseUrl
 	 * @param string $user
 	 * @param string $password
@@ -204,7 +206,7 @@ class TagsHelper {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param string $type
 	 * @throws \Exception
 	 * @return boolean[]
@@ -224,7 +226,7 @@ class TagsHelper {
 			default :
 				throw new \Exception('Unsupported type');
 		}
-		
+
 		return array($userVisible, $userAssignable);
 	}
 }

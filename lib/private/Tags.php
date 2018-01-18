@@ -11,7 +11,7 @@
  * @author Thomas Tanghus <thomas@tanghus.net>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -119,7 +119,7 @@ class Tags implements \OCP\ITags {
 	* @param array $defaultTags Tags that should be created at construction.
 	* @param boolean $includeShared Whether to include tags for items shared with this user by others.
 	*/
-	public function __construct(TagMapper $mapper, $user, $type, $defaultTags = [], $includeShared = false) {
+	public function __construct(TagMapper $mapper, $user, $type, array $defaultTags = [], $includeShared = false) {
 		$this->mapper = $mapper;
 		$this->user = $user;
 		$this->type = $type;

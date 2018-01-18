@@ -11,7 +11,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -33,10 +33,12 @@ namespace OC\App;
 use OC_App;
 use OC\Installer;
 use OCP\App\IAppManager;
+use OCP\App\AppManagerException;
 use OCP\App\ManagerEvent;
 use OCP\Files;
 use OCP\IAppConfig;
 use OCP\ICacheFactory;
+use OCP\IConfig;
 use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserSession;
@@ -72,6 +74,17 @@ class AppManager implements IAppManager {
 	private $alwaysEnabled;
 	/** @var EventDispatcherInterface */
 	private $dispatcher;
+	/** @var IConfig */
+	private $config;
+
+	/**
+	 * Apps as 'appId' => [
+	 *   'path' => '/app/path'
+	 *   'url' => '/app/url'
+	 * ]
+	 * @var string[][]
+	 */
+	private $appDirs = [];
 
 	/**
 	 * @param IUserSession $userSession
@@ -79,17 +92,20 @@ class AppManager implements IAppManager {
 	 * @param IGroupManager $groupManager
 	 * @param ICacheFactory $memCacheFactory
 	 * @param EventDispatcherInterface $dispatcher
+	 * @param IConfig $config
 	 */
 	public function __construct(IUserSession $userSession = null,
-								IAppConfig $appConfig,
-								IGroupManager $groupManager,
+								IAppConfig $appConfig = null,
+								IGroupManager $groupManager = null,
 								ICacheFactory $memCacheFactory,
-								EventDispatcherInterface $dispatcher) {
+								EventDispatcherInterface $dispatcher,
+								IConfig $config) {
 		$this->userSession = $userSession;
 		$this->appConfig = $appConfig;
 		$this->groupManager = $groupManager;
 		$this->memCacheFactory = $memCacheFactory;
 		$this->dispatcher = $dispatcher;
+		$this->config = $config;
 	}
 
 	/**
@@ -124,10 +140,10 @@ class AppManager implements IAppManager {
 	/**
 	 * List all apps enabled for a user
 	 *
-	 * @param \OCP\IUser $user
+	 * @param \OCP\IUser|null $user
 	 * @return string[]
 	 */
-	public function getEnabledAppsForUser(IUser $user) {
+	public function getEnabledAppsForUser(IUser $user = null) {
 		$apps = $this->getInstalledAppsValues();
 		$appsForUser = array_filter($apps, function ($enabled) use ($user) {
 			return $this->checkAppForUser($enabled, $user);
@@ -208,15 +224,49 @@ class AppManager implements IAppManager {
 	 * @throws \Exception
 	 */
 	public function enableApp($appId) {
-		if(OC_App::getAppPath($appId) === false) {
+		if($this->getAppPath($appId) === false) {
 			throw new \Exception("$appId can't be enabled since it is not installed.");
 		}
+		$this->canEnableTheme($appId);
+
 		$this->installedAppsCache[$appId] = 'yes';
 		$this->appConfig->setValue($appId, 'enabled', 'yes');
 		$this->dispatcher->dispatch(ManagerEvent::EVENT_APP_ENABLE, new ManagerEvent(
 			ManagerEvent::EVENT_APP_ENABLE, $appId
 		));
 		$this->clearAppsCache();
+	}
+
+	/**
+	 * Do not allow more than one active app-theme
+	 *
+	 * @param $appId
+	 * @throws AppManagerException
+	 */
+	protected function canEnableTheme($appId) {
+		$info = $this->getAppInfo($appId);
+		if (
+			isset($info['types'])
+			&& is_array($info['types'])
+			&& in_array('theme', $info['types'])
+		) {
+			$apps = $this->getInstalledApps();
+			foreach ($apps as $installedAppId) {
+				if ($this->isTheme($installedAppId)) {
+					throw new AppManagerException("$appId can't be enabled until $installedAppId is disabled.");
+				}
+			}
+		}
+	}
+
+	/**
+	 *  Wrapper for OC_App for easy mocking
+	 *
+	 * @param string $appId
+	 * @return bool
+	 */
+	protected function isTheme($appId) {
+		return \OC_App::isType($appId,'theme');
 	}
 
 	/**
@@ -435,7 +485,117 @@ class AppManager implements IAppManager {
 	 * @since 10.0.3
 	 */
 	public function canInstall() {
+		if ($this->config->getSystemValue('operation.mode', 'single-instance') !== 'single-instance') {
+			return false;
+		}
+
 		$appsFolder = OC_App::getInstallPath();
 		return $appsFolder !== null && is_writable($appsFolder) && is_readable($appsFolder);
+	}
+
+	/**
+	 * Get the absolute path to the directory for the given app.
+	 * If the app exists in multiple directories, the most recent version is taken.
+	 * Returns false if not found
+	 *
+	 * @param string $appId
+	 * @return string|false
+	 * @since 10.0.5
+	 */
+	public function getAppPath($appId) {
+		if (trim($appId) === '') {
+			return false;
+		}
+		if (($appRoot = $this->findAppInDirectories($appId)) !== false) {
+			return $appRoot['path'];
+		}
+		return false;
+	}
+
+	/**
+	 * Get the HTTP Web path to the app directory for the given app, relative to the ownCloud webroot.
+	 * If the app exists in multiple directories, web path to the most recent version is taken.
+	 * Returns false if not found
+	 *
+	 * @param string $appId
+	 * @return string|false
+	 * @since 10.0.5
+	 */
+	public function getAppWebPath($appId) {
+		if (($appRoot = $this->findAppInDirectories($appId)) !== false) {
+			return \OC::$WEBROOT . $appRoot['url'];
+		}
+		return false;
+	}
+
+	/**
+	 * Search for an app in all app directories
+	 * Returns an app directory as an array with keys
+	 *  'path' - a path to the app with no trailing slash
+	 *  'url' - a web path to the app with no trailing slash
+	 * both are relative to OC root directory and webroot
+	 *
+	 * @param string $appId
+	 * @return false|string[]
+	 */
+	protected function findAppInDirectories($appId) {
+		$sanitizedAppId = \OC_App::cleanAppId($appId);
+		if ($sanitizedAppId !== $appId) {
+			return false;
+		}
+
+		if (!isset($this->appDirs[$appId])) {
+			$possibleAppRoots = [];
+			foreach ($this->getAppRoots() as $appRoot) {
+				if (is_dir($appRoot['path'] . '/' . $appId)) {
+					$possibleAppRoots[] = $appRoot;
+				}
+			}
+
+			$versionToLoad = [];
+			foreach ($possibleAppRoots as $possibleAppRoot) {
+				$version = $this->getAppVersionByPath($possibleAppRoot['path'] . '/' . $appId);
+				if (empty($versionToLoad) || version_compare($version, $versionToLoad['version'], '>')) {
+					$versionToLoad = array_merge($possibleAppRoot, ['version' => $version]);
+					$versionToLoad['path'] .= '/' . $appId;
+					$versionToLoad['url'] .= '/' . $appId;
+				}
+			}
+
+			if (empty($versionToLoad)) {
+				return false;
+			}
+			$this->saveAppPath($appId, $versionToLoad);
+		}
+		return $this->appDirs[$appId];
+	}
+
+	/**
+	 * Save app path and webPath to internal cache
+	 * @param string $appId
+	 * @param string[] $appData
+	 */
+	protected function saveAppPath($appId, $appData) {
+		$this->appDirs[$appId] = $appData;
+	}
+
+	/**
+	 * Get apps roots as an array of path and url
+	 * Wrapper for easy mocking
+	 * @return string[][]
+	 */
+	protected function getAppRoots(){
+		return \OC::$APPSROOTS;
+	}
+
+	/**
+	 * Get app's version based on it's path
+	 * Wrapper for easy mocking
+	 *
+	 * @param string $path
+	 * @return string
+	 */
+	protected function getAppVersionByPath($path) {
+		return \OC_App::getAppVersionByPath($path);
 	}
 }

@@ -2,7 +2,7 @@
 /**
  * @author Phil Davis <phil@jankaritech.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -45,17 +45,17 @@ class AddMember extends Command {
 	protected function configure() {
 		$this
 			->setName('group:add-member')
-			->setDescription('add members to a group')
+			->setDescription('Add members to a group.')
 			->addArgument(
 				'group',
 				InputArgument::REQUIRED,
-				'Name of the group'
+				'Name of the group.'
 			)
 			->addOption(
 				'member',
 				'm',
 				InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
-				'member that should be added to the group'
+				'The member that should be added to the group.'
 			);
 	}
 

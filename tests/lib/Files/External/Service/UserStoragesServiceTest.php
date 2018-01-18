@@ -5,7 +5,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,15 +23,13 @@
  */
 namespace Test\Files\External\Service;
 
-use OC\Files\Filesystem;
-
 use OC\Files\External\Service\GlobalStoragesService;
-use OC\Files\External\Service\StoragesService;
 use OC\Files\External\Service\UserStoragesService;
 use OC\Files\External\StorageConfig;
-use Test\Traits\UserTrait;
+use OC\Files\Filesystem;
 use OCP\Files\External\IStorageConfig;
 use OCP\Files\External\Service\IStoragesService;
+use Test\Traits\UserTrait;
 
 /**
  * @group DB

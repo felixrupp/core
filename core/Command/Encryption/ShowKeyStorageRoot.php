@@ -2,7 +2,7 @@
 /**
  * @author Björn Schießle <bjoern@schiessle.org>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ class ShowKeyStorageRoot extends Command{
 		parent::configure();
 		$this
 			->setName('encryption:show-key-storage-root')
-			->setDescription('Show current key storage root');
+			->setDescription('Show current key storage root.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output) {

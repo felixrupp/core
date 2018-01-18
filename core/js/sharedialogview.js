@@ -44,6 +44,23 @@
 		'<a target="_blank" class="icon icon-info shareWithRemoteInfo hasTooltip" href="{{docLink}}" ' +
 		'title="{{tooltip}}"></a>';
 
+	var TEMPLATE_AUTOCOMPLETE_ITEM =
+		'<li class="{{shareTypeClass}}">' +
+			'<a>' +
+				'<div class="share-autocomplete-item">' +
+					'{{#if showAvatar}}' +
+					'<div class="avatardiv"></div>' +
+					'{{/if}}' +
+					'<div class="autocomplete-item-text">' +
+						'<span class="autocomplete-item-displayname">{{displayName}}</span>' +
+						'{{#if additionalInfo}}' +
+						'<span class="autocomplete-item-additional-info">({{additionalInfo}})</span>' +
+						'{{/if}}' +
+					'</div>' +
+				'</div>' +
+			'</a>' +
+		'</li>';
+
 	/**
 	 * @class OCA.Share.ShareDialogView
 	 * @member {OC.Share.ShareItemModel} model
@@ -251,7 +268,7 @@
 							$('.shareWithField').removeClass('error')
 								.tooltip('hide')
 								.autocomplete("option", "autoFocus", true);
-							response(suggestions);
+							response(suggestions, result);
 						} else {
 							var title = t('core', 'No users or groups found for {search}', {search: $('.shareWithField').val()});
 							if (!view.configModel.get('allowGroupSharing')) {
@@ -266,10 +283,10 @@
 								})
 								.tooltip('fixTitle')
 								.tooltip('show');
-							response();
+							response(undefined, result);
 						}
 					} else {
-						response();
+						response(undefined, result);
 					}
 				}
 			).fail(function() {
@@ -294,32 +311,30 @@
 						server: item.value.server
 					});
 				} else {
-					text = t('core', '{sharee} (remote)', {
+					text = t('core', '{sharee} (federated)', {
 						sharee: text
 					});
 				}
 			}
-			var insert = $("<div class='share-autocomplete-item'/>");
+
+			var template = this._getAutocompleteItemTemplate();
+			var $el = $(template({
+				showAvatar: this.configModel.areAvatarsEnabled(),
+				displayName: text,
+				additionalInfo: item.value.shareWithAdditionalInfo,
+				shareTypeClass: (item.value.shareType === OC.Share.SHARE_TYPE_GROUP) ? 'group' : 'user'
+			}));
 
 			if(this.configModel.areAvatarsEnabled()) {
-				var avatar = $("<div class='avatardiv'></div>").appendTo(insert);
+				var $avatar = $el.find('.avatardiv');
 				if (item.value.shareType === OC.Share.SHARE_TYPE_USER) {
-					avatar.avatar(item.value.shareWith, 32, undefined, undefined, undefined, item.label);
+					$avatar.avatar(item.value.shareWith, 32, undefined, undefined, undefined, item.label);
 				} else {
-					avatar.imageplaceholder(text, undefined, 32);
+					$avatar.imageplaceholder(text, undefined, 32);
 				}
 			}
 
-			$("<div class='autocomplete-item-text'></div>")
-				.text(text)
-				.appendTo(insert);
-			insert.attr('title', item.value.shareWith);
-			insert = $("<a>")
-				.append(insert);
-			return $("<li>")
-				.addClass((item.value.shareType === OC.Share.SHARE_TYPE_GROUP) ? 'group' : 'user')
-				.append(insert)
-				.appendTo(ul);
+			return $el.appendTo(ul);
 		},
 
 		_onSelectRecipient: function(e, s) {
@@ -466,6 +481,16 @@
 		 */
 		_getRemoteShareInfoTemplate: function() {
 			return this._getTemplate('remoteShareInfo', TEMPLATE_REMOTE_SHARE_INFO);
+		},
+
+		/**
+		 * Returns the autocomplete item template
+		 *
+		 * @returns {Function}
+		 * @private
+		 */
+		_getAutocompleteItemTemplate: function() {
+			return this._getTemplate('autocompleteItem', TEMPLATE_AUTOCOMPLETE_ITEM);
 		}
 	});
 

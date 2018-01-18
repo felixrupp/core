@@ -2,36 +2,36 @@
 /**
  * ownCloud
  *
- * @author Artur Neumann <info@jankaritech.com>
- * @copyright 2017 Artur Neumann artur@jankaritech.com
+ * @author Artur Neumann <artur@jankaritech.com>
+ * @copyright Copyright (c) 2017 Artur Neumann artur@jankaritech.com
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License,
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or any later version.
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public
- * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>
  *
  */
 namespace TestHelpers;
 
 use Exception;
 use GuzzleHttp\Client as GClient;
+use GuzzleHttp\Stream\Stream;
+use GuzzleHttp\Stream\StreamInterface;
 use InvalidArgumentException;
 use Sabre\DAV\Client as SClient;
-use GuzzleHttp\Stream\StreamInterface;
-use GuzzleHttp\Stream\Stream;
 
 /**
  * Helper to make WebDav Requests
  * 
- * @author Artur Neumann <info@jankaritech.com>
+ * @author Artur Neumann <artur@jankaritech.com>
  *
  */
 class WebDavHelper {
@@ -103,6 +103,9 @@ class WebDavHelper {
 	) {
 		$baseUrl = self::sanitizeUrl($baseUrl, true);
 		$davPath = self::getDavPath($user, $davPathVersionToUse, $type);
+		//replace # and ? in the path, Guzzle will not encode them
+		$urlSpecialChar = [['#', '?'],['%23', '%3F']];
+		$path = str_replace($urlSpecialChar[0], $urlSpecialChar[1], $path);
 		$fullUrl = self::sanitizeUrl($baseUrl . $davPath . $path);
 		$client = new GClient();
 		
@@ -116,10 +119,14 @@ class WebDavHelper {
 			$options['config']
 				= [ 'curl' => [ CURLOPT_INTERFACE => $sourceIpAddress ]];
 		}
-		
+
 		$request = $client->createRequest($method, $fullUrl, $options);
 		if (!is_null($headers)) {
 			foreach ($headers as $key => $value) {
+				//? and # need to be encoded in the Destination URL
+				if ($key === "Destination") {
+					$value = str_replace($urlSpecialChar[0], $urlSpecialChar[1], $value);
+				}
 				if ($request->hasHeader($key) === true) {
 					$request->setHeader($key, $value);
 				} else {

@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -101,7 +101,8 @@ if (\OC::$server->getAppManager()->isEnabledForUser('files_sharing')) {
 		\OC::$server->getRequest(),
 		$notification,
 		$addressHandler,
-		\OC::$server->getUserManager()
+		\OC::$server->getUserManager(),
+		\OC::$server->getEventDispatcher()
 	);
 	API::register('post',
 		'/cloud/shares',

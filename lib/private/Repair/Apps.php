@@ -2,7 +2,7 @@
 /**
  * @author Victor Dubiniuk <dubiniuk@aheadworks.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -51,15 +51,22 @@ class Apps implements IRepairStep {
 	/** @var IConfig */
 	private $config;
 
+	/** @var \OC_Defaults */
+	private $defaults;
+
 	/**
 	 * Apps constructor.
 	 *
 	 * @param IAppManager $appManager
+	 * @param EventDispatcher $eventDispatcher
+	 * @param IConfig $config
+	 * @param \OC_Defaults $defaults
 	 */
-	public function __construct(IAppManager $appManager, EventDispatcher $eventDispatcher, IConfig $config) {
+	public function __construct(IAppManager $appManager, EventDispatcher $eventDispatcher, IConfig $config, \OC_Defaults $defaults) {
 		$this->appManager = $appManager;
 		$this->eventDispatcher = $eventDispatcher;
 		$this->config = $config;
+		$this->defaults = $defaults;
 	}
 
 	/**
@@ -75,7 +82,7 @@ class Apps implements IRepairStep {
 	 */
 	private function isCoreUpdate() {
 		$installedVersion = $this->config->getSystemValue('version', '0.0.0');
-		$currentVersion = implode('.', \OCP\Util::getVersion());
+		$currentVersion = implode('.', Util::getVersion());
 		$versionDiff = version_compare($currentVersion, $installedVersion);
 		if ($versionDiff > 0) {
 			return true;
@@ -90,10 +97,11 @@ class Apps implements IRepairStep {
 	private function requiresMarketEnable() {
 		$installedVersion = $this->config->getSystemValue('version', '0.0.0');
 		$versionDiff = version_compare('10.0.0', $installedVersion);
-		if ($versionDiff >= 0) {
-			return true;
+		if ($versionDiff < 0) {
+			return false;
 		}
-		return false;
+		return true;
+
 	}
 
 	/**
@@ -101,67 +109,75 @@ class Apps implements IRepairStep {
 	 * @throws RepairException
 	 */
 	public function run(IOutput $output) {
-		$isCoreUpdate = $this->isCoreUpdate();
+
+		if ($this->config->getSystemValue('has_internet_connection', true) !== true) {
+			$link = $this->defaults->buildDocLinkToKey('admin-marketplace-apps');
+			$output->info('No internet connection available - no app updates will be taken from the marketplace.');
+			$output->info("How to update apps in such situation please see $link");
+			$this->appManager->disableApp('market');
+		}
 		$appsToUpgrade = $this->getAppsToUpgrade();
 		$failedCompatibleApps = [];
 		$failedMissingApps = $appsToUpgrade[self::KEY_MISSING];
 		$failedIncompatibleApps = $appsToUpgrade[self::KEY_INCOMPATIBLE];
 		$hasNotUpdatedCompatibleApps = 0;
-		$requiresMarketEnable = $this->requiresMarketEnable();
 
-		if($isCoreUpdate && $requiresMarketEnable) {
-			// Then we need to enable the market app to support app updates / downloads during upgrade
-			$output->info('Enabling market app to assist with update');
-			// delete old value that might influence old APIs
-			if ($this->config->getSystemValue('appstoreenabled', null) !== null) {
-				$this->config->deleteSystemValue('appstoreenabled');
-			}
-			$this->appManager->enableApp('market');
+		// fix market app state
+		$shallContactMarketplace = $this->fixMarketAppState($output);
+
+		// market might be enabled but admin does not want to automatically update apps through it
+		// (they might want to manually click through the updates in the web UI so keeping the
+		// market enabled here is a legitimate use case)
+		if ($this->config->getSystemValue('upgrade.automatic-app-update', true) !== true) {
+			$shallContactMarketplace = false;
 		}
 
-		// Check if we can use the marketplace to update apps as needed?
-		if($this->appManager->isEnabledForUser('market')) {
-			// Use market to fix missing / old apps
-			$this->loadApp('market');
-			$output->info('Using market to update existing apps');
-			try {
-				// Try to update incompatible apps
-				if(!empty($appsToUpgrade[self::KEY_INCOMPATIBLE])) {
-					$output->info('Attempting to update the following existing but incompatible app from market: '.implode(', ', $appsToUpgrade[self::KEY_INCOMPATIBLE]));
-					$failedIncompatibleApps = $this->getAppsFromMarket(
-						$output,
-						$appsToUpgrade[self::KEY_INCOMPATIBLE],
-						'upgradeAppStoreApp'
-					);
-				}
+		if ($shallContactMarketplace) {
+			// Check if we can use the marketplace to update apps as needed?
+			if ($this->appManager->isEnabledForUser('market')) {
+				// Use market to fix missing / old apps
+				$this->loadApp('market');
+				$output->info('Using market to update existing apps');
+				try {
+					// Try to update incompatible apps
+					if (!empty($appsToUpgrade[self::KEY_INCOMPATIBLE])) {
+						$output->info('Attempting to update the following existing but incompatible app from market: ' . implode(', ', $appsToUpgrade[self::KEY_INCOMPATIBLE]));
+						$failedIncompatibleApps = $this->getAppsFromMarket(
+							$output,
+							$appsToUpgrade[self::KEY_INCOMPATIBLE],
+							'upgradeAppStoreApp'
+						);
+					}
 
-				// Try to download missing apps
-				if(!empty($appsToUpgrade[self::KEY_MISSING])) {
-					$output->info('Attempting to update the following missing apps from market: '.implode(', ', $appsToUpgrade[self::KEY_MISSING]));
-					$failedMissingApps = $this->getAppsFromMarket(
-						$output,
-						$appsToUpgrade[self::KEY_MISSING],
-						'reinstallAppStoreApp'
-					);
-				}
+					// Try to download missing apps
+					if (!empty($appsToUpgrade[self::KEY_MISSING])) {
+						$output->info('Attempting to update the following missing apps from market: ' . implode(', ', $appsToUpgrade[self::KEY_MISSING]));
+						$failedMissingApps = $this->getAppsFromMarket(
+							$output,
+							$appsToUpgrade[self::KEY_MISSING],
+							'reinstallAppStoreApp'
+						);
+					}
 
-				// Try to update compatible apps
-				if(!empty($appsToUpgrade[self::KEY_COMPATIBLE])) {
-					$output->info('Attempting to update the following existing compatible apps from market: '.implode(', ', $appsToUpgrade[self::KEY_MISSING]));
-					$failedCompatibleApps = $this->getAppsFromMarket(
-						$output,
-						$appsToUpgrade[self::KEY_COMPATIBLE],
-						'upgradeAppStoreApp'
-					);
-				}
+					// Try to update compatible apps
+					if (!empty($appsToUpgrade[self::KEY_COMPATIBLE])) {
+						$output->info('Attempting to update the following existing compatible apps from market: ' . implode(', ', $appsToUpgrade[self::KEY_MISSING]));
+						$failedCompatibleApps = $this->getAppsFromMarket(
+							$output,
+							$appsToUpgrade[self::KEY_COMPATIBLE],
+							'upgradeAppStoreApp'
+						);
+					}
 
-				$hasNotUpdatedCompatibleApps = count($failedCompatibleApps);
-			} catch (AppManagerException $e) {
-				$output->warning('No connection to marketplace: ' . $e->getPrevious());
+					$hasNotUpdatedCompatibleApps = count($failedCompatibleApps);
+				} catch (AppManagerException $e) {
+					$output->warning($e->getMessage());
+				}
+			} else {
+				// No market available, output error and continue attempt
+				$link = $this->defaults->buildDocLinkToKey('admin-marketplace-apps');
+				$output->warning("Market app is unavailable for updating of apps. Please update manually, see $link");
 			}
-		} else {
-			// No market available, output error and continue attempt
-			$output->warning('Market app is unavailable for updating of apps. Enable with: occ app:enable market');
 		}
 
 		$hasBlockingMissingApps = count($failedMissingApps);
@@ -171,9 +187,11 @@ class Apps implements IRepairStep {
 			// fail
 			$output->warning('You have incompatible or missing apps enabled that could not be found or updated via the marketplace.');
 			$output->warning(
-				'please install app manually with tarball or disable them with:'
+				'Please install or update the following apps manually or disable them with:'
 				. $this->getOccDisableMessage(array_merge($failedIncompatibleApps, $failedMissingApps))
 			);
+			$link = $this->defaults->buildDocLinkToKey('admin-marketplace-apps');
+			$output->warning("For manually updating, see $link");
 
 			throw new RepairException('Upgrade is not possible');
 		} elseif ($hasNotUpdatedCompatibleApps) {
@@ -190,6 +208,7 @@ class Apps implements IRepairStep {
 	 *
 	 * @param IOutput $output
 	 * @param string[] $appList
+	 * @param string $event
 	 * @return array
 	 * @throws AppManagerException
 	 */
@@ -273,5 +292,43 @@ class Apps implements IRepairStep {
 	 */
 	protected function loadApp($app) {
 		OC_App::loadApp($app, false);
+	}
+
+	/**
+	 * @return bool
+	 */
+	private function isAppStoreEnabled() {
+		// if appstoreenabled was explicitly disabled we shall not use the market app for upgrade
+		$appStoreEnabled = $this->config->getSystemValue('appstoreenabled', null);
+		if ($appStoreEnabled === false) {
+			return false;
+		}
+		return true;
+	}
+
+	private function fixMarketAppState(IOutput $output) {
+		// no core update -> nothing to do
+		if (!$this->isCoreUpdate()) {
+			return false;
+		}
+
+		// no update from a version before 10.0 -> nothing to do, but allow apps to be updated
+		if (!$this->requiresMarketEnable()) {
+			return true;
+		}
+		// if the appstore was explicitly disabled -> disable market app as well
+		if (!$this->isAppStoreEnabled()) {
+			$this->appManager->disableApp('market');
+			$link = $this->defaults->buildDocLinkToKey('admin-marketplace-apps');
+			$output->info('Appstore was disabled in past versions and marketplace interactions are disabled for now as well.');
+			$output->info('If you would like to get automated app updates on upgrade please enable the market app and remove "appstoreenabled" from your config.');
+			$output->info("Please note that the market app is not recommended for clustered setups - see $link");
+			return false;
+		}
+
+		// Then we need to enable the market app to support app updates / downloads during upgrade
+		$output->info('Enabling market app to assist with update');
+		$this->appManager->enableApp('market');
+		return true;
 	}
 }

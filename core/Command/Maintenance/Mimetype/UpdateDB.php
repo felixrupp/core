@@ -2,7 +2,7 @@
 /**
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -51,12 +51,12 @@ class UpdateDB extends Command {
 	protected function configure() {
 		$this
 			->setName('maintenance:mimetype:update-db')
-			->setDescription('Update database mimetypes and update filecache')
+			->setDescription('Update database mimetypes and file cache.')
 			->addOption(
 				'repair-filecache',
 				null,
 				InputOption::VALUE_NONE,
-				'Repair filecache for all mimetypes, not just new ones'
+				'Repair the file cache for all mimetypes, not just the new ones.'
 			)
 		;
 	}

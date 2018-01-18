@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,14 +22,14 @@
 
 namespace OCA\DAV\Connector\Sabre;
 
+use Sabre\DAV\INode;
 use Sabre\DAV\Locks\LockInfo;
+use Sabre\DAV\PropFind;
 use Sabre\DAV\ServerPlugin;
 use Sabre\DAV\Xml\Property\LockDiscovery;
 use Sabre\DAV\Xml\Property\SupportedLock;
 use Sabre\HTTP\RequestInterface;
 use Sabre\HTTP\ResponseInterface;
-use Sabre\DAV\PropFind;
-use Sabre\DAV\INode;
 
 /**
  * Class FakeLockerPlugin is a plugin only used when connections come in from

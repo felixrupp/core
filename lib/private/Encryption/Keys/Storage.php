@@ -5,7 +5,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -179,6 +179,27 @@ class Storage implements IStorage {
 	public function deleteSystemUserKey($keyId, $encryptionModuleId) {
 		$path = $this->constructUserKeyPath($encryptionModuleId, $keyId, null);
 		return !$this->view->file_exists($path) || $this->view->unlink($path);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+
+	public function deleteAltUserStorageKeys($uid) {
+		if (\OC::$server->getEncryptionManager()->isEnabled()) {
+			/**
+			 * If the key storage is not the default
+			 * location, then we need to remove the keys
+			 * in the alternate key location
+			 */
+			$keyStorageRoot = $this->util->getKeyStorageRoot();
+			if ($keyStorageRoot !== '') {
+				$this->view->rmdir($keyStorageRoot . '/' . $uid);
+				return true;
+			}
+
+			return false;
+		}
 	}
 
 	/**

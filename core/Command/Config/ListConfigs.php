@@ -2,7 +2,7 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -53,18 +53,18 @@ class ListConfigs extends Base {
 
 		$this
 			->setName('config:list')
-			->setDescription('List all configs')
+			->setDescription('List all configs.')
 			->addArgument(
 				'app',
 				InputArgument::OPTIONAL,
-				'Name of the app ("system" to get the config.php values, "all" for all apps and system)',
+				'Name of the app ("system" to get the config.php values, "all" for all apps and system).',
 				'all'
 			)
 			->addOption(
 				'private',
 				null,
 				InputOption::VALUE_NONE,
-				'Use this option when you want to include sensitive configs like passwords, salts, ...'
+				'Use this option when you want to include sensitive configs like passwords and salts.'
 			)
 		;
 	}

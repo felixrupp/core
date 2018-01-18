@@ -1,7 +1,8 @@
 <?php
-	use \OCP\Files\External\Backend\Backend;
-	use \OCP\Files\External\Auth\AuthMechanism;
-	use \OCP\Files\External\IStoragesBackendService;
+
+	use OCP\Files\External\Auth\AuthMechanism;
+	use OCP\Files\External\Backend\Backend;
+	use OCP\Files\External\IStoragesBackendService;
 
 	$l->t("Enable encryption");
 	$l->t("Enable previews");
@@ -19,11 +20,12 @@
 		$scripts = $backend->getCustomJs();
 		foreach ($scripts as $script) {
 			if (is_array($script)) {
-				list($appName, $script) = $script;
+				list($appName, $tmpScript) = $script;
 			} else {
 				$appName = 'files_external';
+				$tmpScript = $script;
 			}
-			script($appName, $script);
+			script($appName, $tmpScript);
 		}
 	}
 	foreach ($_['authMechanisms'] as $authMechanism) {
@@ -142,6 +144,9 @@
 				$userBackends = array_filter($_['backends'], function($backend) {
 					return $backend->isAllowedVisibleFor(IStoragesBackendService::VISIBILITY_PERSONAL);
 				});
+				uasort($userBackends, function($a, $b) {
+					return strcasecmp($a->getText(), $b->getText());
+				});
 			?>
 			<?php $i = 0; foreach ($userBackends as $backend): ?>
 				<?php if ($deprecateTo = $backend->getDeprecateTo()): ?>
@@ -152,7 +157,14 @@
 				<?php endif; ?>
 				<?php $i++; ?>
 			<?php endforeach; ?>
+			<br/>
+			<input type="checkbox" name="allowUserMountSharing" id="allowUserMountSharing" class="checkbox"
+				value="1" <?php if ($_['allowUserMountSharing'] === 'yes') print_unescaped(' checked="checked"'); ?> />
+			<label for="allowUserMountSharing"><?php p($l->t('Allow sharing on user-mounted external storages')); ?></label> <span id="userMountSharingMsg" class="msg"></span>
 		</p>
+	<?php else: ?>
+		<input type="hidden" name="allowUserMountSharing" id="allowUserMountSharing"
+			value="<?php p($_['allowUserMountSharing']) ?>" />
 	<?php endif; ?>
 	</div>
 </form>

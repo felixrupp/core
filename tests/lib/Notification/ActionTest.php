@@ -2,7 +2,7 @@
 /**
  * @author Joas Schilling <nickvergessen@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -183,7 +183,7 @@ class ActionTest extends TestCase {
 	 * @param bool $primary
 	 */
 	public function testSetPrimary($primary) {
-		$this->assertSame(false, $this->action->isPrimary());
+		$this->assertFalse($this->action->isPrimary());
 		$this->assertSame($this->action, $this->action->setPrimary($primary));
 		$this->assertSame($primary, $this->action->isPrimary());
 	}

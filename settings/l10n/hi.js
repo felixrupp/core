@@ -2,6 +2,9 @@ OC.L10N.register(
     "settings",
     {
     "Email sent" : "ईमेल भेज दिया गया है ",
+    "Delete" : "हटाना",
+    "Share" : "साझा करें",
+    "Add" : "डाले",
     "Cancel" : "रद्द करें ",
     "Password" : "पासवर्ड",
     "New password" : "नया पासवर्ड",

@@ -1,7 +1,7 @@
 <?php
 /**
  * @author Tom Needham
- * @copyright 2016 Tom Needham tom@owncloud.com
+ * @copyright Copyright (c) 2016 Tom Needham tom@owncloud.com
  *
  * This file is licensed under the Affero General Public License version 3 or
  * later.
@@ -38,9 +38,9 @@ class MailTest extends \Test\TestCase {
 	}
 
 	public function testGetPriority() {
-		$this->assertTrue(is_integer($this->panel->getPriority()));
-		$this->assertTrue($this->panel->getPriority() > -100);
-		$this->assertTrue($this->panel->getPriority() < 100);
+		$this->assertInternalType('int', $this->panel->getPriority());
+		$this->assertGreaterThan(-100, $this->panel->getPriority());
+		$this->assertLessThan(100, $this->panel->getPriority());
 	}
 
 	public function testGetPanel() {

@@ -6,7 +6,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -258,7 +258,7 @@ class MigrationTest extends TestCase {
 		$query = $this->connection->getQueryBuilder();
 		$query->select('*')->from($this->table)->orderBy('id');
 		$result = $query->execute()->fetchAll();
-		$this->assertSame(10, count($result));
+		$this->assertCount(10, $result);
 
 		// shares which shouldn't be modified
 		for ($i = 0; $i < 4; $i++) {
@@ -344,7 +344,7 @@ class MigrationTest extends TestCase {
 			$this->assertEquals('user'.($i+1), $share['share_with']);
 			$this->assertEquals('user' . ($i), $share['uid_initiator']);
 			$this->assertEquals('user0', $share['uid_owner']);
-			$this->assertEquals(null, $share['parent']);
+			$this->assertNull($share['parent']);
 			$i++;
 		}
 		$stmt->closeCursor();

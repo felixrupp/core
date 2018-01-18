@@ -6,7 +6,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,14 +23,13 @@
  *
  */
 namespace OCA\DAV\Connector\Sabre;
+use OCA\DAV\Upload\FutureFile;
 use OCP\Files\FileInfo;
 use OCP\Files\StorageNotAvailableException;
 use Sabre\DAV\Exception\InsufficientStorage;
 use Sabre\DAV\Exception\ServiceUnavailable;
-use Sabre\HTTP\URLUtil;
-use OCA\DAV\Upload\FutureFile;
 use Sabre\DAV\INode;
-use OCA\DAV\Connector\Sabre\Node;
+use Sabre\HTTP\URLUtil;
 
 /**
  * This plugin check user quota and deny creating files when they exceeds the quota.
@@ -163,7 +162,7 @@ class QuotaPlugin extends \Sabre\DAV\ServerPlugin {
 				$path = rtrim($parentPath, '/') . '/' . $info['name'];
 			}
 			$freeSpace = $this->getFreeSpace($path);
-			if ($freeSpace !== FileInfo::SPACE_UNKNOWN && $length > $freeSpace) {
+			if ($freeSpace !== FileInfo::SPACE_UNKNOWN && $freeSpace !== FileInfo::SPACE_UNLIMITED && $length > $freeSpace) {
 				if (isset($chunkHandler)) {
 					$chunkHandler->cleanup();
 				}

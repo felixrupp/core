@@ -4,7 +4,7 @@
  * ownCloud - App Framework
  *
  * @author Bernhard Posselt
- * @copyright 2012 Bernhard Posselt <dev@bernhard-posselt.com>
+ * @copyright Copyright (c) 2012 Bernhard Posselt <dev@bernhard-posselt.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -27,9 +27,9 @@ namespace Test\AppFramework\Controller;
 use OC\AppFramework\DependencyInjection\DIContainer;
 use OC\AppFramework\Http\Request;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Http\TemplateResponse;
-use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\JSONResponse;
+use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IConfig;
 use OCP\Security\ISecureRandom;
 use Test\TestCase;
@@ -136,7 +136,7 @@ class ControllerTest extends TestCase {
 
 
 	public function testRender(){
-		$this->assertTrue($this->controller->render('') instanceof TemplateResponse);
+		$this->assertInstanceOf(TemplateResponse::class, $this->controller->render(''));
 	}
 
 
@@ -152,8 +152,8 @@ class ControllerTest extends TestCase {
 		$headers = ['one', 'two'];
 		$response = $this->controller->render('', [], '', $headers);
 
-		$this->assertTrue(in_array($headers[0], $response->getHeaders()));
-		$this->assertTrue(in_array($headers[1], $response->getHeaders()));
+		$this->assertContains($headers[0], $response->getHeaders());
+		$this->assertContains($headers[1], $response->getHeaders());
 	}
 
 

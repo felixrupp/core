@@ -5,7 +5,7 @@
  * @author Robin Appelman <icewind@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -26,11 +26,9 @@ namespace OC\Settings\Panels\Personal;
 
 use OCP\Settings\ISettings;
 use OCP\Template;
-use OCP\IUser;
 use OCP\IGroupManager;
 use OCP\IUserSession;
 use OCP\IConfig;
-use OC\Settings\Panels\Helper;
 use OCP\L10N\IFactory;
 
 class Profile implements ISettings {

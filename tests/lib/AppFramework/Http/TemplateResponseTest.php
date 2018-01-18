@@ -4,7 +4,7 @@
  * ownCloud - App Framework
  *
  * @author Bernhard Posselt
- * @copyright 2012 Bernhard Posselt <dev@bernhard-posselt.com>
+ * @copyright Copyright (c) 2012 Bernhard Posselt <dev@bernhard-posselt.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -24,8 +24,8 @@
 
 namespace Test\AppFramework\Http;
 
-use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\TemplateResponse;
 use Test\TestCase;
 
 

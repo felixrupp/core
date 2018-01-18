@@ -15,7 +15,7 @@
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -37,7 +37,6 @@ $application->add(new OC\Core\Command\Status);
 $application->add(new OC\Core\Command\Check(\OC::$server->getConfig()));
 $infoParser = new \OC\App\InfoParser();
 $application->add(new OC\Core\Command\App\CheckCode($infoParser));
-$application->add(new OC\Core\Command\L10n\CreateJs());
 $application->add(new \OC\Core\Command\Integrity\SignApp(
 		\OC::$server->getIntegrityCodeChecker(),
 		new \OC\IntegrityCheck\Helpers\FileAccessHelper(),
@@ -99,7 +98,7 @@ if (\OC::$server->getConfig()->getSystemValue('installed', false)) {
 		\OC::$server->getEncryptionManager(),
 		\OC::$server->getAppManager(),
 		\OC::$server->getConfig(),
-		new \OC\Encryption\DecryptAll(\OC::$server->getEncryptionManager(), \OC::$server->getUserManager(), new \OC\Files\View()),
+		new \OC\Encryption\DecryptAll(\OC::$server->getEncryptionManager(), \OC::$server->getUserManager(), new \OC\Files\View(), \OC::$server->getLogger()),
 		new \Symfony\Component\Console\Helper\QuestionHelper())
 	);
 
@@ -158,6 +157,7 @@ if (\OC::$server->getConfig()->getSystemValue('installed', false)) {
 	$application->add(new OC\Core\Command\Security\ListCertificates(\OC::$server->getCertificateManager(null), \OC::$server->getL10N('core')));
 	$application->add(new OC\Core\Command\Security\ImportCertificate(\OC::$server->getCertificateManager(null)));
 	$application->add(new OC\Core\Command\Security\RemoveCertificate(\OC::$server->getCertificateManager(null)));
+	$application->add(new OC\Core\Command\Security\ListRoutes(\OC::$server->getRouter()));
 } else {
 	$application->add(new OC\Core\Command\Maintenance\Install(\OC::$server->getConfig()));
 }

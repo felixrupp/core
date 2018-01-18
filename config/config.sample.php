@@ -35,7 +35,7 @@ $CONFIG = array(
  * This is a unique identifier for your ownCloud installation, created
  * automatically by the installer. This example is for documentation only,
  * and you should never use it because it will not work. A valid ``instanceid``
- * is created when you install ownCloud.
+ * is created when you install ownCloud. Needs to start with a letter.
  *
  * 'instanceid' => 'd3c944a9a',
  */
@@ -84,6 +84,11 @@ $CONFIG = array(
  * can be a legitimate step. Please consult the documentation before enabling this.
  */
 'version.hide' => false,
+
+/**
+ * Optionally, show the hostname of the server in status.php. Defaults to hidden
+ */
+'show_server_hostname' => false,
 
 /**
  * Identifies the database used with this installation. See also config option
@@ -480,6 +485,11 @@ $CONFIG = array(
  */
 'trashbin_retention_obligation' => 'auto',
 
+/**
+ * This setting defines percentage of free space occupied by deleted files
+ * that triggers auto purging of deleted files for this user
+ */
+'trashbin_purge_limit' => 50,
 
 /**
  * File versions
@@ -528,7 +538,8 @@ $CONFIG = array(
 
 /**
  * Check if ownCloud is up-to-date and shows a notification if a new version is
- * available.
+ * available. This option is only applicable to ownCloud core. It is not
+ * applicable to app updates.
  */
 'updatechecker' => true,
 
@@ -573,6 +584,15 @@ $CONFIG = array(
  * process.
  */
 'config_is_read_only' => false,
+
+/**
+ * This defines the mode of operations. The default value is 'single-instance'
+ * which means that ownCloud is running on a single node, which might be the
+ * most common operations mode. The only other possible value for now is
+ * 'clustered-instance' which means that ownCloud is running on at least 2
+ * nodes. The mode of operations has various impact on the behavior of ownCloud.
+ */
+'operation.mode' => 'single-instance',
 
 /**
  * Logging
@@ -1026,6 +1046,14 @@ $CONFIG = array(
 'cache_chunk_gc_ttl' => 86400, // 60*60*24 = 1 day
 
 /**
+ * Location of the chunk folder, defaults to ``data/$user/uploads`` where
+ * ``$user`` is the current user. When specified, the format will change to
+ * ``$dav.chunk_base_dir/$user`` where ``$dav.chunk_base_dir`` is the configured
+ * cache directory and ``$user`` is the user.
+ */
+'dav.chunk_base_dir' => '',
+
+/**
  * Using Object Store with ownCloud
  */
 
@@ -1196,6 +1224,18 @@ $CONFIG = array(
 		'~snapshot',
 	),
 /**
+ * Exclude files from the integrity checker command
+ */
+'integrity.excluded.files' =>
+	array (
+		'.DS_Store',
+		'Thumbs.db',
+		'.directory',
+		'.webapp',
+		'.htaccess',
+		'.user.ini',
+	),
+/**
  * Define a default folder for shared files and folders other than root.
  */
 'share_folder' => '/',
@@ -1333,6 +1373,11 @@ $CONFIG = array(
  * Disable the web based updater
  */
 'upgrade.disable-web' => false,
+
+/**
+ * Automatic update of market apps, set to "false" to disable.
+ */
+'upgrade.automatic-app-update' => true,
 
 /**
  * Set this ownCloud instance to debugging mode

@@ -5,7 +5,7 @@
  * @author Robin McCorkell <robin@mccorkell.me.uk>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2016, ownCloud GmbH.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -70,7 +70,7 @@ class StorageConfigTest extends \Test\TestCase {
 		$this->assertSame('auth::identifier', $json['authMechanism']);
 		$this->assertSame('test', $json['backendOptions']['user']);
 		$this->assertSame('password123', $json['backendOptions']['password']);
-		$this->assertSame(true, $json['backendOptions']['secure']);
+		$this->assertTrue($json['backendOptions']['secure']);
 		$this->assertSame('12345', $json['backendOptions']['key']);
 		$this->assertSame(128, $json['priority']);
 		$this->assertSame(['user1', 'user2'], $json['applicableUsers']);

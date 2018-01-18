@@ -10,7 +10,7 @@
 # @author Joas Schilling
 # @author Lukas Reschke
 # @author Jörn Friedrich Dreyer
-# @copyright 2012-2015 Thomas Müller thomas.mueller@tmit.eu
+# @copyright Copyright (c) 2012-2015 Thomas Müller thomas.mueller@tmit.eu
 #
 
 #$EXECUTOR_NUMBER is set by Jenkins and allows us to run autotest in parallel
@@ -229,7 +229,7 @@ function execute_tests {
 
 		DATABASEHOST=$(docker inspect --format="{{.NetworkSettings.IPAddress}}" "$DOCKER_CONTAINER_ID")
 
-		echo "Waiting for MySQL(utf8mb4) initialisation ..."
+		echo "Waiting for MySQL(utf8mb4) initialisation of container $DOCKER_CONTAINER_ID ..."
 
 		if ! apps/files_external/tests/env/wait-for-connection $DATABASEHOST 3306 600; then
 			echo "[ERROR] Waited 600 seconds, no response" >&2

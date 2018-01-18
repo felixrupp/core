@@ -5,7 +5,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -168,5 +168,15 @@ interface IStorage {
 	 * @since 8.1.0
 	 */
 	public function copyKeys($source, $target);
+
+	/**
+	 * delete user keys from alternate storage location when
+	 * a user is deleted
+	 *
+	 * @param $uid
+	 * @return boolean
+	 * @since 10.0.4
+	 */
+	public function deleteAltUserStorageKeys($uid);
 
 }

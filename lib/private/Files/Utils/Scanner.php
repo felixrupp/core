@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -211,6 +211,9 @@ class Scanner extends PublicEmitter {
 			if ($storage->instanceOfStorage('OCA\Files_Sharing\ISharedStorage')) {
 				continue;
 			}
+
+			$this->emit('\OC\Files\Utils\Scanner', 'beforeScanStorage', [$storage]);
+
 			$relativePath = $mount->getInternalPath($dir);
 			$scanner = $storage->getScanner();
 			$scanner->setUseTransactions(false);
@@ -247,6 +250,7 @@ class Scanner extends PublicEmitter {
 			if ($this->useTransaction) {
 				$this->db->commit();
 			}
+			$this->emit('\OC\Files\Utils\Scanner', 'afterScanStorage', [$storage]);
 		}
 	}
 

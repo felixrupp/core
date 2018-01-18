@@ -3,7 +3,7 @@
  * @author Thomas Citharel <tcit@tcit.fr>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,11 +21,11 @@
  */
 namespace OCA\DAV\Tests\unit\CalDAV;
 
+use OCA\DAV\CalDAV\CalDavBackend;
 use OCA\DAV\CalDAV\Calendar;
+use OCA\DAV\CalDAV\PublicCalendarRoot;
 use OCA\DAV\Connector\Sabre\Principal;
 use OCP\IL10N;
-use OCA\DAV\CalDAV\CalDavBackend;
-use OCA\DAV\CalDAV\PublicCalendarRoot;
 use OCP\Security\ISecureRandom;
 use Test\TestCase;
 
@@ -98,8 +98,8 @@ class PublicCalendarRootTest extends TestCase {
 		$calendar = $this->createPublicCalendar();
 
 		$publicCalendars = $this->backend->getPublicCalendars();
-		$this->assertEquals(1, count($publicCalendars));
-		$this->assertEquals(true, $publicCalendars[0]['{http://owncloud.org/ns}public']);
+		$this->assertCount(1, $publicCalendars);
+		$this->assertTrue($publicCalendars[0]['{http://owncloud.org/ns}public']);
 
 		$publicCalendarURI = $publicCalendars[0]['uri'];
 
@@ -125,7 +125,7 @@ class PublicCalendarRootTest extends TestCase {
 		$this->publicCalendarRoot->disableListing = false;
 		$calendarResults = $this->publicCalendarRoot->getChildren();
 
-		$this->assertEquals(1, count($calendarResults));
+		$this->assertCount(1, $calendarResults);
 		$this->assertEquals(new Calendar($this->backend, $publicCalendars[0], $this->l10n), $calendarResults[0]);
 	}
 

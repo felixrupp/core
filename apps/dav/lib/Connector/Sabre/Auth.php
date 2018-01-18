@@ -11,7 +11,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -113,6 +113,7 @@ class Auth extends AbstractBasic {
 			return false;
 		}
 		if ($this->userSession->isLoggedIn() &&
+			$this->userSession->verifyAuthHeaders($this->request) &&
 			$this->isDavAuthenticated($this->userSession->getUser()->getUID())
 		) {
 			\OC_Util::setupFS($this->userSession->getUser()->getUID());

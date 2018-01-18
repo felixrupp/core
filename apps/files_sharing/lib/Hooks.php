@@ -6,7 +6,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -39,9 +39,8 @@ class Hooks {
 			\OC::$server->getDatabaseConnection(),
 			\OC\Files\Filesystem::getMountManager(),
 			\OC\Files\Filesystem::getLoader(),
-			\OC::$server->getHTTPHelper(),
 			\OC::$server->getNotificationManager(),
-			$discoveryManager,
+			\OC::$server->getEventDispatcher(),
 			$params['uid']);
 
 		$manager->removeUserShares($params['uid']);

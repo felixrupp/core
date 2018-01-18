@@ -2,7 +2,7 @@
 /**
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -23,7 +23,9 @@ namespace OC\User;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IConfig;
 use OCP\ILogger;
+use OCP\User\IProvidesEMailBackend;
 use OCP\User\IProvidesExtendedSearchBackend;
+use OCP\User\IProvidesQuotaBackend;
 use OCP\UserInterface;
 
 /**
@@ -137,13 +139,24 @@ class SyncService {
 		if ($hasKey) {
 			$a->setLastLogin($value);
 		}
-		list($hasKey, $value) = $this->readUserConfig($uid, 'settings', 'email');
-		if ($hasKey) {
-			$a->setEmail($value);
+		if ($this->backend instanceof IProvidesEMailBackend) {
+			$a->setEmail($this->backend->getEMailAddress($uid));
+		} else {
+			list($hasKey, $value) = $this->readUserConfig($uid, 'settings', 'email');
+			if ($hasKey) {
+				$a->setEmail($value);
+			}
 		}
-		list($hasKey, $value) = $this->readUserConfig($uid, 'files', 'quota');
-		if ($hasKey) {
-			$a->setQuota($value);
+		if ($this->backend instanceof IProvidesQuotaBackend) {
+			$quota = $this->backend->getQuota($uid);
+			if ($quota !== null) {
+				$a->setQuota($quota);
+			}
+		} else {
+			list($hasKey, $value) = $this->readUserConfig($uid, 'files', 'quota');
+			if ($hasKey) {
+				$a->setQuota($value);
+			}
 		}
 		if ($this->backend->implementsActions(\OC_User_Backend::GET_HOME)) {
 			$home = $this->backend->getHome($uid);

@@ -12,7 +12,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Ujjwal Bhardwaj <ujjwalb1996@gmail.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -31,9 +31,9 @@
 
 namespace OC\Settings;
 
-use OC\Files\View;
 use OC\Server;
 use OC\AppFramework\Utility\TimeFactory;
+use OC\Settings\Controller\CorsController;
 use OC\Settings\Controller\SettingsPageController;
 use OC\Settings\Controller\AppSettingsController;
 use OC\Settings\Controller\AuthSettingsController;
@@ -130,7 +130,6 @@ class Application extends App {
 				$c->query('Request'),
 				$c->query('GroupManager'),
 				$c->query('UserSession'),
-				$c->query('IsAdmin'),
 				$c->query('L10N')
 			);
 		});
@@ -143,7 +142,6 @@ class Application extends App {
 				$c->query('UserSession'),
 				$c->query('Config'),
 				$c->query('SecureRandom'),
-				$c->query('IsAdmin'),
 				$c->query('L10N'),
 				$c->query('Logger'),
 				$c->query('Defaults'),
@@ -175,6 +173,16 @@ class Application extends App {
 				$c->query('Checker')
 			);
 		});
+		$container->registerService('CorsController', function(IContainer $c) {
+			return new CorsController(
+				$c->query('AppName'),
+				$c->query('Request'),
+				$c->query('UserSession'),
+				$c->query('Logger'),
+				$c->query('URLGenerator'),
+				$c->query('Config')
+			);
+		});
 
 		/**
 		 * Middleware
@@ -182,7 +190,8 @@ class Application extends App {
 		$container->registerService('SubadminMiddleware', function(IContainer $c){
 			return new SubadminMiddleware(
 				$c->query('ControllerMethodReflector'),
-				$c->query('IsSubAdmin')
+				$c->query('GroupManager'),
+				$c->query('UserSession')
 			);
 		});
 		// Execute middlewares
@@ -208,19 +217,6 @@ class Application extends App {
 		});
 		$container->registerService('UserSession', function(IContainer $c) {
 			return $c->query('ServerContainer')->getUserSession();
-		});
-		/** FIXME: Remove once OC_User is non-static and mockable */
-		$container->registerService('IsAdmin', function(IContainer $c) {
-			return \OC_User::isAdminUser(\OC_User::getUser());
-		});
-		/** FIXME: Remove once OC_SubAdmin is non-static and mockable */
-		$container->registerService('IsSubAdmin', function(IContainer $c) {
-			$userObject = \OC::$server->getUserSession()->getUser();
-			$isSubAdmin = false;
-			if($userObject !== null) {
-				$isSubAdmin = \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
-			}
-			return $isSubAdmin;
 		});
 		$container->registerService('Mailer', function(IContainer $c) {
 			return $c->query('ServerContainer')->getMailer();

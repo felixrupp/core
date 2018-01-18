@@ -2,47 +2,49 @@
 /**
  * ownCloud
  *
- * @author Phil Davis <info@jankaritech.com>
- * @copyright 2017 Phil Davis info@jankaritech.com
+ * @author Phil Davis <phil@jankaritech.com>
+ * @copyright Copyright (c) 2017 Phil Davis phil@jankaritech.com
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
+ * This code is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License,
+ * as published by the Free Software Foundation;
+ * either version 3 of the License, or any later version.
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public
- * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>
  *
  */
 namespace TestHelpers;
 
-use GuzzleHttp\Stream\Stream;
+use GuzzleHttp\Message\FutureResponse;
+use GuzzleHttp\Message\ResponseInterface;
 
 /**
  * Helper for Downloads
  *
- * @author Phil Davis <info@jankaritech.com>
+ * @author Phil Davis <phil@jankaritech.com>
  *
  */
 class DownloadHelper {
 	/**
-	 * 
-	 * @param string $baseUrl             URL of owncloud
-	 * e.g. http://localhost:8080
-	 * should include the subfolder if owncloud runs in a subfolder
-	 * e.g. http://localhost:8080/owncloud-core
+	 *
+	 * @param string $baseUrl URL of owncloud
+	 *                        e.g. http://localhost:8080
+	 *                        should include the subfolder
+	 *                        if owncloud runs in a subfolder
+	 *                        e.g. http://localhost:8080/owncloud-core
 	 * @param string $user
 	 * @param string $password
 	 * @param string $fileName
 	 * @param array  $headers
 	 * @param int    $davPathVersionToUse (1|2)
 	 * @param string $sourceIpAddress
-	 * @return \GuzzleHttp\Message\FutureResponse|\GuzzleHttp\Message\ResponseInterface|NULL
+	 * @return FutureResponse|ResponseInterface|NULL
 	 */
 	public static function download(
 		$baseUrl,

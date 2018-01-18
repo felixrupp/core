@@ -3,7 +3,7 @@
 # ownCloud
 #
 # @author Artur Neumann
-# @copyright 2017 Artur Neumann info@individual-it.net
+# @copyright Copyright (c) 2017 Artur Neumann info@individual-it.net
 #
 
 # $1 hostname[:port] on which server will listen
@@ -50,6 +50,11 @@ then
 fi
 
 start_php_dev_server $SRV_HOST_NAME:$SRV_HOST_PORT primary
+
+if [ ! -z "$REMOTE_FED_SRV_HOST_NAME" ] && [ ! -z "$REMOTE_FED_SRV_HOST_PORT" ]
+then
+	start_php_dev_server $REMOTE_FED_SRV_HOST_NAME:$REMOTE_FED_SRV_HOST_PORT REMOTE_FEDERATION
+fi
 
 if [ ! -z "$IPV4_HOST_NAME" ] && [ "$SRV_HOST_NAME" != "$IPV4_HOST_NAME" ]
 then

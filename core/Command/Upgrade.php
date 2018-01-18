@@ -10,7 +10,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -68,12 +68,12 @@ class Upgrade extends Command {
 	protected function configure() {
 		$this
 			->setName('upgrade')
-			->setDescription('run upgrade routines after installation of a new release. The release has to be installed before.')
+			->setDescription('Run upgrade routines after upgrading to a new release.')
 			->addOption(
 				'--no-app-disable',
 				null,
 				InputOption::VALUE_NONE,
-				'skips the disable of third party apps'
+				'Skip disabling of third party apps.'
 			);
 	}
 
@@ -84,6 +84,11 @@ class Upgrade extends Command {
 	 * @param OutputInterface $output output interface
 	 */
 	protected function execute(InputInterface $input, OutputInterface $output) {
+		if ($output->getVerbosity() === OutputInterface::VERBOSITY_NORMAL
+			&& !$input->hasParameterOption('--verbose=0', true)) {
+			// set to more verbose on upgrade if no explicit verbosity was set
+			$output->setVerbosity(OutputInterface::VERBOSITY_VERBOSE);
+		}
 
 		if(\OC::checkUpgrade(false)) {
 			if (OutputInterface::VERBOSITY_NORMAL < $output->getVerbosity()) {

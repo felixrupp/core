@@ -2,7 +2,7 @@
 /**
  * @author Lukas Reschke <lukas@statuscode.ch>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -88,7 +88,7 @@ class Mailer implements IMailer {
 	public function send(Message $message) {
 		$debugMode = $this->config->getSystemValue('mail_smtpdebug', false);
 
-		if (sizeof($message->getFrom()) === 0) {
+		if (!is_array($message->getFrom()) || count($message->getFrom()) === 0) {
 			$message->setFrom([\OCP\Util::getDefaultEmailAddress($this->defaults->getName())]);
 		}
 
@@ -132,7 +132,7 @@ class Mailer implements IMailer {
 		}
 
 		list($name, $domain) = explode('@', $email, 2);
-		$domain = idn_to_ascii($domain);
+		$domain = idn_to_ascii($domain, 0, INTL_IDNA_VARIANT_UTS46);
 		return $name.'@'.$domain;
 	}
 

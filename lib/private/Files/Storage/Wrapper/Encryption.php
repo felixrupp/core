@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -85,6 +85,11 @@ class Encryption extends Wrapper {
 
 	/** @var  ArrayCache */
 	private $arrayCache;
+
+	/** @var array which has information of sourcePath during rename operation */
+	private $sourcePath;
+
+	private static $disableWriteEncryption = false;
 
 	/**
 	 * @param array $parameters
@@ -201,16 +206,18 @@ class Encryption extends Wrapper {
 	 */
 	public function file_get_contents($path) {
 
-		$encryptionModule = $this->getEncryptionModule($path);
+		if ($this->encryptionManager->isEnabled() !== false) {
+			$encryptionModule = $this->getEncryptionModule($path);
 
-		if ($encryptionModule) {
-			$handle = $this->fopen($path, "r");
-			if (!$handle) {
-				return false;
+			if ($encryptionModule) {
+				$handle = $this->fopen($path, "r");
+				if (!$handle) {
+					return false;
+				}
+				$data = stream_get_contents($handle);
+				fclose($handle);
+				return $data;
 			}
-			$data = stream_get_contents($handle);
-			fclose($handle);
-			return $data;
 		}
 		return $this->storage->file_get_contents($path);
 	}
@@ -358,12 +365,11 @@ class Encryption extends Wrapper {
 	 *
 	 * @param string $path
 	 * @param string $mode
-	 * @param string|null $sourceFileOfRename
 	 * @return resource|bool
 	 * @throws GenericEncryptionException
 	 * @throws ModuleDoesNotExistsException
 	 */
-	public function fopen($path, $mode, $sourceFileOfRename = null) {
+	public function fopen($path, $mode) {
 
 		// check if the file is stored in the array cache, this means that we
 		// copy a file over to the versions folder, in this case we don't want to
@@ -379,7 +385,7 @@ class Encryption extends Wrapper {
 		$header = $this->getHeader($path);
 		$signed = (isset($header['signed']) && $header['signed'] === 'true') ? true : false;
 		$fullPath = $this->getFullPath($path);
-		$encryptionModuleId = ($encryptionEnabled) ? $this->util->getEncryptionModuleId($header): "";
+		$encryptionModuleId = $this->util->getEncryptionModuleId($header);
 
 		if ($this->util->isExcluded($fullPath) === false) {
 
@@ -451,14 +457,33 @@ class Encryption extends Wrapper {
 			}
 
 			if ($shouldEncrypt === true && $encryptionModule !== null) {
+				/**
+				 * The check of $disableWriteEncryption, required to get the file in the decrypted state.
+				 * It will help us get the normal file handler. And hence we can re-encrypt
+				 * the file when necessary, later. The true/false of $getDecryptedFile decides whether
+				 * to keep the file decrypted or not. The intention is to get the data decrypt
+				 * for write mode.
+				 */
+				if (self::$disableWriteEncryption && ($mode !== 'r')) {
+					return $this->getWrapperStorage()->fopen($path, $mode);
+				}
+
 				$headerSize = $this->getHeaderSize($path);
 				$source = $this->storage->fopen($path, $mode);
 				if (!is_resource($source)) {
 					return false;
 				}
+
+				if (isset($this->sourcePath[$path])) {
+					$sourceFileOfRename = $this->sourcePath[$path];
+				} else {
+					$sourceFileOfRename = null;
+				}
 				$handle = \OC\Files\Stream\Encryption::wrap($source, $path, $fullPath, $header,
 					$this->uid, $encryptionModule, $this->storage, $this, $this->util, $this->fileHelper, $mode,
 					$size, $unencryptedSize, $headerSize, $signed, $sourceFileOfRename);
+				unset($this->sourcePath[$path]);
+
 				return $handle;
 			}
 
@@ -622,6 +647,15 @@ class Encryption extends Wrapper {
 		return $result;
 	}
 
+	/**
+	 * Set the flag to true, so that the file would be
+	 * in the decrypted state.
+	 *
+	 * @param $isDisabled bool
+	 */
+	public static function setDisableWriteEncryption($isDisabled) {
+		self::$disableWriteEncryption = $isDisabled;
+	}
 
 	/**
 	 * @param Storage $sourceStorage
@@ -678,7 +712,9 @@ class Encryption extends Wrapper {
 			 * incremented version of source file, for the destination file.
 			 */
 			$encryptedVersion = $sourceStorage->getCache()->get($sourceInternalPath)['encryptedVersion'];
-			$cacheInformation['encryptedVersion'] = $encryptedVersion + 1;
+			if ($this->encryptionManager->isEnabled()) {
+				$cacheInformation['encryptedVersion'] = $encryptedVersion + 1;
+			}
 			$sourceStorage->getCache()->put($sourceInternalPath, $cacheInformation);
 		} else {
 			$this->getCache()->put($targetInternalPath, $cacheInformation);
@@ -724,7 +760,7 @@ class Encryption extends Wrapper {
 		// first copy the keys that we reuse the existing file key on the target location
 		// and don't create a new one which would break versions for example.
 		$mount = $this->mountManager->findByStorageId($sourceStorage->getId());
-		if (count($mount) === 1) {
+		if (is_array($mount) && count($mount) === 1) {
 			$mountPoint = $mount[0]->getMountPoint();
 			$source = $mountPoint . '/' . $sourceInternalPath;
 			$target = $this->getFullPath($targetInternalPath);
@@ -746,16 +782,18 @@ class Encryption extends Wrapper {
 		} else {
 			try {
 				$source = $sourceStorage->fopen($sourceInternalPath, 'r');
-				if ($isRename) {
-					$absSourcePath = Filesystem::normalizePath($sourceStorage->getOwner($sourceInternalPath). '/' . $sourceInternalPath);
-					$target = $this->fopen($targetInternalPath, 'w', $absSourcePath);
+				if ($isRename && (count($mount) === 1)) {
+					$sourceStorageMountPoint = $mount[0]->getMountPoint();
+					$this->sourcePath[$targetInternalPath] = $sourceStorageMountPoint . '/' . $sourceInternalPath;
 				} else {
-					$target = $this->fopen($targetInternalPath, 'w');
+					unset($this->sourcePath[$targetInternalPath]);
 				}
+				$target = $this->fopen($targetInternalPath, 'w');
 				list(, $result) = \OC_Helper::streamCopy($source, $target);
 				fclose($source);
 				fclose($target);
 			} catch (\Exception $e) {
+				Encryption::setDisableWriteEncryption(false);
 				fclose($source);
 				fclose($target);
 				throw $e;
@@ -850,10 +888,15 @@ class Encryption extends Wrapper {
 	 * read first block of encrypted file, typically this will contain the
 	 * encryption header
 	 *
-	 * @param string $path
+	 * @param string|resource $path
 	 * @return string
 	 */
 	protected function readFirstBlock($path) {
+		if (is_resource($path)) {
+			$firstBlock = fread($path, $this->util->getHeaderSize());
+			rewind($path);
+			return $firstBlock;
+		}
 		$firstBlock = '';
 		if ($this->storage->file_exists($path)) {
 			$handle = $this->storage->fopen($path, 'r');
@@ -866,14 +909,16 @@ class Encryption extends Wrapper {
 	/**
 	 * return header size of given file
 	 *
-	 * @param string $path
+	 * @param string|resource $path
 	 * @return int
 	 */
 	protected function getHeaderSize($path) {
 		$headerSize = 0;
-		$realFile = $this->util->stripPartialFileExtension($path);
-		if ($this->storage->file_exists($realFile)) {
-			$path = $realFile;
+		if (!is_resource($path)) {
+			$realFile = $this->util->stripPartialFileExtension($path);
+			if ($this->storage->file_exists($realFile)) {
+				$path = $realFile;
+			}
 		}
 		$firstBlock = $this->readFirstBlock($path);
 
@@ -915,14 +960,18 @@ class Encryption extends Wrapper {
 	/**
 	 * read header from file
 	 *
-	 * @param string $path
+	 * @param string|resource $path
 	 * @return array
 	 */
 	protected function getHeader($path) {
-		$realFile = $this->util->stripPartialFileExtension($path);
-		$exists = $this->storage->file_exists($realFile);
-		if ($exists) {
-			$path = $realFile;
+		if (is_resource($path)) {
+			$exists = false;
+		} else {
+			$realFile = $this->util->stripPartialFileExtension($path);
+			$exists = $this->storage->file_exists($realFile);
+			if ($exists) {
+				$path = $realFile;
+			}
 		}
 
 		$firstBlock = $this->readFirstBlock($path);
@@ -990,6 +1039,18 @@ class Encryption extends Wrapper {
 		}
 
 		return false;
+	}
+
+	/**
+	 *
+	 * delete file keys of the file
+	 *
+	 * @param $path path of the file key to delete
+	 * @return bool
+	 */
+	protected function deleteAllFileKeys($path) {
+		$fullPath = $this->getFullPath($path);
+		return $this->keyStorage->deleteAllFileKeys($fullPath);
 	}
 
 	/**

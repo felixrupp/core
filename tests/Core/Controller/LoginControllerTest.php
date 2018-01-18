@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@owncloud.com>
  * @author Semih Serhat Karakaya <karakayasemi@itu.edu.tr>
  *
- * @copyright Copyright (c) 2016, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -318,6 +318,7 @@ class LoginControllerTest extends TestCase {
 
 		$this->userSession->expects($this->never())
 			->method('createSessionToken');
+		$this->userManager->expects($this->any())->method('getByEmail')->willReturn([]);
 
 		$expected = new RedirectResponse($loginPageUrl);
 		$this->assertEquals($expected, $this->loginController->tryLogin($user, $password, '/foo'));

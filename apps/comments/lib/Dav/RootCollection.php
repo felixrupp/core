@@ -4,7 +4,7 @@
  * @author Joas Schilling <coding@schilljs.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -28,8 +28,8 @@ use OCP\Comments\ICommentsManager;
 use OCP\ILogger;
 use OCP\IUserManager;
 use OCP\IUserSession;
-use Sabre\DAV\Exception\NotAuthenticated;
 use Sabre\DAV\Exception\Forbidden;
+use Sabre\DAV\Exception\NotAuthenticated;
 use Sabre\DAV\Exception\NotFound;
 use Sabre\DAV\ICollection;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;

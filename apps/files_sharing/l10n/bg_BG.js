@@ -11,6 +11,8 @@ OC.L10N.register(
     "Shared with you" : "Споделено с теб",
     "Shared with others" : "Споделено с други",
     "Shared by link" : "Споделено с връзка",
+    "Anonymous upload" : "Анонимно качване",
+    "Uploaded files" : "Качени файлове",
     "Uploading..." : "Качване...",
     "Nothing shared with you yet" : "Все още няма нищо споделено с теб",
     "Files and folders others share with you will show up here" : "Файлове и папки, споделени от други с теб, ще се показват тук",
@@ -106,7 +108,6 @@ OC.L10N.register(
     "sharing is disabled" : "споделянето е изключено",
     "For more info, please ask the person who sent this link." : "За повече информация, моля питай човека, който е изпратил тази връзка.",
     "%s is publicly shared" : "%s е публично споделна",
-    "Add to your ownCloud" : "Добави към своя ownCloud",
     "Download" : "Изтегли",
     "Download %s" : "Изтегли %s",
     "Direct link" : "Директна връзка"

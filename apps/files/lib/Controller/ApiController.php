@@ -9,7 +9,7 @@
  * @author Tobias Kaminsky <tobias@kaminsky.me>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -28,17 +28,17 @@
 
 namespace OCA\Files\Controller;
 
-use OCP\AppFramework\Http;
-use OCP\AppFramework\Controller;
-use OCP\IConfig;
-use OCP\IRequest;
-use OCP\AppFramework\Http\DataResponse;
-use OCP\AppFramework\Http\DataDisplayResponse;
-use OCP\AppFramework\Http\Response;
 use OCA\Files\Service\TagService;
+use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\DataDisplayResponse;
+use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\Response;
+use OCP\IConfig;
 use OCP\IPreview;
-use OCP\Share\IManager;
+use OCP\IRequest;
 use OCP\IUserSession;
+use OCP\Share\IManager;
 
 /**
  * Class ApiController

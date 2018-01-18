@@ -3,11 +3,8 @@
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Message\ResponseInterface;
 
 trait Checksums {
-
-	use Webdav;
 
 	/**
 	 * @When user :user uploads file :source to :destination with checksum :checksum
@@ -27,22 +24,22 @@ trait Checksums {
 	}
 
 	/**
-	 * @Then The webdav response should have a status code :statusCode
+	 * @Then the webdav response should have a status code :statusCode
 	 * @param int $statusCode
 	 * @throws \Exception
 	 */
 	public function theWebdavResponseShouldHaveAStatusCode($statusCode) {
-		if((int)$statusCode !== $this->response->getStatusCode()) {
+		if ((int)$statusCode !== $this->response->getStatusCode()) {
 			throw new \Exception("Expected $statusCode, got ".$this->response->getStatusCode());
 		}
 	}
 
 	/**
-	 * @When user :user request the checksum of :path via propfind
+	 * @When user :user requests the checksum of :path via propfind
 	 * @param string $user
 	 * @param string $path
 	 */
-	public function userRequestTheChecksumOfViaPropfind($user, $path) {
+	public function userRequestsTheChecksumOfViaPropfind($user, $path) {
 		$client = new Client();
 		$request = $client->createRequest(
 			'PROPFIND',
@@ -64,7 +61,7 @@ trait Checksums {
 	}
 
 	/**
-	 * @Then The webdav checksum should match :checksum
+	 * @Then the webdav checksum should match :checksum
 	 * @param string $checksum
 	 * @throws \Exception
 	 */
@@ -85,7 +82,7 @@ trait Checksums {
 	}
 
 	/**
-	 * @Then The header checksum should match :checksum
+	 * @Then the header checksum should match :checksum
 	 * @param string $checksum
 	 * @throws \Exception
 	 */
@@ -97,7 +94,7 @@ trait Checksums {
 	}
 
 	/**
-	 * @Given User :user copied file :source to :destination
+	 * @Given user :user copied file :source to :destination
 	 * @param string $user
 	 * @param string $source
 	 * @param string $destination
@@ -121,7 +118,7 @@ trait Checksums {
 	}
 
 	/**
-	 * @Then The webdav checksum should be empty
+	 * @Then the webdav checksum should be empty
 	 */
 	public function theWebdavChecksumShouldBeEmpty()
 	{
@@ -140,7 +137,7 @@ trait Checksums {
 	}
 
 	/**
-	 * @Then The OC-Checksum header should not be there
+	 * @Then the OC-Checksum header should not be there
 	 */
 	public function theOcChecksumHeaderShouldNotBeThere()
 	{
@@ -159,14 +156,18 @@ trait Checksums {
 	 * @param string $checksum
 	 */
 	public function userUploadsChunkFileOfWithToWithChecksum($user, $num, $total, $data, $destination, $checksum) {
-		$num -= 1;
-		$data = \GuzzleHttp\Stream\Stream::factory($data);
-		$file = $destination . '-chunking-42-' . $total . '-' . $num;
-		$this->response = $this->makeDavRequest($user,
-							  'PUT',
-							  $file,
-							  ['OC-Checksum' => $checksum, 'OC-Chunked' => '1'],
-							  $data,
-							  "files");
+		try {
+			$num -= 1;
+			$data = \GuzzleHttp\Stream\Stream::factory($data);
+			$file = $destination . '-chunking-42-' . $total . '-' . $num;
+			$this->response = $this->makeDavRequest($user,
+								  'PUT',
+								  $file,
+								  ['OC-Checksum' => $checksum, 'OC-Chunked' => '1'],
+								  $data,
+								  "files");
+		} catch (\GuzzleHttp\Exception\RequestException $ex) {
+			$this->response = $ex->getResponse();
+		}
 	}
 }

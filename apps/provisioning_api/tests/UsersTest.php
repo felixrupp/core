@@ -10,7 +10,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -32,11 +32,11 @@ namespace OCA\Provisioning_API\Tests;
 use OC\OCS\Result;
 use OCA\Provisioning_API\Users;
 use OCP\API;
+use OCP\ILogger;
 use OCP\IUserManager;
 use OCP\IUserSession;
 use PHPUnit_Framework_MockObject_MockObject;
 use Test\TestCase as OriginalTest;
-use OCP\ILogger;
 
 class UsersTest extends OriginalTest {
 	

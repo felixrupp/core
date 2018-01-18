@@ -12,6 +12,8 @@ OC.L10N.register(
     "All users. Type to select user or group." : "Alle Benutzer. Benutzer oder Gruppe zur Auswahl eingeben.",
     "(group)" : "(group)",
     "Compatibility with Mac NFD encoding (slow)" : "Kompatibilität mit MAC NFD-Kodierung (langsam)",
+    "Unknown auth backend \"{b}\"" : "Unbekanntes Backend \"{b}\" zur Authentifizierung",
+    "Please make sure that the app that provides this backend is installed and enabled" : "Bitte sicherstellen, dass die Anwendung, die das Backend zur Verfügung stellt, installiert und aktiv ist",
     "Admin defined" : "Durch Administrator festgelegt",
     "Saved" : "Gespeichert",
     "Disabling external storage will unmount all storages for all users, are you sure ?" : "Das Deaktivieren des externen Speichers hängt bei allen Nutzern den eingebundenen Speicher aus. Bist du dir sicher?",
@@ -111,6 +113,7 @@ OC.L10N.register(
     "Advanced settings" : "Erweiterte Einstellungen",
     "Delete" : "Löschen",
     "Allow users to mount external storage" : "Benutzern erlauben, externen Speicher einzubinden",
-    "Allow users to mount the following external storage" : "Benutzern erlauben, den oder die folgenden externen Speicher einzubinden:"
+    "Allow users to mount the following external storage" : "Benutzern erlauben, den oder die folgenden externen Speicher einzubinden:",
+    "Allow sharing on user-mounted external storages" : "Erlaube den Benutzern das Teilen extern hinzugefügter Speicher"
 },
 "nplurals=2; plural=(n != 1);");

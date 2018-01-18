@@ -11,7 +11,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -30,23 +30,21 @@
 
 namespace OCA\DAV\Connector\Sabre;
 
-use OC\Files\View;
+use OC\AppFramework\Http\Request;
+use OCA\DAV\Files\IProvidesAdditionalHeaders;
 use OCP\Files\ForbiddenException;
-use Sabre\DAV\Exception\Forbidden;
-use Sabre\DAV\Exception\NotFound;
-use Sabre\DAV\IFile;
-use \Sabre\DAV\PropFind;
-use \Sabre\DAV\PropPatch;
-use Sabre\DAV\ServerPlugin;
-use Sabre\DAV\Tree;
-use \Sabre\HTTP\RequestInterface;
-use \Sabre\HTTP\ResponseInterface;
 use OCP\Files\StorageNotAvailableException;
 use OCP\IConfig;
 use OCP\IRequest;
-use Sabre\DAV\Exception\BadRequest;
-use OCA\DAV\Connector\Sabre\Directory;
-use OCA\DAV\Upload\FutureFile;
+use Sabre\DAV\Exception\Forbidden;
+use Sabre\DAV\Exception\NotFound;
+use Sabre\DAV\IFile;
+use Sabre\DAV\PropFind;
+use Sabre\DAV\PropPatch;
+use Sabre\DAV\ServerPlugin;
+use Sabre\DAV\Tree;
+use Sabre\HTTP\RequestInterface;
+use Sabre\HTTP\ResponseInterface;
 
 class FilesPlugin extends ServerPlugin {
 
@@ -64,6 +62,7 @@ class FilesPlugin extends ServerPlugin {
 	const OWNER_DISPLAY_NAME_PROPERTYNAME = '{http://owncloud.org/ns}owner-display-name';
 	const CHECKSUMS_PROPERTYNAME = '{http://owncloud.org/ns}checksums';
 	const DATA_FINGERPRINT_PROPERTYNAME = '{http://owncloud.org/ns}data-fingerprint';
+	const PRIVATE_LINK_PROPERTYNAME = '{http://owncloud.org/ns}privatelink';
 
 	/**
 	 * Reference to main server object
@@ -84,11 +83,6 @@ class FilesPlugin extends ServerPlugin {
 	 * @var bool
 	 */
 	private $isPublic;
-
-	/**
-	 * @var View
-	 */
-	private $fileView;
 
 	/**
 	 * @var bool
@@ -148,6 +142,7 @@ class FilesPlugin extends ServerPlugin {
 		$server->protectedProperties[] = self::OWNER_DISPLAY_NAME_PROPERTYNAME;
 		$server->protectedProperties[] = self::CHECKSUMS_PROPERTYNAME;
 		$server->protectedProperties[] = self::DATA_FINGERPRINT_PROPERTYNAME;
+		$server->protectedProperties[] = self::PRIVATE_LINK_PROPERTYNAME;
 
 		// normally these cannot be changed (RFC4918), but we want them modifiable through PROPPATCH
 		$allowedProperties = ['{DAV:}getetag'];
@@ -167,7 +162,6 @@ class FilesPlugin extends ServerPlugin {
 			}
 		});
 		$this->server->on('beforeMove', [$this, 'checkMove']);
-		$this->server->on('beforeMove', [$this, 'beforeMoveFutureFile']);
 	}
 
 	/**
@@ -238,11 +232,14 @@ class FilesPlugin extends ServerPlugin {
 		// adds a 'Content-Disposition: attachment' header
 		if ($this->downloadAttachment) {
 			$filename = $node->getName();
+			if ($node instanceof IProvidesAdditionalHeaders) {
+				$filename = $node->getContentDispositionFileName();
+			}
 			if ($this->request->isUserAgent(
 				[
-					\OC\AppFramework\Http\Request::USER_AGENT_IE,
-					\OC\AppFramework\Http\Request::USER_AGENT_ANDROID_MOBILE_CHROME,
-					\OC\AppFramework\Http\Request::USER_AGENT_FREEBOX,
+					Request::USER_AGENT_IE,
+					Request::USER_AGENT_ANDROID_MOBILE_CHROME,
+					Request::USER_AGENT_FREEBOX,
 				])) {
 				$response->addHeader('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"');
 			} else {
@@ -257,6 +254,16 @@ class FilesPlugin extends ServerPlugin {
 			$checksum = $node->getChecksum('sha1');
 			if ($checksum !== null && $checksum !== '') {
 				$response->addHeader('OC-Checksum', $checksum);
+			}
+			// disable nginx buffering so big downloads through ownCloud won't
+			// cause memory problems in the nginx process.
+			$response->addHeader('X-Accel-Buffering', 'no');
+		}
+
+		if ($node instanceof IProvidesAdditionalHeaders) {
+			$headers = $node->getHeaders();
+			if (is_array($headers)) {
+				$response->addHeaders($headers);
 			}
 		}
 	}
@@ -316,6 +323,11 @@ class FilesPlugin extends ServerPlugin {
 			});
 			$propFind->handle(self::SIZE_PROPERTYNAME, function() use ($node) {
 				return $node->getSize();
+			});
+
+			$propFind->handle(self::PRIVATE_LINK_PROPERTYNAME, function() use ($node) {
+				return \OC::$server->getURLGenerator()
+					->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileId' => $node->getInternalFileId()]);
 			});
 		}
 
@@ -398,7 +410,7 @@ class FilesPlugin extends ServerPlugin {
 	 */
 	public function sendFileIdHeader($filePath, \Sabre\DAV\INode $node = null) {
 		// chunked upload handling
-		if (isset($_SERVER['HTTP_OC_CHUNKED'])) {
+		if (\OC_FileChunking::isWebdavChunk()) {
 			list($path, $name) = \Sabre\HTTP\URLUtil::splitPath($filePath);
 			$info = \OC_FileChunking::decodeName($name);
 			if (!empty($info)) {
@@ -418,43 +430,4 @@ class FilesPlugin extends ServerPlugin {
 			}
 		}
 	}
-
-	/**
-	 * Move handler for future file.
-	 *
-	 * This overrides the default move behavior to prevent Sabre
-	 * to delete the target file before moving. Because deleting would
-	 * lose the file id and metadata.
-	 *
-	 * @param string $path source path
-	 * @param string $destination destination path
-	 * @return bool|void false to stop handling, void to skip this handler
-	 */
-	public function beforeMoveFutureFile($path, $destination) {
-		$sourceNode = $this->tree->getNodeForPath($path);
-		if (!$sourceNode instanceof FutureFile) {
-			// skip handling as the source is not a chunked FutureFile
-			return;
-		}
-
-		if (!$this->tree->nodeExists($destination)) {
-			// skip and let the default handler do its work
-			return;
-		}
-
-		// do a move manually, skipping Sabre's default "delete" for existing nodes
-		$this->tree->move($path, $destination);
-
-		// trigger all default events (copied from CorePlugin::move)
-		$this->server->emit('afterMove', [$path, $destination]);
-		$this->server->emit('afterUnbind', [$path]);
-		$this->server->emit('afterBind', [$destination]);
-
-		$response = $this->server->httpResponse;
-		$response->setHeader('Content-Length', '0');
-		$response->setStatus(204);
-
-		return false;
-	}
-
 }

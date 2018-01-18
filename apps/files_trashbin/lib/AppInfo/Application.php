@@ -1,9 +1,9 @@
 <?php
 /**
  * @author Roeland Jago Douma <rullzer@owncloud.com>
- * @author Victor Dubiniuk <dubiniuk@owncloud.com>
+ * @author Viktar Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -22,8 +22,9 @@
 
 namespace OCA\Files_Trashbin\AppInfo;
 
-use OCP\AppFramework\App;
 use OCA\Files_Trashbin\Expiration;
+use OCA\Files_Trashbin\Quota;
+use OCP\AppFramework\App;
 
 class Application extends App {
 	public function __construct (array $urlParams = []) {
@@ -39,9 +40,19 @@ class Application extends App {
 		 * Register expiration
 		 */
 		$container->registerService('Expiration', function($c) {
-			return  new Expiration(
+			return new Expiration(
 				$c->query('ServerContainer')->getConfig(),
 				$c->query('OCP\AppFramework\Utility\ITimeFactory')
+			);
+		});
+
+		/*
+		 * Register quota
+		 */
+		$container->registerService('Quota', function($c) {
+			return new Quota(
+				$c->getServer()->getUserManager(),
+				$c->query('ServerContainer')->getConfig()
 			);
 		});
 	}

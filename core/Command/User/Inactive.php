@@ -2,7 +2,7 @@
 /**
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -44,11 +44,11 @@ class Inactive extends Base {
 	protected function configure() {
 		$this
 			->setName('user:inactive')
-			->setDescription('reports users who are known to owncloud, but have not logged in for a certain number of days')
+			->setDescription('Reports users who are known to ownCloud, but have not logged in for a certain number of days.')
 			->addArgument(
 				'days',
 				InputArgument::REQUIRED,
-				'Integer number of days that the user has not logged in since'
+				'The number of days (integer) that the user has not logged in since.'
 			);
 		parent::configure();
 	}

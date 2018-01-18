@@ -8,7 +8,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -27,11 +27,10 @@
 
 namespace OCA\DAV\Connector\Sabre;
 
+use OC\Files\FileInfo;
+use OCA\DAV\Connector\Sabre\Exception\FileLocked;
 use OCA\DAV\Connector\Sabre\Exception\Forbidden;
 use OCA\DAV\Connector\Sabre\Exception\InvalidPath;
-use OCA\DAV\Connector\Sabre\Exception\FileLocked;
-use OC\Files\FileInfo;
-use OC\Files\Mount\MoveableMount;
 use OCP\Files\ForbiddenException;
 use OCP\Files\StorageInvalidException;
 use OCP\Files\StorageNotAvailableException;
@@ -76,7 +75,7 @@ class ObjectTree extends \Sabre\DAV\Tree {
 	 * @return string path to real file
 	 */
 	private function resolveChunkFile($path) {
-		if (isset($_SERVER['HTTP_OC_CHUNKED'])) {
+		if (\OC_FileChunking::isWebdavChunk()) {
 			// resolve to real file name to find the proper node
 			list($dir, $name) = \Sabre\HTTP\URLUtil::splitPath($path);
 			if ($dir == '/' || $dir == '.') {
@@ -131,28 +130,23 @@ class ObjectTree extends \Sabre\DAV\Tree {
 			throw new \Sabre\DAV\Exception\ServiceUnavailable('filesystem not setup');
 		}
 
-		// check the path, also called when the path has been entered manually eg via a file explorer
-		if (\OC\Files\Filesystem::isForbiddenFileOrDir($path)) {
-			throw new \Sabre\DAV\Exception\Forbidden();
-		}
-
 		$path = trim($path, '/');
 
 		if (isset($this->cache[$path]) && $this->cache[$path] !== false) {
 			return $this->cache[$path];
 		}
 
-		if ($path) {
+		// check the path, also called when the path has been entered manually eg via a file explorer
+		if (\OC\Files\Filesystem::isForbiddenFileOrDir($path)) {
+			throw new \Sabre\DAV\Exception\Forbidden();
+		}
+
+		if ($path !== '') {
 			try {
 				$this->fileView->verifyPath($path, basename($path));
 			} catch (\OCP\Files\InvalidPathException $ex) {
 				throw new InvalidPath($ex->getMessage());
 			}
-		}
-
-		// check the path, also called when the path has been entered manually eg via a file explorer
-		if (\OC\Files\Filesystem::isForbiddenFileOrDir($path)) {
-			throw new \Sabre\DAV\Exception\Forbidden();
 		}
 
 		// Is it the root node?
@@ -243,7 +237,12 @@ class ObjectTree extends \Sabre\DAV\Tree {
 		}
 
 		// Webdav's copy will implicitly do a delete+create, so only create+delete permissions are required
-		if (!$this->fileView->isCreatable($destinationDir)) {
+		try {
+			$isCreatable = $this->fileView->isCreatable($destinationDir);
+		} catch (ForbiddenException $ex) {
+			throw new Forbidden($ex->getMessage(), $ex->getRetry());
+		}
+		if (!$isCreatable) {
 			throw new \Sabre\DAV\Exception\Forbidden();
 		}
 

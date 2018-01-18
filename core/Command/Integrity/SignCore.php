@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@statuscode.ch>
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -57,9 +57,9 @@ class SignCore extends Command {
 		$this
 			->setName('integrity:sign-core')
 			->setDescription('Sign core using a private key.')
-			->addOption('privateKey', null, InputOption::VALUE_REQUIRED, 'Path to private key to use for signing')
-			->addOption('certificate', null, InputOption::VALUE_REQUIRED, 'Path to certificate to use for signing')
-			->addOption('path', null, InputOption::VALUE_REQUIRED, 'Path of core to sign');
+			->addOption('privateKey', null, InputOption::VALUE_REQUIRED, 'Path to private key to use for signing.')
+			->addOption('certificate', null, InputOption::VALUE_REQUIRED, 'Path to certificate to use for signing.')
+			->addOption('path', null, InputOption::VALUE_REQUIRED, 'Path of core to sign.');
 	}
 
 	/**

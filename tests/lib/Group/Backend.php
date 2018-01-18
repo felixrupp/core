@@ -7,7 +7,7 @@
  * @author Scrutinizer Auto-Fixer <auto-fixer@scrutinizer-ci.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -130,7 +130,7 @@ abstract class Backend extends \Test\TestCase {
 		$this->backend->createGroup($name3);
 
 		$result = $this->backend->getGroups('bar');
-		$this->assertSame(2, count($result));
+		$this->assertCount(2, $result);
 	}
 
 	public function testSearchUsers() {
@@ -146,7 +146,7 @@ abstract class Backend extends \Test\TestCase {
 		$this->backend->addToGroup($name3, $group);
 
 		$result = $this->backend->usersInGroup($group, 'bar');
-		$this->assertSame(2, count($result));
+		$this->assertCount(2, $result);
 
 		$result = $this->backend->countUsersInGroup($group, 'bar');
 		$this->assertSame(2, $result);

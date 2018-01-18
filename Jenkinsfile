@@ -9,79 +9,11 @@ timestampedNode('SLAVE') {
         checkout scm
         sh '''composer install'''
 
-    stage 'JavaScript Testing'
-        executeAndReport('tests/autotest-results-js.xml') {
-            sh '''make test-js'''
-        }
-
-    stage 'PHPUnit 7.1/sqlite'
-        executeAndReport('tests/autotest-results-sqlite.xml') {
-	        sh '''
-        	export NOCOVERAGE=1
-        	unset USEDOCKER
-        	phpenv local 7.1
-		make test-php TEST_DATABASE=sqlite
-        	'''
-	}
-
-    stage 'phpunit/7.0/mysqlmb4'
-        executeAndReport('tests/autotest-results-sqlite.xml') {
-	        sh '''
-        	export NOCOVERAGE=1
-        	unset USEDOCKER
-        	phpenv local 7.0
-		make test-php TEST_DATABASE=mysqlmb4
-        	'''
-	}
-
-    stage 'PHPUnit 7.0/sqlite'
-        executeAndReport('tests/autotest-results-sqlite.xml') {
-            sh '''
-            export NOCOVERAGE=1
-            unset USEDOCKER
-            phpenv local 7.0
-            make test-php TEST_DATABASE=sqlite
-            '''
-        }
-
-    stage 'PHPUnit 7.0/mysql'
-        executeAndReport('tests/autotest-results-mysql.xml') {
-            sh '''
-            export NOCOVERAGE=1
-            unset USEDOCKER
-            phpenv local 7.0
-            make test-php TEST_DATABASE=mysql
-            '''
-        }
-
-    stage 'PHPUnit 5.6/pgsql'
-        executeAndReport('tests/autotest-results-pgsql.xml') {
-            sh '''
-            export NOCOVERAGE=1
-            unset USEDOCKER
-            phpenv local 5.6
-            make test-php TEST_DATABASE=pgsql
-            '''
-        }
-
-    stage 'PHPUnit 7.0/oci'
-        executeAndReport('tests/autotest-results-oci.xml') {
-            sh '''
-            export NOCOVERAGE=1
-            unset USEDOCKER
-            phpenv local 5.6
-            make test-php TEST_DATABASE=oci
-            '''
-        }
-
-    stage 'Files External: webdav'
-        executeAndReport('tests/autotest-external-results-sqlite-webdav-ownCloud.xml') {
-            sh '''phpenv local 7.0
-            export NOCOVERAGE=1
-            unset USEDOCKER
-            make test-external TEST_EXTERNAL_ENV=webdav-ownCloud
-            '''
-        }
+    stage 'make dist'
+        sh '''
+        phpenv local 5.6
+        make dist
+        '''
 
     stage 'Files External: SMB/SAMBA'
         executeAndReport('tests/autotest-external-results-sqlite-smb-silvershell.xml') {

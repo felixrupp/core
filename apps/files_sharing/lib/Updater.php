@@ -5,7 +5,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -68,16 +68,22 @@ class Updater {
 		$mountManager = \OC::$server->getMountManager();
 		$dstMount = $mountManager->find($src->getPath());
 		if (!($dstMount instanceof \OCA\Files_Sharing\SharedMount)) {
-			return;
+			// expected OC\Files\Mount\MountPoint
+			$newOwner = $dstMount->getStorage()->getOwner('');
+		} else {
+			$newOwner = $dstMount->getShare()->getShareOwner();
 		}
 
-		$newOwner = $dstMount->getShare()->getShareOwner();
 
 		//Ownership is moved over
 		foreach ($shares as $share) {
 			/** @var \OCP\Share\IShare $share */
-			$share->setShareOwner($newOwner);
-			$shareManager->updateShare($share);
+			if ($share->getSharedWith() !== $newOwner) {
+				$share->setShareOwner($newOwner);
+				$shareManager->updateShare($share);
+			} else {
+				$shareManager->deleteShare($share);
+			}
 		}
 	}
 

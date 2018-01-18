@@ -7,7 +7,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -213,11 +213,6 @@ class SubAdmin extends PublicEmitter implements ISubAdminManager {
 	 * @return bool
 	 */
 	public function isSubAdmin(IUser $user) {
-		// Check if the user is already an admin
-		if ($this->groupManager->isAdmin($user->getUID())) {
-			return true;
-		}
-
 		$qb = $this->dbConn->getQueryBuilder();
 
 		$result = $qb->select('gid')

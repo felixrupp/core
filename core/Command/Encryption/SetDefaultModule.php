@@ -2,7 +2,7 @@
 /**
  * @author Joas Schilling <coding@schilljs.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -45,11 +45,11 @@ class SetDefaultModule extends Command {
 
 		$this
 			->setName('encryption:set-default-module')
-			->setDescription('Set the encryption default module')
+			->setDescription('Set the encryption default module.')
 			->addArgument(
 				'module',
 				InputArgument::REQUIRED,
-				'ID of the encryption module that should be used'
+				'The ID of the encryption module that should be used.'
 			)
 		;
 	}

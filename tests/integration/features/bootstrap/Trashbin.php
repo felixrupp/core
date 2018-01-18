@@ -2,7 +2,7 @@
 /**
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -18,9 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
  */
-
-use GuzzleHttp\Client;
-use GuzzleHttp\Message\ResponseInterface;
 
 require __DIR__ . '/../../../../lib/composer/autoload.php';
 
@@ -47,7 +44,7 @@ trait Trashbin {
 	 * @param string $path path
 	 * @return array response
 	 */
-	public function listTrashbinFolder($user, $path){
+	public function listTrashbinFolder($user, $path) {
 		$this->asAn($user);
 		$params = '?dir=' . rawurlencode('/' . trim($path, '/'));
 		$this->sendingToWithDirectUrl('GET', '/index.php/apps/files_trashbin/ajax/list.php' . $params, null);
@@ -107,7 +104,7 @@ trait Trashbin {
 
 		$found = false;
 		foreach ($listing as $entry) {
-			if ( substr($entry['extraData'], 0, 2) === "./" ){
+			if ( substr($entry['extraData'], 0, 2) === "./" ) {
 				$entry['extraData'] = substr($entry['extraData'], 2);
 			}
 			if ($entry['extraData'] === $originalPath) {
@@ -130,7 +127,7 @@ trait Trashbin {
 		$originalPath = trim($originalPath, '/');
 
 		foreach ($listing as $entry) {
-			if ( substr($entry['extraData'], 0, 2) === "./" ){
+			if ( substr($entry['extraData'], 0, 2) === "./" ) {
 				$entry['extraData'] = substr($entry['extraData'], 2);
 			}
 			if ($entry['extraData'] === $originalPath) {

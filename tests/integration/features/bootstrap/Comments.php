@@ -3,7 +3,7 @@
  * @author Lukas Reschke <lukas@owncloud.com>
  * @author Sergio Bertolin <sbertolin@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud, Gmbh.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ require __DIR__ . '/../../../../lib/composer/autoload.php';
 //class CommentsContext implements \Behat\Behat\Context\Context {
 
 trait Comments {
-	use Sharing;
 
 	/** @var int */
 	private $lastCommentId;
@@ -74,11 +73,11 @@ trait Comments {
 	 * @param string $path
 	 * @param \Behat\Gherkin\Node\TableNode|null $expectedElements
 	 */
-	public function checkComments($user, $type, $path, $expectedElements){
+	public function checkComments($user, $type, $path, $expectedElements) {
 		$fileId = $this->getFileIdForPath($user, $path);
 		$commentsPath = '/comments/files/' . $fileId . '/';
 		$properties = '<oc:limit>200</oc:limit><oc:offset>0</oc:offset>';
-		try{
+		try {
 			$elementList = $this->reportElementComments($user,$commentsPath,$properties);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
@@ -87,11 +86,11 @@ trait Comments {
 
 		if ($expectedElements instanceof \Behat\Gherkin\Node\TableNode) {
 			$elementRows = $expectedElements->getRows();
-			foreach($elementRows as $expectedElement) {
+			foreach ($elementRows as $expectedElement) {
 				$commentFound = false;
 				foreach ($elementList as $id => $answer) {
 					if  (($answer[200]['{http://owncloud.org/ns}actorDisplayName'] === $expectedElement[0]) and
-						($answer[200]['{http://owncloud.org/ns}message'] === $expectedElement[1])){
+						($answer[200]['{http://owncloud.org/ns}message'] === $expectedElement[1])) {
 						$commentFound = true;
 						break;
 					}
@@ -112,15 +111,15 @@ trait Comments {
 		$fileId = $this->getFileIdForPath($user, $path);
 		$commentsPath = '/comments/files/' . $fileId . '/';
 		$properties = '<oc:limit>200</oc:limit><oc:offset>0</oc:offset>';
-		try{
+		try {
 			$elementList = $this->reportElementComments($user,$commentsPath,$properties);
-			PHPUnit_Framework_Assert::assertEquals($numberOfComments, count($elementList));
+			PHPUnit_Framework_Assert::assertCount((int) $numberOfComments, $elementList);
 		} catch (\GuzzleHttp\Exception\ClientException $e) {
 			$this->response = $e->getResponse();
 		}
 	}
 
-	public function deleteComment($user, $fileId, $commentId){
+	public function deleteComment($user, $fileId, $commentId) {
 		$commentsPath = '/comments/files/' . $fileId . '/' . $commentId;
 		try {
 			$this->response = $this->makeDavRequest($user,
@@ -153,14 +152,14 @@ trait Comments {
 	public function theResponseShouldContainAPropertyWithValue($key, $value) {
 		$keys = $this->response[0]['value'][2]['value'][0]['value'];
 		$found = false;
-		foreach($keys as $singleKey) {
-			if($singleKey['name'] === '{http://owncloud.org/ns}'.substr($key, 3)) {
-				if($singleKey['value'] === $value) {
+		foreach ($keys as $singleKey) {
+			if ($singleKey['name'] === '{http://owncloud.org/ns}'.substr($key, 3)) {
+				if ($singleKey['value'] === $value) {
 					$found = true;
 				}
 			}
 		}
-		if($found === false) {
+		if ($found === false) {
 			throw new \Exception("Cannot find property $key with $value");
 		}
 	}
@@ -171,8 +170,8 @@ trait Comments {
 	 * @throws \Exception
 	 */
 	public function theResponseShouldContainOnlyComments($number) {
-		if(count($this->response) !== (int)$number) {
-			throw new \Exception("Found more comments than $number (".count($this->response).")");
+		if (count($this->response) !== (int)$number) {
+			throw new \Exception("Found more comments than $number (" . count($this->response) . ")");
 		}
 	}
 
@@ -189,7 +188,7 @@ trait Comments {
 									<d:propertyupdate  xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
 										<d:set>
 											<d:prop>
-												<oc:message>'. htmlspecialchars($content, ENT_XML1, 'UTF-8') .'</oc:message>
+												<oc:message>' . htmlspecialchars($content, ENT_XML1, 'UTF-8') . '</oc:message>
 											</d:prop>
 										</d:set>
 									</d:propertyupdate>');

@@ -2,7 +2,7 @@
 * ownCloud
 *
 * @author Vincent Petry
-* @copyright 2014 Vincent Petry <pvince81@owncloud.com>
+* @copyright Copyright (c) 2014 Vincent Petry <pvince81@owncloud.com>
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -255,7 +255,6 @@ describe('Core base tests', function() {
 	});
 	describe('filePath', function() {
 		beforeEach(function() {
-			OC.webroot = 'http://localhost';
 			OC.appswebroots['files'] = OC.webroot + '/apps3/files';
 		});
 		afterEach(function() {
@@ -263,14 +262,14 @@ describe('Core base tests', function() {
 		});
 
 		it('Uses a direct link for css and images,' , function() {
-			expect(OC.filePath('core', 'css', 'style.css')).toEqual('http://localhost/core/css/style.css');
-			expect(OC.filePath('files', 'css', 'style.css')).toEqual('http://localhost/apps3/files/css/style.css');
-			expect(OC.filePath('core', 'img', 'image.png')).toEqual('http://localhost/core/img/image.png');
-			expect(OC.filePath('files', 'img', 'image.png')).toEqual('http://localhost/apps3/files/img/image.png');
+			expect(OC.filePath('core', 'css', 'style.css')).toEqual('/owncloud/core/css/style.css');
+			expect(OC.filePath('files', 'css', 'style.css')).toEqual('/owncloud/apps3/files/css/style.css');
+			expect(OC.filePath('core', 'img', 'image.png')).toEqual('/owncloud/core/img/image.png');
+			expect(OC.filePath('files', 'img', 'image.png')).toEqual('/owncloud/apps3/files/img/image.png');
 		});
 		it('Routes PHP files via index.php,' , function() {
-			expect(OC.filePath('core', 'ajax', 'test.php')).toEqual('http://localhost/index.php/core/ajax/test.php');
-			expect(OC.filePath('files', 'ajax', 'test.php')).toEqual('http://localhost/index.php/apps/files/ajax/test.php');
+			expect(OC.filePath('core', 'ajax', 'test.php')).toEqual('/owncloud/index.php/core/ajax/test.php');
+			expect(OC.filePath('files', 'ajax', 'test.php')).toEqual('/owncloud/index.php/apps/files/ajax/test.php');
 		});
 	});
 	describe('Link functions', function() {
@@ -994,7 +993,12 @@ describe('Core base tests', function() {
 			var $rows = $el.find('.row');
 			expect($rows.length).toEqual(2);
 
+			// when called without arguments, a warning to be logged
+			// to ask devs to adjust their usage of the API.
+			// we stub it to avoid polluting the actual console
+			var warnStub = sinon.stub(console, 'warn');
 			OC.Notification.hide();
+			warnStub.restore();
 
 			$rows = $el.find('.row');
 			expect($rows.length).toEqual(1);

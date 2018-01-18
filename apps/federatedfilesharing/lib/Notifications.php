@@ -6,7 +6,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -162,7 +162,7 @@ class Notifications {
 	 * @return bool
 	 */
 	public function sendRemoteUnShare($remote, $id, $token) {
-		$this->sendUpdateToRemote($remote, $id, $token, 'unshare');
+		return $this->sendUpdateToRemote($remote, $id, $token, 'unshare');
 	}
 
 	/**
@@ -174,7 +174,7 @@ class Notifications {
 	 * @return bool
 	 */
 	public function sendRevokeShare($remote, $id, $token) {
-		$this->sendUpdateToRemote($remote, $id, $token, 'revoke');
+		return $this->sendUpdateToRemote($remote, $id, $token, 'revoke');
 	}
 
 	/**
@@ -187,7 +187,7 @@ class Notifications {
 	 * @return bool
 	 */
 	public function sendPermissionChange($remote, $remoteId, $token, $permissions) {
-		$this->sendUpdateToRemote($remote, $remoteId, $token, 'permissions', ['permissions' => $permissions]);
+		return $this->sendUpdateToRemote($remote, $remoteId, $token, 'permissions', ['permissions' => $permissions]);
 	}
 
 	/**
@@ -257,7 +257,6 @@ class Notifications {
 
 		return false;
 	}
-
 
 	/**
 	 * return current timestamp

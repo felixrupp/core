@@ -2,7 +2,7 @@
 /**
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,7 +21,6 @@
 
 namespace OC\Core\Command\User;
 
-use OCP\IUser;
 use OCP\IUserManager;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -43,11 +42,11 @@ class Enable extends Command {
 	protected function configure() {
 		$this
 			->setName('user:enable')
-			->setDescription('enables the specified user')
+			->setDescription('Enables the specified user.')
 			->addArgument(
 				'uid',
 				InputArgument::REQUIRED,
-				'the username'
+				'The username.'
 			);
 	}
 

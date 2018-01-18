@@ -20,7 +20,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -186,7 +186,6 @@ class OC_User {
 		if ($uid) {
 			if (self::getUser() !== $uid) {
 				self::setUserId($uid);
-				self::setDisplayName($uid);
 				$userSession = self::getUserSession();
 				$userSession->getSession()->regenerateId();
 				$userSession->setLoginName($uid);
@@ -330,7 +329,7 @@ class OC_User {
 	 * @return bool
 	 */
 	public static function isAdminUser($uid) {
-		if (\OC::$server->getGroupManager()->inGroup($uid, 'admin') && self::$incognitoMode === false) {
+		if (\OC::$server->getGroupManager()->isAdmin($uid) && self::$incognitoMode === false) {
 			return true;
 		}
 		return false;

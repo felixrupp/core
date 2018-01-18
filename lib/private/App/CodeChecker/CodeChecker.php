@@ -4,7 +4,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -25,8 +25,6 @@ namespace OC\App\CodeChecker;
 
 use OC\Hooks\BasicEmitter;
 use PhpParser\Lexer;
-use PhpParser\Node;
-use PhpParser\Node\Name;
 use PhpParser\NodeTraverser;
 use PhpParser\Parser;
 use RecursiveCallbackFilterIterator;

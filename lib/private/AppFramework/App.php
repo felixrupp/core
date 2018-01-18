@@ -5,7 +5,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -26,7 +26,6 @@
 namespace OC\AppFramework;
 
 use OC\AppFramework\Http\Dispatcher;
-use OC_App;
 use OC\AppFramework\DependencyInjection\DIContainer;
 use OCP\AppFramework\QueryException;
 use OCP\AppFramework\Http\ICallbackResponse;
@@ -82,7 +81,13 @@ class App {
 		} catch(QueryException $e) {
 			$appNameSpace = self::buildAppNamespace($appName);
 			$controllerName = $appNameSpace . '\\Controller\\' . $controllerName;
-			$controller = $container->query($controllerName);
+			try {
+				$controller = $container->query($controllerName);
+			} catch (QueryException $e2) {
+				// the reason we got here could also be because of the first exception above,
+				// so combine the message from both
+				throw new QueryException($e2->getMessage() . ' or error resolving constructor arguments: ' . $e->getMessage());
+			}
 		}
 
 		// initialize the dispatcher and run all the middleware before the controller

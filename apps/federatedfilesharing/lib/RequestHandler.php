@@ -7,7 +7,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -34,6 +34,8 @@ use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\Share;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
 /**
  * Class RequestHandler
@@ -65,6 +67,9 @@ class RequestHandler {
 	/** @var  IUserManager */
 	private $userManager;
 
+	/** @var EventDispatcherInterface  */
+	private $eventDispatcher;
+
 	/** @var string */
 	private $shareTable = 'share';
 
@@ -78,6 +83,7 @@ class RequestHandler {
 	 * @param Notifications $notifications
 	 * @param AddressHandler $addressHandler
 	 * @param IUserManager $userManager
+	 * @param EventDispatcherInterface $eventDispatcher
 	 */
 	public function __construct(FederatedShareProvider $federatedShareProvider,
 								IDBConnection $connection,
@@ -85,7 +91,8 @@ class RequestHandler {
 								IRequest $request,
 								Notifications $notifications,
 								AddressHandler $addressHandler,
-								IUserManager $userManager
+								IUserManager $userManager,
+								EventDispatcherInterface $eventDispatcher
 	) {
 		$this->federatedShareProvider = $federatedShareProvider;
 		$this->connection = $connection;
@@ -94,6 +101,7 @@ class RequestHandler {
 		$this->notifications = $notifications;
 		$this->addressHandler = $addressHandler;
 		$this->userManager = $userManager;
+		$this->eventDispatcher = $eventDispatcher;
 	}
 
 	/**
@@ -134,7 +142,7 @@ class RequestHandler {
 			\OCP\Util::writeLog('files_sharing', 'shareWith after, ' . $shareWith, \OCP\Util::DEBUG);
 
 			if (!\OCP\User::userExists($shareWith)) {
-				return new \OC_OCS_Result(null, 400, 'User does not exists');
+				return new \OC_OCS_Result(null, 400, 'User does not exist');
 			}
 
 			\OC_Util::setupFS($shareWith);
@@ -147,9 +155,8 @@ class RequestHandler {
 					\OC::$server->getDatabaseConnection(),
 					\OC\Files\Filesystem::getMountManager(),
 					\OC\Files\Filesystem::getLoader(),
-					\OC::$server->getHTTPHelper(),
 					\OC::$server->getNotificationManager(),
-					$discoveryManager,
+					\OC::$server->getEventDispatcher(),
 					$shareWith
 				);
 
@@ -166,6 +173,10 @@ class RequestHandler {
 					$sharedByFederatedId = $ownerFederatedId;
 				}
 
+				$event = new GenericEvent(null, ['name' => $name, 'targetuser' => $sharedByFederatedId,
+								'owner' => $owner, 'sharewith' => $shareWith,
+								'sharedby' => $sharedBy, 'remoteid' => $remoteId]);
+				$this->eventDispatcher->dispatch('\OCA\FederatedFileSharing::remote_shareReceived', $event);
 				\OC::$server->getActivityManager()->publishActivity(
 					Activity::FILES_SHARING_APP, Activity::SUBJECT_REMOTE_SHARE_RECEIVED, [$ownerFederatedId, trim($name, '/')], '', [],
 					'', '', $shareWith, Activity::TYPE_REMOTE_SHARE, Activity::PRIORITY_LOW);

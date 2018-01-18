@@ -2,7 +2,7 @@
 /**
  * @author Robin McCorkell <rmccorkell@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -21,9 +21,9 @@
 
 namespace Test\Security;
 
-use \OCP\Security\ICrypto;
-use \OCP\IDBConnection;
-use \OC\Security\CredentialsManager;
+use OC\Security\CredentialsManager;
+use OCP\IDBConnection;
+use OCP\Security\ICrypto;
 
 class CredentialsManagerTest extends \Test\TestCase {
 

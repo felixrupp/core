@@ -10,7 +10,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -91,8 +91,16 @@ class OCI extends AbstractDatabase {
 		}
 		//check for roles creation rights in oracle
 
-		$query='SELECT count(*) FROM user_role_privs, role_sys_privs'
-			." WHERE user_role_privs.granted_role = role_sys_privs.role AND privilege = 'CREATE ROLE'";
+		$query="SELECT CASE WHEN (count(*) = 6) THEN 1 ELSE 0 END AS all_privileges
+		        FROM user_role_privs a1
+		        INNER JOIN role_sys_privs a2 ON a1.granted_role = a2.role
+		        WHERE ( a2.privilege IN ('CREATE USER', 'ALTER USER') )
+		            OR ( a2.privilege IN (
+		                'CREATE SESSION',
+		                'CREATE TABLE',
+		                'CREATE SEQUENCE',
+		                'CREATE TRIGGER',
+		                ) AND a2.admin_option = 'YES')";
 		$stmt = oci_parse($connection, $query);
 		if (!$stmt) {
 			$entry = $this->trans->t('DB Error: "%s"', [$this->getLastError($connection)]) . '<br />';
@@ -193,7 +201,7 @@ class OCI extends AbstractDatabase {
 		}
 
 		if(! oci_fetch_row($stmt)) {
-			//user does not exists let's create it :)
+			//user does not exist, so let's create them :)
 			//password must start with alphabetic character in oracle
 			$query = 'CREATE USER '.$name.' IDENTIFIED BY "'.$password.'" DEFAULT TABLESPACE '.$this->dbtablespace;
 			$stmt = oci_parse($connection, $query);
@@ -230,7 +238,7 @@ class OCI extends AbstractDatabase {
 			}
 		}
 		// grant necessary roles
-		$query = 'GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE TRIGGER, UNLIMITED TABLESPACE TO '.$name;
+		$query = 'GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE TRIGGER TO '.$name;
 		$stmt = oci_parse($connection, $query);
 		if (!$stmt) {
 			$entry = $this->trans->t('DB Error: "%s"', [$this->getLastError($connection)]) . '<br />';

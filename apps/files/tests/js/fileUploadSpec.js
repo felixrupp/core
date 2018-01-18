@@ -2,7 +2,7 @@
 * ownCloud
 *
 * @author Vincent Petry
-* @copyright 2014 Vincent Petry <pvince81@owncloud.com>
+* @copyright Copyright (c) 2014 Vincent Petry <pvince81@owncloud.com>
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -119,6 +119,16 @@ describe('OC.Upload tests', function() {
 			expect(upload).toBeDefined();
 			expect(upload.getFileName()).toEqual('test.txt');
 		});
+		it('clear leaves pending uploads', function() {
+			uploader._uploads = {
+				'abc': {name: 'a job well done.txt', isDone: true},
+				'def': {name: 'whatevs.txt'}
+			};
+
+			uploader.clear();
+
+			expect(uploader._uploads).toEqual({'def': {name: 'whatevs.txt'}});
+		});
 	});
 	describe('Upload conflicts', function() {
 		var conflictDialogStub;
@@ -133,7 +143,7 @@ describe('OC.Upload tests', function() {
 				'<input type="checkbox" id="select_all_files" class="select-all">' +
 				'<a class="name columntitle" data-sort="name"><span>Name</span><span class="sort-indicator"></span></a>' +
 				'<span id="selectedActionsList" class="selectedActions hidden">' +
-				'<a href class="download"><img src="actions/download.svg">Download</a>' +
+				'<a href class="download"><img/>Download</a>' +
 				'<a href class="delete-selected">Delete</a></span>' +
 				'</th>' +
 				'<th class="hidden column-size"><a class="columntitle" data-sort="size"><span class="sort-indicator"></span></a></th>' +

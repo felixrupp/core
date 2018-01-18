@@ -5,7 +5,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -24,14 +24,14 @@
 
 namespace OCA\Files_Sharing\Middleware;
 
+use OCA\Files_Sharing\Exceptions\S2SException;
 use OCP\App\IAppManager;
+use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\NotFoundResponse;
 use OCP\AppFramework\Middleware;
+use OCP\AppFramework\Utility\IControllerMethodReflector;
 use OCP\Files\NotFoundException;
 use OCP\IConfig;
-use OCP\AppFramework\Utility\IControllerMethodReflector;
-use OCA\Files_Sharing\Exceptions\S2SException;
-use OCP\AppFramework\Http\JSONResponse;
 
 /**
  * Checks whether the "sharing check" is enabled

@@ -12,7 +12,7 @@
  * @author Victor Dubiniuk <dubiniuk@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -34,6 +34,7 @@ namespace OC\User;
 use OC\Files\Cache\Storage;
 use OC\Hooks\Emitter;
 use OC_Helper;
+use OCP\Events\EventEmitterTrait;
 use OCP\IAvatarManager;
 use OCP\IImage;
 use OCP\IURLGenerator;
@@ -46,6 +47,7 @@ use Symfony\Component\EventDispatcher\GenericEvent;
 
 class User implements IUser {
 
+	use EventEmitterTrait;
 	/** @var Account */
 	private $account;
 
@@ -67,6 +69,12 @@ class User implements IUser {
 	/** @var AccountMapper */
 	private $mapper;
 
+	/** @var \OC\Group\Manager  */
+	private $groupManager;
+
+	/** @var Session  */
+	private $userSession;
+
 	/**
 	 * User constructor.
 	 *
@@ -76,9 +84,12 @@ class User implements IUser {
 	 * @param IConfig|null $config
 	 * @param null $urlGenerator
 	 * @param EventDispatcher|null $eventDispatcher
+	 * @param \OC\Group\Manager|null $groupManager
+	 * @param Session|null $userSession
 	 */
 	public function __construct(Account $account, AccountMapper $mapper, $emitter = null, IConfig $config = null,
-								$urlGenerator = null, EventDispatcher $eventDispatcher = null
+								$urlGenerator = null, EventDispatcher $eventDispatcher = null,
+								\OC\Group\Manager $groupManager = null, Session $userSession = null
 	) {
 		$this->account = $account;
 		$this->mapper = $mapper;
@@ -91,6 +102,14 @@ class User implements IUser {
 		$this->urlGenerator = $urlGenerator;
 		if (is_null($this->urlGenerator)) {
 			$this->urlGenerator = \OC::$server->getURLGenerator();
+		}
+		$this->groupManager = $groupManager;
+		if (is_null($this->groupManager)) {
+			$this->groupManager = \OC::$server->getGroupManager();
+		}
+		$this->userSession = $userSession;
+		if (is_null($this->userSession)) {
+			$this->userSession = \OC::$server->getUserSession();
 		}
 	}
 
@@ -227,27 +246,29 @@ class User implements IUser {
 	 * @return bool
 	 */
 	public function setPassword($password, $recoveryPassword = null) {
-		if ($this->emitter) {
-			$this->emitter->emit('\OC\User', 'preSetPassword', [$this, $password, $recoveryPassword]);
-			\OC::$server->getEventDispatcher()->dispatch(
-				'OCP\User::validatePassword',
-				new GenericEvent(null, ['password' => $password])
-			);
-		}
-		if ($this->canChangePassword()) {
-			/** @var IChangePasswordBackend $backend */
-			$backend = $this->account->getBackendInstance();
-			$result = $backend->setPassword($this->getUID(), $password);
-			if ($result) {
-				if ($this->emitter) {
-					$this->emitter->emit('\OC\User', 'postSetPassword', [$this, $password, $recoveryPassword]);
-				}
-				$this->config->deleteUserValue($this->getUID(), 'owncloud', 'lostpassword');
+		return $this->emittingCall(function () use (&$password, &$recoveryPassword) {
+			if ($this->emitter) {
+				$this->emitter->emit('\OC\User', 'preSetPassword', [$this, $password, $recoveryPassword]);
+				\OC::$server->getEventDispatcher()->dispatch(
+					'OCP\User::validatePassword',
+					new GenericEvent(null, ['password' => $password])
+				);
 			}
-			return !($result === false);
-		} else {
-			return false;
-		}
+			if ($this->canChangePassword()) {
+				/** @var IChangePasswordBackend $backend */
+				$backend = $this->account->getBackendInstance();
+				$result = $backend->setPassword($this->getUID(), $password);
+				if ($result) {
+					if ($this->emitter) {
+						$this->emitter->emit('\OC\User', 'postSetPassword', [$this, $password, $recoveryPassword]);
+					}
+					$this->config->deleteUserValue($this->getUID(), 'owncloud', 'lostpassword');
+				}
+				return !($result === false);
+			} else {
+				return false;
+			}
+		}, ['before' => [], 'after' => ['user' => $this, 'password' => $password, 'recoveryPassword' => $recoveryPassword]], 'user', 'setpassword');
 	}
 
 	/**
@@ -307,7 +328,10 @@ class User implements IUser {
 	 * @return bool
 	 */
 	public function canChangeDisplayName() {
-		if ($this->config->getSystemValue('allow_user_to_change_display_name') === false) {
+		// Only Admin and SubAdmins are allowed to change display name
+		if (($this->config->getSystemValue('allow_user_to_change_display_name') === false) &&
+			(!$this->groupManager->isAdmin($this->userSession->getUser()->getUID())) &&
+			(!$this->groupManager->getSubAdmin()->isSubAdmin($this->userSession->getUser()))) {
 			return false;
 		}
 		$backend = $this->account->getBackendInstance();

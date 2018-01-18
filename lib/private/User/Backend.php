@@ -4,7 +4,7 @@
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -123,10 +123,10 @@ abstract class Backend implements UserInterface {
 	/**
 	* get the user's home directory
 	* @param string $uid the username
-	* @return boolean
+	* @return string|null
 	*/
 	public function getHome($uid) {
-		return false;
+		return null;
 	}
 
 	/**

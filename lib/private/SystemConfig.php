@@ -6,7 +6,7 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Roeland Jago Douma <rullzer@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -41,6 +41,9 @@ class SystemConfig {
 		'dbuser' => true,
 		'mail_smtpname' => true,
 		'mail_smtppassword' => true,
+		'mail_from_address' => true,
+		'mail_domain' => true,
+		'mail_smtphost' => true,
 		'passwordsalt' => true,
 		'secret' => true,
 		'updater.secret' => true,

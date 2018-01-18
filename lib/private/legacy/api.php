@@ -15,7 +15,7 @@
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -48,7 +48,7 @@ use OCP\AppFramework\Http;
  * @author Tom Needham <tom@owncloud.com>
  * @author Vincent Petry <pvince81@owncloud.com>
  *
- * @copyright Copyright (c) 2015, ownCloud, Inc.
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -115,11 +115,12 @@ class OC_API {
 	 * @param int $authLevel the level of authentication required for the call
 	 * @param array $defaults
 	 * @param array $requirements
+	 * @param boolean $cors whether to enable cors for this route
 	 */
 	public static function register($method, $url, $action, $app,
 				$authLevel = API::USER_AUTH,
 				$defaults = [],
-				$requirements = []) {
+				$requirements = [], $cors = true) {
 		$name = strtolower($method).$url;
 		$name = str_replace(['/', '{', '}'], '_', $name);
 		if(!isset(self::$actions[$name])) {
@@ -133,7 +134,7 @@ class OC_API {
 			self::$actions[$name] = [];
 			OC::$server->getRouter()->useCollection($oldCollection);
 		}
-		self::$actions[$name][] = ['app' => $app, 'action' => $action, 'authlevel' => $authLevel];
+		self::$actions[$name][] = ['app' => $app, 'action' => $action, 'authlevel' => $authLevel, 'cors' => $cors];
 	}
 
 	/**
@@ -179,6 +180,16 @@ class OC_API {
 			];
 		}
 		$response = self::mergeResponses($responses);
+
+		// If CORS is set to active for some method, try to add CORS headers
+		if (self::$actions[$name][0]['cors'] &&
+			!is_null(\OC::$server->getUserSession()->getUser()) &&
+			!is_null(\OC::$server->getRequest()->getHeader('Origin'))) {
+			$requesterDomain = \OC::$server->getRequest()->getHeader('Origin');
+			$userId = \OC::$server->getUserSession()->getUser()->getUID();
+			$response = \OC_Response::setCorsHeaders($userId, $requesterDomain, $response);
+		}
+
 		$format = self::requestedFormat();
 		if (self::$logoutRequired) {
 			\OC::$server->getUserSession()->logout();
@@ -298,22 +309,24 @@ class OC_API {
 				// User required
 				return self::loginUser();
 			case API::SUBADMIN_AUTH:
-				// Check for subadmin
+				// Check for subadmin privilages
 				$user = self::loginUser();
 				if(!$user) {
 					return false;
 				} else {
-					$userObject = \OC::$server->getUserSession()->getUser();
-					if($userObject === null) {
-						return false;
-					}
-					$isSubAdmin = \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject);
-					$admin = OC_User::isAdminUser($user);
-					if($isSubAdmin || $admin) {
+					// Check whether user is an admin, since admin has
+					// subadmin privileges
+					if (OC_User::isAdminUser($user)) {
 						return true;
-					} else {
-						return false;
 					}
+
+					// Check whether user is a subadmin
+					$userObject = \OC::$server->getUserSession()->getUser();
+					if($userObject != null && \OC::$server->getGroupManager()->getSubAdmin()->isSubAdmin($userObject)) {
+						return true;
+					}
+
+					return false;
 				}
 			case API::ADMIN_AUTH:
 				// Check for admin
@@ -339,28 +352,31 @@ class OC_API {
 		}
 
 		// reuse existing login
-		$loggedIn = \OC::$server->getUserSession()->isLoggedIn();
+		$userSession = \OC::$server->getUserSession();
+		$request = \OC::$server->getRequest();
+		$loggedIn = $userSession->isLoggedIn();
 		if ($loggedIn === true) {
 			if (\OC::$server->getTwoFactorAuthManager()->needsSecondFactor()) {
 				// Do not allow access to OCS until the 2FA challenge was solved successfully
 				return false;
 			}
-			$ocsApiRequest = isset($_SERVER['HTTP_OCS_APIREQUEST']) ? $_SERVER['HTTP_OCS_APIREQUEST'] === 'true' : false;
-			if ($ocsApiRequest) {
+			if ($userSession->verifyAuthHeaders($request)) {
+				$ocsApiRequest = isset($_SERVER['HTTP_OCS_APIREQUEST']) ? $_SERVER['HTTP_OCS_APIREQUEST'] === 'true' : false;
+				if ($ocsApiRequest) {
 
-				// initialize the user's filesystem
-				\OC_Util::setupFS(\OC_User::getUser());
-				self::$isLoggedIn = true;
+					// initialize the user's filesystem
+					\OC_Util::setupFS(\OC_User::getUser());
+					self::$isLoggedIn = true;
 
-				return OC_User::getUser();
+					return OC_User::getUser();
+				}
+
+				return false;
 			}
-			return false;
 		}
 
 		// basic auth - because OC_User::login will create a new session we shall only try to login
 		// if user and pass are set
-		$userSession = \OC::$server->getUserSession();
-		$request = \OC::$server->getRequest();
 		try {
 			if (OC_User::handleApacheAuth()) {
 				self::$logoutRequired = false;
@@ -425,7 +441,13 @@ class OC_API {
 	private static function toXML($array, $writer) {
 		foreach($array as $k => $v) {
 			if ($k[0] === '@') {
-				$writer->writeAttribute(substr($k, 1), $v);
+				if (is_array($v)) {
+					foreach ($v as $name => $value) {
+						$writer->writeAttribute($name, $value);
+					}
+				} else {
+					$writer->writeAttribute(substr($k, 1), $v);
+				}
 				continue;
 			} else if (is_numeric($k)) {
 				$k = 'element';

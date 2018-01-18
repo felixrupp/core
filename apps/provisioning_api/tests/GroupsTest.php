@@ -7,7 +7,7 @@
  * @author Thomas Müller <thomas.mueller@tmit.eu>
  * @author Tom Needham <tom@owncloud.com>
  *
- * @copyright Copyright (c) 2017, ownCloud GmbH
+ * @copyright Copyright (c) 2018, ownCloud GmbH
  * @license AGPL-3.0
  *
  * This code is free software: you can redistribute it and/or modify
@@ -29,8 +29,8 @@ namespace OCA\Provisioning_API\Tests;
 use OCA\Provisioning_API\Groups;
 use OCP\API;
 use OCP\IGroupManager;
-use OCP\IUserSession;
 use OCP\IRequest;
+use OCP\IUserSession;
 
 class GroupsTest extends \Test\TestCase {
 	/** @var IGroupManager|\PHPUnit_Framework_MockObject_MockObject */
@@ -203,7 +203,7 @@ class GroupsTest extends \Test\TestCase {
 
 		$this->assertInstanceOf('OC_OCS_Result', $result);
 		$this->assertTrue($result->succeeded());
-		$this->assertEquals(1, sizeof($result->getData()), 'Asserting the result data array only has the "users" key');
+		$this->assertCount(1, $result->getData(), 'Asserting the result data array only has the "users" key');
 		$this->assertArrayHasKey('users', $result->getData());
 		$this->assertEquals(['user1', 'user2'], $result->getData()['users']);
 	}
@@ -256,7 +256,7 @@ class GroupsTest extends \Test\TestCase {
 
 		$this->assertInstanceOf('OC_OCS_Result', $result);
 		$this->assertTrue($result->succeeded());
-		$this->assertEquals(1, sizeof($result->getData()), 'Asserting the result data array only has the "users" key');
+		$this->assertCount(1, $result->getData(), 'Asserting the result data array only has the "users" key');
 		$this->assertArrayHasKey('users', $result->getData());
 		$this->assertEquals(['user1', 'user2'], $result->getData()['users']);
 	}
