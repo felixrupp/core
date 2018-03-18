@@ -15,22 +15,24 @@ describe('OCA.Versions.VersionModel', function() {
 
 	var requestStub;
 	var requestDeferred;
+	var currentUserStub;
 
 	beforeEach(function() {
 		model = new VersionModel({
 			id: 123456789,
-			fileId: 10000000,
+			fileId: '10000000',
 			timestamp: 10000000,
 			fullPath: '/subdir/some file.txt',
 			name: 'some file.txt',
 			size: 150,
 		});
-		OC.currentUser = 'user0';
+		currentUserStub = sinon.stub(OC, 'getCurrentUser').returns({uid: 'user0'});
 
 		requestDeferred = new $.Deferred();
 		requestStub = sinon.stub(dav.Client.prototype, 'request').returns(requestDeferred.promise());
 	});
 	afterEach(function() { 
+		currentUserStub.restore();
 		requestStub.restore();
 	});
 
@@ -39,8 +41,8 @@ describe('OCA.Versions.VersionModel', function() {
 	});
 	it('returns the preview url', function() {
 		expect(model.getPreviewUrl())
-			.toEqual(OC.generateUrl('/apps/files_versions/preview') +
-					'?file=%2Fsubdir%2Fsome%20file.txt&version=10000000'
+			.toEqual(
+				OC.linkToRemoteBase('dav') + '/meta/10000000/v/123456789?preview'
 			);
 	});
 	it('returns the download url', function() {

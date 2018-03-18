@@ -7,7 +7,7 @@ branches: [master, stable10, stable9.1, stable9]
 clone:
   git:
     image: plugins/git
-    depth: 1
+    depth: 50
 
 pipeline:
   restore:
@@ -58,41 +58,14 @@ pipeline:
       local: false
       event: [push]
 
-  coverage:
+  phplint:
     image: owncloudci/php:${PHP_VERSION}
     pull: true
-    group: test
-    environment:
-      - PHP_VERSION=${PHP_VERSION}
-      - DB_TYPE=${DB_TYPE}
     commands:
-      - ./tests/drone/test-coverage.sh
-    when:
-      event: [push, pull_request]
-      matrix:
-        TEST_SUITE: coverage
-
-  codecov:
-    image: plugins/codecov:1
-    secrets: [codecov_token]
-    pull: true
-    files:
-     - tests/autotest-clover-${DB_TYPE}.xml
-     - tests/autotest-external-clover-${DB_TYPE}.xml
-    when:
-      event: [push, pull_request]
-      matrix:
-        TEST_SUITE: coverage
-
-  javascript:
-    image: owncloudci/php:${PHP_VERSION}
-    pull: true
-    group: test
-    commands:
-      - ./tests/drone/test-javascript.sh
+      - make test-php-lint
     when:
       matrix:
-        TEST_SUITE: phpunit
+        TEST_SUITE: lint
 
   phpunit:
     image: owncloudci/php:${PHP_VERSION}
@@ -101,24 +74,126 @@ pipeline:
     environment:
       - PHP_VERSION=${PHP_VERSION}
       - DB_TYPE=${DB_TYPE}
+      - FILES_EXTERNAL_TYPE=${FILES_EXTERNAL_TYPE}
+      - COVERAGE=${COVERAGE}
     commands:
+      - ./tests/drone/install-server.sh
       - ./tests/drone/test-phpunit.sh
     when:
+      event: [push, pull_request]
       matrix:
         TEST_SUITE: phpunit
 
-  files_external:
+  test-javascript:
     image: owncloudci/php:${PHP_VERSION}
     pull: true
-    group: test
-    environment:
-      - PHP_VERSION=${PHP_VERSION}
-      - DB_TYPE=${DB_TYPE}
     commands:
-      - ./tests/drone/test-files-external.sh
+      - ./tests/drone/test-javascript.sh
     when:
       matrix:
-        TEST_SUITE: files_external
+        TEST_SUITE: javascript
+
+  codecov:
+    image: plugins/codecov:2
+    secrets: [codecov_token]
+    pull: true
+    flags:
+     - ${TEST_SUITE}
+    files:
+     - '*.xml'
+    paths:
+     - tests/output/coverage
+    when:
+      event: [push, pull_request]
+      matrix:
+        COVERAGE: true
+
+  install-server:
+    image: owncloudci/php:${PHP_VERSION}
+    pull: true
+    commands:
+      - ./tests/drone/install-server.sh
+      - php occ a:l
+      - php occ a:e testing
+      - php occ a:l
+      - php occ config:system:set trusted_domains 1 --value=server
+      - php occ config:system:set trusted_domains 2 --value=federated
+      - php occ log:manage --level 0
+      - php occ config:list
+    when:
+      matrix:
+        INSTALL_SERVER: true
+
+  fix-permissions:
+    image: owncloudci/php:${PHP_VERSION}
+    pull: true
+    commands:
+      - cd /drone/src/
+      - chown www-data * -R
+    when:
+      matrix:
+        CHOWN_SERVER: true
+
+  litmus-old-endpoint:
+    image: owncloud/litmus
+    pull: true
+    environment:
+      - LITMUS_URL=http://server/remote.php/webdav
+      - LITMUS_USERNAME=admin
+      - LITMUS_PASSWORD=admin
+    when:
+      matrix:
+        TEST_SUITE: litmus
+
+  litmus-new-endpoint:
+    image: owncloud/litmus
+    pull: true
+    environment:
+      - LITMUS_URL=http://server/remote.php/dav/files/admin
+      - LITMUS_USERNAME=admin
+      - LITMUS_PASSWORD=admin
+    when:
+      matrix:
+        TEST_SUITE: litmus
+
+  owncloud-log:
+    image: owncloud/ubuntu:16.04
+    detach: true
+    pull: true
+    commands:
+      - tail -f /drone/src/data/owncloud.log
+    when:
+      matrix:
+        TEST_SUITE: selenium
+
+  webui-acceptance-tests:
+    image: owncloudci/php:${PHP_VERSION}
+    pull: true
+    environment:
+      - BROWSER=chrome
+      - SELENIUM_HOST=selenium
+      - SRV_HOST_NAME=server
+      - SRV_HOST_PORT=80
+      - REMOTE_FED_SRV_HOST_NAME=federated
+      - REMOTE_FED_SRV_HOST_PORT=80
+      - SKELETON_DIR=/drone/src/tests/acceptance/webUISkeleton
+      - SELENIUM_PORT=4444
+      - PLATFORM=Linux
+    commands:
+      - bash tests/travis/start_ui_tests.sh --remote 
+    when:
+      matrix:
+        TEST_SUITE: selenium
+
+  print-log:
+    image: owncloudci/php:${PHP_VERSION}
+    pull: true
+    commands:
+      - cat /drone/src/data/owncloud.log
+    when:
+      status:  [ failure ]
+      matrix:
+        TEST_SUITE: phpunit
 
 services:
   mariadb:
@@ -164,12 +239,6 @@ services:
       matrix:
         DB_TYPE: postgres
 
-  owncloud_external:
-    image: owncloud/server:latest
-    when:
-      matrix:
-        FILES_EXTERNAL_TYPE: webdav
-
   oracle:
     image: deepdiver/docker-oracle-xe-11g
     environment:
@@ -180,95 +249,274 @@ services:
       matrix:
         DB_TYPE: oracle
 
+  selenium:
+    image: selenium/standalone-chrome-debug:latest
+    pull: true
+    when:
+      matrix:
+        TEST_SUITE: selenium
+
+  server:
+    image: owncloudci/php:${PHP_VERSION}
+    pull: true
+    environment:
+      - APACHE_WEBROOT=/drone/src/
+    command: [ "/usr/local/bin/apachectl", "-e", "debug" , "-D", "FOREGROUND" ]
+    when:
+      matrix:
+        USE_SERVER: true
+
+  federated:
+    image: owncloudci/php:${PHP_VERSION}
+    pull: true
+    environment:
+      - APACHE_WEBROOT=/drone/src/
+    command: [ "/usr/local/bin/apachectl", "-e", "debug" , "-D", "FOREGROUND" ]
+    when:
+      matrix:
+        USE_FEDERATED_SERVER: true
+
+  apache_webdav:
+    image: owncloudci/php
+    pull: true
+    environment:
+     - APACHE_CONFIG_TEMPLATE=webdav
+    command: [ "apachectl", "-D", "FOREGROUND" ]
+    when:
+      matrix:
+        FILES_EXTERNAL_TYPE: webdav_apache
+
+  smb_samba:
+    image: owncloudci/samba
+    pull: true
+    command: "-u \"test;test\" -s \"public;/tmp;yes;no;no;test;none;test\" -S"
+    when:
+      matrix:
+        FILES_EXTERNAL_TYPE: smb_samba
+
+  ceph:
+    image: owncloudci/ceph
+    pull: true
+    environment:
+      - KEYSTONE_PUBLIC_PORT=5034
+      - KEYSTONE_ADMIN_USER=test
+      - KEYSTONE_ADMIN_PASS=testing
+      - KEYSTONE_ADMIN_TENANT=testtenant
+      - KEYSTONE_ENDPOINT_REGION=testregion
+      - KEYSTONE_SERVICE=testceph
+      - OSD_SIZE=500
+    when:
+      matrix:
+        FILES_EXTERNAL_TYPE: swift
+
 matrix:
   include:
-    # PHP 5.6
-    #- PHP_VERSION: 5.6
-    #  DB_TYPE: sqlite
-    #  TEST_SUITE: phpunit
-    #- PHP_VERSION: 5.6
-    #  DB_TYPE: mariadb
-    #  TEST_SUITE: phpunit
-    #- PHP_VERSION: 5.6
-    #  DB_TYPE: mysql
-    #  TEST_SUITE: phpunit
-    - PHP_VERSION: 5.6
-      DB_TYPE: postgres
-      TEST_SUITE: phpunit
-    - PHP_VERSION: 5.6
-      DB_TYPE: oracle
-      TEST_SUITE: phpunit
 
-    # PHP 7.0
-    - PHP_VERSION: 7.0
-      DB_TYPE: sqlite
-      TEST_SUITE: phpunit
-    #- PHP_VERSION: 7.0
-    #  DB_TYPE: mariadb
-    #  TEST_SUITE: phpunit
-    - PHP_VERSION: 7.0
+  # frontend
+    - TEST_SUITE: javascript
+      PHP_VERSION: 7.1
+      COVERAGE: true
+
+  # linting
+    - TEST_SUITE: lint
+      PHP_VERSION: 7.1
+
+    - TEST_SUITE: lint
+      PHP_VERSION: 7.2
+
+  # Litmus
+    - PHP_VERSION: 7.1
+      USE_SERVER: true
+      TEST_SUITE: litmus
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+  # Unit Tests
+    - PHP_VERSION: 7.1
       DB_TYPE: mysql
       TEST_SUITE: phpunit
-    - PHP_VERSION: 7.0
+      COVERAGE: true
+
+    - PHP_VERSION: 7.1
       DB_TYPE: mysqlmb4
       TEST_SUITE: phpunit
-    #- PHP_VERSION: 7.0
-    #  DB_TYPE: postgres
-    #  TEST_SUITE: phpunit
-    # - PHP_VERSION: 7.0
-    #   DB_TYPE: oracle
-    #   TEST_SUITE: phpunit
 
-    # PHP 7.1
+#    - PHP_VERSION: 7.1
+#      DB_TYPE: mariadb
+#      TEST_SUITE: phpunit
+
+    - PHP_VERSION: 7.1
+      DB_TYPE: postgres
+      TEST_SUITE: phpunit
+      COVERAGE: true
+
+    - PHP_VERSION: 7.1
+      DB_TYPE: oracle
+      TEST_SUITE: phpunit
+      COVERAGE: true
+
     - PHP_VERSION: 7.1
       DB_TYPE: sqlite
-      TEST_SUITE: files_external
-      FILES_EXTERNAL_TYPE: webdav
-    #- PHP_VERSION: 7.1
-    #  DB_TYPE: mariadb
-    #  TEST_SUITE: phpunit
-    #- PHP_VERSION: 7.1
-    #  DB_TYPE: mysql
-    #  TEST_SUITE: phpunit
-    #- PHP_VERSION: 7.1
-    #  DB_TYPE: postgres
-    #  TEST_SUITE: phpunit
-    # - PHP_VERSION: 7.1
-    #   DB_TYPE: oracle
-    #   TEST_SUITE: phpunit
+      TEST_SUITE: phpunit
+      COVERAGE: true
+
 
     # PHP 7.2
     - PHP_VERSION: 7.2
       DB_TYPE: sqlite
       TEST_SUITE: phpunit
-    #- PHP_VERSION: 7.2
-    #  DB_TYPE: mariadb
-    #  TEST_SUITE: phpunit
+
+    - PHP_VERSION: 7.2
+      DB_TYPE: mariadb
+      TEST_SUITE: phpunit
+
     #- PHP_VERSION: 7.2
     #  DB_TYPE: mysql
     #  TEST_SUITE: phpunit
+    #
     #- PHP_VERSION: 7.2
     #  DB_TYPE: postgres
     #  TEST_SUITE: phpunit
+    #
     # - PHP_VERSION: 7.2
     #   DB_TYPE: oracle
     #   TEST_SUITE: phpunit
-#
-#    # Integration
-#    - PHP_VERSION: 7.1
-#      DB_TYPE: sqlite
-#      TEST_SUITE: integration
 
-    # Code Coverage Computation
+  # Files External
     - PHP_VERSION: 7.1
+      TEST_SUITE: phpunit
+      COVERAGE: true
       DB_TYPE: sqlite
-      TEST_SUITE: coverage
+      FILES_EXTERNAL_TYPE: webdav_apache
 
     - PHP_VERSION: 7.1
-      DB_TYPE: mysql
-      TEST_SUITE: coverage
-
-    - PHP_VERSION: 7.1
+      TEST_SUITE: phpunit
+      COVERAGE: true
       DB_TYPE: sqlite
-      TEST_SUITE: coverage
-      FILES_EXTERNAL_TYPE: webdav
+      FILES_EXTERNAL_TYPE: smb_samba
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: phpunit
+      COVERAGE: true
+      DB_TYPE: sqlite
+      FILES_EXTERNAL_TYPE: smb_windows
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: phpunit
+      COVERAGE: true
+      DB_TYPE: sqlite
+      FILES_EXTERNAL_TYPE: swift
+
+  # Ui Acceptance tests
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIFavorites
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIManageUsersGroups
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIManageQuota
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIPersonalSettings
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIFiles
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIMoveFilesFolders
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIRenameFiles
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIRenameFolders
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUITrashbin
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUISharingInternalGroups
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUISharingInternalUsers
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUISharingExternal
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      USE_FEDERATED_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIRestrictSharing
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true
+
+    - PHP_VERSION: 7.1
+      TEST_SUITE: selenium
+      BEHAT_SUITE: webUIUpload
+      DB_TYPE: mariadb
+      USE_SERVER: true
+      INSTALL_SERVER: true
+      CHOWN_SERVER: true

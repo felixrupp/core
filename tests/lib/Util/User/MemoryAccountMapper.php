@@ -37,7 +37,6 @@ class MemoryAccountMapper extends AccountMapper {
 	public function insert(Entity $entity) {
 		$entity->setId(self::$counter++);
 		self::$accounts[$entity->getId()] = $entity;
-
 		return $entity;
 	}
 
@@ -75,6 +74,9 @@ class MemoryAccountMapper extends AccountMapper {
 	}
 
 	public function search($fieldName, $pattern, $limit, $offset) {
+		if ($pattern === '') {
+			return self::$accounts;
+		}
 		$match = array_filter(self::$accounts, function (Account $a) use ($pattern) {
 			return stripos($a->getUserId(), $pattern);
 		});

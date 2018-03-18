@@ -518,8 +518,7 @@ class OC_App {
 
 		}
 
-		$navigation = self::proceedNavigation($settings);
-		return $navigation;
+		return self::proceedNavigation($settings);
 	}
 
 	// This is private as well. It simply works, so don't ask for more details
@@ -534,7 +533,17 @@ class OC_App {
 		}
 		unset($navEntry);
 
-		usort($list, create_function('$a, $b', 'if( $a["order"] == $b["order"] ) {return 0;}elseif( $a["order"] < $b["order"] ) {return -1;}else{return 1;}'));
+		usort($list, function($a, $b) {
+			if ($a["order"] == $b["order"]) {
+				return 0;
+			}
+
+			if($a["order"] < $b["order"]) {
+				return -1;
+			}
+
+			return 1;
+		});
 
 		return $list;
 	}
@@ -639,7 +648,12 @@ class OC_App {
 		}
 
 		$parser = new InfoParser();
-		$data = $parser->parse($file);
+		try {
+			$data = $parser->parse($file);
+		} catch (\Exception $e) {
+			\OC::$server->getLogger()->logException($e);
+			throw $e;
+		}
 
 		if (is_array($data)) {
 			$data = OC_App::parseAppInfo($data);
@@ -668,8 +682,7 @@ class OC_App {
 	 */
 	public static function getNavigation() {
 		$entries = OC::$server->getNavigationManager()->getAll();
-		$navigation = self::proceedNavigation($entries);
-		return $navigation;
+		return self::proceedNavigation($entries);
 	}
 
 	/**

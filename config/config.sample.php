@@ -514,7 +514,7 @@ $CONFIG = array(
  *
  * * ``auto``
  *     default setting. Automatically expire versions according to expire
- *     rules. Please refer to :doc:`../configuration_files/file_versioning` for
+ *     rules. Please refer to :doc:`../configuration/files/file_versioning` for
  *     more information.
  * * ``D, auto``
  *     keep versions at least for D days, apply expire rules to all versions
@@ -628,6 +628,13 @@ $CONFIG = array(
 'syslog_tag' => 'ownCloud',
 
 /**
+ * The syslog format can be changed to remove or add information.
+ * In addition to the %replacements% below %level% can be used, but it is used
+ * as a dedicated parameter to the syslog logging facility anyway.
+ */
+'log.syslog.format' => '[%reqId%][%remoteAddr%][%user%][%app%][%method%][%url%] %message%',
+
+/**
  * Log condition for log level increase based on conditions. Once one of these
  * conditions is met, the required log level is set to debug. This allows to
  * debug specific requests, users or apps
@@ -702,17 +709,6 @@ $CONFIG = array(
 	'https://play.google.com/store/apps/details?id=com.owncloud.android',
 'customclient_ios' =>
 	'https://itunes.apple.com/us/app/owncloud/id543672169?mt=8',
-
-/**
- * Apps
- *
- * Options for the Apps folder, Apps store, and App code checker.
- */
-
-/**
- * The URL of the appstore to use.
- */
-'appstoreurl' => 'https://api.owncloud.com/v1',
 
 /**
  * Use the ``apps_paths`` parameter to set the location of the Apps directory,
@@ -822,7 +818,7 @@ $CONFIG = array(
  *  - OC\Preview\Font
  *
  * .. note:: Troubleshooting steps for the MS Word previews are available
- *    at the :doc:`../configuration_files/collaborative_documents_configuration`
+ *    at the :doc:`../configuration/files/collaborative_documents_configuration`
  *    section of the Administrators Manual.
  *
  * The following providers are not available in Microsoft Windows:
@@ -1054,56 +1050,6 @@ $CONFIG = array(
 'dav.chunk_base_dir' => '',
 
 /**
- * Using Object Store with ownCloud
- */
-
-/**
- * This example shows how to configure ownCloud to store all files in a
- * swift object storage.
- *
- * It is important to note that ownCloud in object store mode will expect
- * exclusive access to the object store container because it only stores the
- * binary data for each file. The metadata is currently kept in the local
- * database for performance reasons.
- *
- * WARNING: The current implementation is incompatible with any app that uses
- * direct file IO and circumvents our virtual filesystem. That includes
- * Encryption and Gallery. Gallery will store thumbnails directly in the
- * filesystem and encryption will cause severe overhead because key files need
- * to be fetched in addition to any requested file.
- *
- * One way to test is applying for a trystack account at http://trystack.org/
- */
-'objectstore' => [
-	'class' => 'OC\\Files\\ObjectStore\\Swift',
-	'arguments' => [
-		// trystack will use your facebook id as the user name
-		'username' => 'facebook100000123456789',
-		// in the trystack dashboard go to user -> settings -> API Password to
-		// generate a password
-		'password' => 'Secr3tPaSSWoRdt7',
-		// must already exist in the objectstore, name can be different
-		'container' => 'owncloud',
-		// prefix to prepend to the fileid, default is 'oid:urn:'
-		'objectPrefix' => 'oid:urn:',
-		// create the container if it does not exist. default is false
-		'autocreate' => true,
-		// required, dev-/trystack defaults to 'RegionOne'
-		'region' => 'RegionOne',
-		// The Identity / Keystone endpoint
-		'url' => 'http://8.21.28.222:5000/v2.0',
-		// required on dev-/trystack
-		'tenantName' => 'facebook100000123456789',
-		// dev-/trystack uses swift by default, the lib defaults to 'cloudFiles'
-		// if omitted
-		'serviceName' => 'swift',
-		// The Interface / url Type, optional
-		'urlType' => 'internal'
-	],
-],
-
-
-/**
  * Sharing
  *
  * Global settings for Sharing
@@ -1116,6 +1062,11 @@ $CONFIG = array(
  */
 'sharing.managerFactory' => '\OC\Share20\ProviderFactory',
 
+/**
+ * When talking with federated sharing server, allow falling back to HTTP
+ * instead of hard forcing HTTPS
+ */
+'sharing.federation.allowHttpFallback' => false,
 
 
 /**
@@ -1239,12 +1190,6 @@ $CONFIG = array(
  * Define a default folder for shared files and folders other than root.
  */
 'share_folder' => '/',
-
-/**
- * If you are applying a theme to ownCloud, enter the name of the theme here.
- * The default location for themes is ``owncloud/themes/``.
- */
-'theme' => '',
 
 /**
  * The default cipher for encrypting files. Currently AES-128-CFB and
@@ -1415,5 +1360,10 @@ $CONFIG = array(
  *
  */
 'files_external_allow_create_new_local' => false,
+
+/**
+ * Set this property to true if you want to enable debug logging for SMB access.
+ */
+'smb.logging.enable' => false, 
 
 );

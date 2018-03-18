@@ -85,6 +85,7 @@ use OC\Tagging\TagMapper;
 use OC\Theme\ThemeService;
 use OC\User\AccountMapper;
 use OC\User\AccountTermMapper;
+use OC\User\SyncService;
 use OCP\App\IServiceLoader;
 use OCP\AppFramework\QueryException;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -239,9 +240,16 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 			return new AccountMapper($c->getConfig(), $c->getDatabaseConnection(), new AccountTermMapper($c->getDatabaseConnection()));
 		});
 		$this->registerService('UserManager', function (Server $c) {
-			$config = $c->getConfig();
-			$logger = $c->getLogger();
-			return new \OC\User\Manager($config, $logger, $c->getAccountMapper());
+			return new \OC\User\Manager(
+				$c->getConfig(),
+				$c->getLogger(),
+				$c->getAccountMapper(),
+				new SyncService(
+					$c->getConfig(),
+					$c->getLogger(),
+					$c->getAccountMapper()
+				)
+			);
 		});
 		$this->registerService('GroupManager', function (Server $c) {
 			$groupManager = new \OC\Group\Manager($this->getUserManager());
@@ -296,8 +304,10 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 				$defaultTokenProvider = null;
 			}
 
+			$userSyncService = new SyncService($c->getConfig(), $c->getLogger(), $c->getAccountMapper());
+
 			$userSession = new \OC\User\Session($manager, $session, $timeFactory,
-				$defaultTokenProvider, $c->getConfig(), $this);
+				$defaultTokenProvider, $c->getConfig(), $this, $userSyncService);
 			$userSession->listen('\OC\User', 'preCreateUser', function ($uid, $password) {
 				\OC_Hook::emit('OC_User', 'pre_createUser', ['run' => true, 'uid' => $uid, 'password' => $password]);
 			});
@@ -342,12 +352,16 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 				/** @var $user \OC\User\User */
 				\OC_Hook::emit('OC_User', 'changeUser', ['run' => true, 'user' => $user, 'feature' => $feature, 'value' => $value]);
 				$this->emittingCall(function () use (&$user, &$feature, &$value) {
-				}, ['before' => ['run' => true, 'user' => $user, 'feature' => $feature, 'value' => $value]], 'user', 'featurechange');
+					return true;
+				}, [
+					'before' => ['run' => true, 'user' => $user, 'feature' => $feature, 'value' => $value],
+					'after' => ['run' => true, 'user' => $user, 'feature' => $feature, 'value' => $value]
+				], 'user', 'featurechange');
 			});
 			return $userSession;
 		});
 
-		$this->registerService('\OC\Authentication\TwoFactorAuth\Manager', function (Server $c) {
+		$this->registerService('OC\Authentication\TwoFactorAuth\Manager', function (Server $c) {
 			return new \OC\Authentication\TwoFactorAuth\Manager($c->getAppManager(), $c->getSession(), $c->getConfig());
 		});
 
@@ -706,8 +720,8 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 			);
 		});
 		$this->registerAlias('OCP\Files\IMimeTypeLoader', 'MimeTypeLoader');
-		$this->registerService('NotificationManager', function () {
-			return new Manager();
+		$this->registerService('NotificationManager', function (Server $c) {
+			return new Manager($c->getEventDispatcher());
 		});
 		$this->registerService('CapabilitiesManager', function (Server $c) {
 			$manager = new \OC\CapabilitiesManager();
@@ -847,7 +861,10 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 		});
 
 		$this->registerService('ThemeService', function ($c) {
-			return new ThemeService($this->getSystemConfig()->getValue('theme'));
+			return new ThemeService(
+				$this->getSystemConfig()->getValue('theme'),
+				\OC::$SERVERROOT
+			);
 		});
 		$this->registerAlias('OCP\Theme\IThemeService', 'ThemeService');
 		$this->registerAlias('OCP\IUserSession', 'UserSession');
@@ -1055,7 +1072,7 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 	 * @return \OC\Authentication\TwoFactorAuth\Manager
 	 */
 	public function getTwoFactorAuthManager() {
-		return $this->query('\OC\Authentication\TwoFactorAuth\Manager');
+		return $this->query('OC\Authentication\TwoFactorAuth\Manager');
 	}
 
 	/**
@@ -1561,14 +1578,14 @@ class Server extends ServerContainer implements IServerContainer, IServiceLoader
 	 * @return IThemeService
 	 */
 	public function getThemeService() {
-		return $this->query('\OCP\Theme\IThemeService');
+		return $this->query('OCP\Theme\IThemeService');
 	}
 
 	/**
 	 * @return ITimeFactory
 	 */
 	public function getTimeFactory() {
-		return $this->query('\OCP\AppFramework\Utility\ITimeFactory');
+		return $this->query('OCP\AppFramework\Utility\ITimeFactory');
 	}
 
 	/**

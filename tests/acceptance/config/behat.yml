@@ -1,0 +1,212 @@
+default:
+  autoload:
+    '': %paths.base%/../features/bootstrap
+  suites:
+    apiMain:
+      paths:
+        - %paths.base%/../features/apiMain
+      contexts:
+        - FeatureContext:
+            baseUrl:  http://localhost:8080/ocs/
+            adminUsername: admin
+            adminPassword: admin
+            regularUserPassword: 123456
+            mailhogUrl: http://127.0.0.1:8025/api/v2/messages
+            ocPath: ../../
+        - CardDavContext:
+            baseUrl: http://localhost:8080
+        - CalDavContext:
+            baseUrl: http://localhost:8080
+        - AppManagementContext:
+    apiFederation:
+      paths:
+        - %paths.base%/../features/apiFederation
+      contexts:
+        - FederationContext:
+            baseUrl:  http://localhost:8080/ocs/
+            adminUsername: admin
+            adminPassword: admin
+            regularUserPassword: 123456
+            mailhogUrl: http://127.0.0.1:8025/api/v2/messages
+            ocPath: ../../
+    apiCapabilities:
+      paths:
+        - %paths.base%/../features/apiCapabilities
+      contexts:
+        - CapabilitiesContext:
+            baseUrl:  http://localhost:8080/ocs/
+            adminUsername: admin
+            adminPassword: admin
+            regularUserPassword: 123456
+            mailhogUrl: http://127.0.0.1:8025/api/v2/messages
+            ocPath: ../../
+    apiSharees:
+      paths:
+        - %paths.base%/../features/apiSharees
+      contexts:
+        - ShareesContext:
+            baseUrl:  http://localhost:8080/ocs/
+            adminUsername: admin
+            adminPassword: admin
+            regularUserPassword: 123456
+            mailhogUrl: http://127.0.0.1:8025/api/v2/messages
+            ocPath: ../../
+
+    webUIFiles:
+      paths:
+        - %paths.base%/../features/webUIFiles
+      context: &common_webui_suite_context
+        parameters:
+          ocPath: apps/testing/api/v1/occ
+          adminUsername: admin
+          adminPassword: admin
+          regularUserPassword: 123456
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUIMoveFilesFolders:
+      paths:
+        - %paths.base%/../features/webUIMoveFilesFolders
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUIRenameFiles:
+      paths:
+        - %paths.base%/../features/webUIRenameFiles
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUIRenameFolders:
+      paths:
+        - %paths.base%/../features/webUIRenameFolders
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUITrashbin:
+      paths:
+        - %paths.base%/../features/webUITrashbin
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUISharingInternalGroups:
+      paths:
+        - %paths.base%/../features/webUISharingInternalGroups
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+        - WebUISharingContext:
+
+    webUISharingInternalUsers:
+      paths:
+        - %paths.base%/../features/webUISharingInternalUsers
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+        - WebUISharingContext:
+
+    webUISharingExternal:
+      paths:
+        - %paths.base%/../features/webUISharingExternal
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+        - WebUISharingContext:
+
+    webUIUpload:
+      paths:
+        - %paths.base%/../features/webUIUpload
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUIRestrictSharing:
+      paths:
+        - %paths.base%/../features/webUIRestrictSharing
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+        - WebUISharingContext:
+
+    webUIFavorites:
+      paths:
+        - %paths.base%/../features/webUIFavorites
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUIManageUsersGroups:
+      paths:
+        - %paths.base%/../features/webUIManageUsersGroups
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+        - WebUIPersonalGeneralSettingsContext:
+
+    webUIManageQuota:
+      paths:
+        - %paths.base%/../features/webUIManageQuota
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+
+    webUIPersonalSettings:
+      paths:
+        - %paths.base%/../features/webUIPersonalSettings
+      context: *common_webui_suite_context
+      contexts:
+        - WebUIGeneralContext:
+        - WebUILoginContext:
+        - WebUIUsersContext:
+        - WebUIFilesContext:
+        - WebUIPersonalSecuritySettingsContext:
+        - WebUIPersonalGeneralSettingsContext:
+
+  extensions:
+      jarnaiz\JUnitFormatter\JUnitFormatterExtension:
+          filename: report.xml
+          outputDir: %paths.base%/../output/
+
+      rdx\behatvars\BehatVariablesExtension: ~

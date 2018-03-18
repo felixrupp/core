@@ -293,7 +293,7 @@ class FilesystemTest extends TestCase {
 	}
 
 	/**
-	 * The parameter array can be redesigned if filesystem.php will get a constructor where it is possible to 
+	 * The parameter array can be redesigned if filesystem.php will get a constructor where it is possible to
 	 * define the excluded directories for unit tests
 	 * @dataProvider isExcludedData
 	 */
@@ -428,7 +428,7 @@ class FilesystemTest extends TestCase {
 		$homeMount = Filesystem::getStorage('/' . $userId . '/');
 
 		$this->assertTrue($homeMount->instanceOfStorage('\OCP\Files\IHomeStorage'));
-		if (getenv('RUN_OBJECTSTORE_TESTS')) {
+		if ($this->runsWithPrimaryObjectstorage()) {
 			$this->assertTrue($homeMount->instanceOfStorage('\OC\Files\ObjectStore\HomeObjectStoreStorage'));
 			$this->assertEquals('object::user:' . $userId, $homeMount->getId());
 		} else {

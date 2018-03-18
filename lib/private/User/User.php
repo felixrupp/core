@@ -41,7 +41,9 @@ use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\IConfig;
 use OCP\IUserBackend;
+use OCP\IUserSession;
 use OCP\User\IChangePasswordBackend;
+use OCP\UserInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\GenericEvent;
 
@@ -151,6 +153,12 @@ class User implements IUser {
 		}
 		$this->account->setDisplayName($displayName);
 		$this->mapper->update($this->account);
+
+		$backend = $this->account->getBackendInstance();
+		if ($backend->implementsActions(Backend::SET_DISPLAYNAME)) {
+			$backend->setDisplayName($this->account->getUserId(), $displayName);
+		}
+
 		$this->triggerChange('displayName', $displayName);
 
 		return true;
@@ -251,7 +259,7 @@ class User implements IUser {
 				$this->emitter->emit('\OC\User', 'preSetPassword', [$this, $password, $recoveryPassword]);
 				\OC::$server->getEventDispatcher()->dispatch(
 					'OCP\User::validatePassword',
-					new GenericEvent(null, ['password' => $password])
+					new GenericEvent(null, ['uid'=> $this->getUID(), 'password' => $password])
 				);
 			}
 			if ($this->canChangePassword()) {
@@ -268,7 +276,10 @@ class User implements IUser {
 			} else {
 				return false;
 			}
-		}, ['before' => [], 'after' => ['user' => $this, 'password' => $password, 'recoveryPassword' => $recoveryPassword]], 'user', 'setpassword');
+		}, [
+			'before' => ['user' => $this, 'password' => $password, 'recoveryPassword' => $recoveryPassword],
+			'after' => ['user' => $this, 'password' => $password, 'recoveryPassword' => $recoveryPassword]
+		], 'user', 'setpassword');
 	}
 
 	/**
@@ -329,10 +340,15 @@ class User implements IUser {
 	 */
 	public function canChangeDisplayName() {
 		// Only Admin and SubAdmins are allowed to change display name
-		if (($this->config->getSystemValue('allow_user_to_change_display_name') === false) &&
-			(!$this->groupManager->isAdmin($this->userSession->getUser()->getUID())) &&
-			(!$this->groupManager->getSubAdmin()->isSubAdmin($this->userSession->getUser()))) {
-			return false;
+		if ($this->userSession instanceof IUserSession) {
+			$user = $this->userSession->getUser();
+			if (
+				($this->config->getSystemValue('allow_user_to_change_display_name') === false) &&
+				(($user !== null) && (!$this->groupManager->isAdmin($user->getUID()))) &&
+				(($user !== null) && (!$this->groupManager->getSubAdmin()->isSubAdmin($user)))
+			) {
+				return false;
+			}
 		}
 		$backend = $this->account->getBackendInstance();
 		if (is_null($backend)) {

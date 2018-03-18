@@ -92,7 +92,7 @@ help:
 	@echo -e "make test-php\t\t\trun all PHP tests"
 	@echo -e "make test-js\t\t\trun Javascript tests"
 	@echo -e "make test-js-debug\t\trun Javascript tests in debug mode (continuous)"
-	@echo -e "make test-integration\t\trun integration tests"
+	@echo -e "make test-acceptance\t\trun acceptance tests"
 	@echo -e "make clean-test\t\t\tclean test results"
 	@echo
 	@echo It is also possible to run individual PHP test files with the following command:
@@ -174,9 +174,10 @@ test-js: $(nodejs_deps)
 test-js-debug: $(nodejs_deps)
 	NODE_PATH='$(NODE_PREFIX)/node_modules' $(KARMA) start tests/karma.config.js
 
-.PHONY: test-integration
-test-integration: $(composer_dev_deps)
-	$(MAKE) -C tests/integration \
+.PHONY: test-acceptance
+test-acceptance: $(composer_dev_deps)
+	$(MAKE) -C tests/acceptance \
+		BEHAT_SUITE=$(BEHAT_SUITE) \
 		OC_TEST_ALT_HOME=$(OC_TEST_ALT_HOME) \
 		OC_TEST_ENCRYPTION_ENABLED=$(OC_TEST_ENCRYPTION_ENABLED) \
 		OC_TEST_ENCRYPTION_MASTER_KEY_ENABLED=$(OC_TEST_ENCRYPTION_MASTER_KEY_ENABLED)
@@ -186,19 +187,19 @@ test-php-lint: $(composer_dev_deps)
 	$(composer_deps)/bin/parallel-lint --exclude lib/composer --exclude build .
 
 .PHONY: test
-test: test-php-lint test-php test-js test-integration
+test: test-php-lint test-php test-js test-acceptance
 
-.PHONY: clean-test-integration
-clean-test-integration:
-	$(MAKE) -C tests/integration clean
+.PHONY: clean-test-acceptance
+clean-test-acceptance:
+	$(MAKE) -C tests/acceptance clean
 
 .PHONY: clean-test-results
 clean-test-results:
 	rm -Rf tests/autotest-*results*.xml
-	$(MAKE) -C tests/integration clean
+	$(MAKE) -C tests/acceptance clean
 
 .PHONY: clean-test
-clean-test: clean-test-integration clean-test-results
+clean-test: clean-test-acceptance clean-test-results
 
 #
 # Documentation
@@ -271,8 +272,9 @@ clean-dist:
 $(dist_dir)/qa/owncloud: $(composer_dev_deps) $(nodejs_deps) $(core_all_src) $(core_test_dirs)
 	rm -Rf $@; mkdir -p $@/config
 	cp -RL $(core_all_src) $@
-	cp -R $(core_test_dirs) $@
+	cp -Rf $(core_test_dirs) $@
 	cp -R config/config.sample.php $@/config
+	rm -Rf $@/lib/composer/bin; cp -R lib/composer/bin $@/lib/composer/bin
 	find $@ -name .gitkeep -delete
 	find $@ -name .gitignore -delete
 	find $@ -name no-php -delete

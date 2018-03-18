@@ -35,6 +35,7 @@ namespace OC;
 use InterfaSys\LogNormalizer\Normalizer;
 
 use \OCP\ILogger;
+use OCP\IUserSession;
 use OCP\Util;
 
 /**
@@ -96,7 +97,7 @@ class Log implements ILogger {
 	 * @param SystemConfig $config the system config object
 	 * @param null $normalizer
 	 */
-	public function __construct($logger=null, SystemConfig $config=null, $normalizer = null) {
+	public function __construct($logger = null, SystemConfig $config = null, $normalizer = null) {
 		// FIXME: Add this for backwards compatibility, should be fixed at some point probably
 		if($config === null) {
 			$config = \OC::$server->getSystemConfig();
@@ -284,20 +285,29 @@ class Log implements ILogger {
 						$request = \OC::$server->getRequest();
 
 						// if token is found in the request change set the log condition to satisfied
-						if ($request && hash_equals($logCondition['shared_secret'], $request->getParam('log_secret'))) {
+						if ($request && hash_equals($logCondition['shared_secret'], $request->getParam('log_secret', ''))) {
 							$this->logConditionSatisfied = true;
+							if (!empty($logCondition['logfile'])) {
+								$logConditionFile = $logCondition['logfile'];
+							}
 							break;
 						}
 					}
 
 					// check for user
 					if (!empty($logCondition['users'])) {
-						$user = \OC::$server->getUserSession()->getUser();
+						$userSession = \OC::$server->getUserSession();
+						if ($userSession instanceof IUserSession) {
+							$user = $userSession->getUser();
 
-						// if the user matches set the log condition to satisfied
-						if ($user !== null && in_array($user->getUID(), $logCondition['users'], true)) {
-							$this->logConditionSatisfied = true;
-							break;
+							// if the user matches set the log condition to satisfied
+							if ($user !== null && in_array($user->getUID(), $logCondition['users'], true)) {
+								$this->logConditionSatisfied = true;
+								if (!empty($logCondition['logfile'])) {
+									$logConditionFile = $logCondition['logfile'];
+								}
+								break;
+							}
 						}
 					}
 				}

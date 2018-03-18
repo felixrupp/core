@@ -25,6 +25,7 @@ namespace OC\User;
 
 use OCP\Authentication\IAuthModule;
 use OCP\IRequest;
+use OCP\ISession;
 use OCP\IUser;
 use OCP\IUserManager;
 
@@ -32,30 +33,44 @@ class BasicAuthModule implements IAuthModule {
 
 	/** @var IUserManager */
 	private $manager;
+	/** @var ISession */
+	private $session;
 
-	public function __construct(IUserManager $manager) {
+	public function __construct(IUserManager $manager, ISession $session) {
 		$this->manager = $manager;
+		$this->session = $session;
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function auth(IRequest $request) {
-		if (empty($request->server['PHP_AUTH_USER']) || empty($request->server['PHP_AUTH_PW'])) {
+		if (!isset($request->server['PHP_AUTH_USER'], $request->server['PHP_AUTH_PW'])) {
+			return null;
+		}
+		if ($this->session->exists('app_password')) {
+			return null;
+		}
+		$authUser = $request->server['PHP_AUTH_USER'];
+		$authPass = $request->server['PHP_AUTH_PW'];
+		if ($authUser === '' || $authPass === '') {
 			return null;
 		}
 
 		// check uid and password
-		$user = $this->manager->checkPassword($request->server['PHP_AUTH_USER'], $request->server['PHP_AUTH_PW']);
+		$user = $this->manager->checkPassword($authUser, $authPass);
 		if ($user instanceof IUser) {
 			return $user;
 		}
 		// check email and password
-		$users = $this->manager->getByEmail($request->server['PHP_AUTH_USER']);
-		if (count($users) !== 1) {
-			return null;
+		$users = $this->manager->getByEmail($authUser);
+		if (count($users) === 1) {
+			$user = $this->manager->checkPassword($users[0]->getUID(), $authPass);
 		}
-		return $this->manager->checkPassword($users[0]->getUID(), $request->server['PHP_AUTH_PW']);
+		if ($user instanceof IUser) {
+			return $user;
+		}
+		throw new \Exception('Invalid credentials');
 	}
 
 	/**

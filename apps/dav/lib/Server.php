@@ -49,8 +49,11 @@ use OCA\DAV\DAV\FileCustomPropertiesBackend;
 use OCA\DAV\DAV\MiscCustomPropertiesBackend;
 use OCA\DAV\DAV\PublicAuth;
 use OCA\DAV\Files\BrowserErrorPagePlugin;
+use OCA\DAV\Files\PreviewPlugin;
+use OCA\DAV\Files\ZsyncPlugin;
 use OCA\DAV\SystemTag\SystemTagPlugin;
 use OCA\DAV\Upload\ChunkingPlugin;
+use OCA\DAV\Upload\ChunkingPluginZsync;
 use OCP\IRequest;
 use OCP\SabrePluginEvent;
 use Sabre\CardDAV\VCFExportPlugin;
@@ -125,7 +128,7 @@ class Server {
 		// with performance and locking issues because it will query
 		// every parent node which might trigger an implicit rescan in the
 		// case of external storages with update detection
-		if (!$this->isRequestForSubtree('files')) {
+		if (!$this->isRequestForSubtree(['files'])) {
 			// acl
 			$acl = new DavAclPlugin();
 			$acl->principalCollectionSet = [
@@ -136,12 +139,12 @@ class Server {
 		}
 
 		// calendar plugins
-		if ($this->isRequestForSubtree('calendars')) {
+		if ($this->isRequestForSubtree(['calendars', 'principals'])) {
 			$mailer = \OC::$server->getMailer();
 			$this->server->addPlugin(new \OCA\DAV\CalDAV\Plugin());
 			$this->server->addPlugin(new \Sabre\CalDAV\ICSExportPlugin());
 			$this->server->addPlugin(new \OCA\DAV\CalDAV\Schedule\Plugin());
-			$this->server->addPlugin(new IMipPlugin($mailer, $logger));
+			$this->server->addPlugin(new IMipPlugin($mailer, $logger, $request));
 			$this->server->addPlugin(new \Sabre\CalDAV\Subscriptions\Plugin());
 			$this->server->addPlugin(new \Sabre\CalDAV\Notifications\Plugin());
 			$this->server->addPlugin(new DAV\Sharing\Plugin($authBackend, \OC::$server->getRequest()));
@@ -152,7 +155,7 @@ class Server {
 		}
 
 		// addressbook plugins
-		if ($this->isRequestForSubtree('addressbooks')) {
+		if ($this->isRequestForSubtree(['addressbooks', 'principals'])) {
 			$this->server->addPlugin(new DAV\Sharing\Plugin($authBackend, \OC::$server->getRequest()));
 			$this->server->addPlugin(new \OCA\DAV\CardDAV\Plugin());
 			$this->server->addPlugin(new VCFExportPlugin());
@@ -183,13 +186,23 @@ class Server {
 			$this->server->addPlugin(new BrowserErrorPagePlugin());
 		}
 
+		$this->server->addPlugin(new PreviewPlugin($logger));
 		// wait with registering these until auth is handled and the filesystem is setup
 		$this->server->on('beforeMethod', function () use ($root) {
 			// custom properties plugin must be the last one
 			$userSession = \OC::$server->getUserSession();
 			$user = $userSession->getUser();
 			if (!is_null($user)) {
-				$view = Filesystem::getView();
+				$userHomeView = new \OC\Files\View('/'.$user->getUID());
+				$this->server->addPlugin(
+					new ChunkingPluginZsync($userHomeView)
+				);
+
+				$this->server->addPlugin(
+					new ZsyncPlugin($userHomeView)
+				);
+
+				$view = \OC\Files\Filesystem::getView();
 				$this->server->addPlugin(
 					new FilesPlugin(
 						$this->server->tree,
@@ -278,11 +291,16 @@ class Server {
 	}
 
 	/**
-	 * @param string $subTree
+	 * @param string[] $subTree
 	 * @return bool
 	 */
-	private function isRequestForSubtree($subTree) {
+	private function isRequestForSubtree(array $subTrees) {
+		foreach ($subTrees as $subTree) {
 		$subTree = trim($subTree, " /");
-		return strpos($this->server->getRequestUri(), "$subTree/") === 0;
+			if (strpos($this->server->getRequestUri(), "$subTree/") === 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

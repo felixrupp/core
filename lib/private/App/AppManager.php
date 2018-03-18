@@ -523,7 +523,14 @@ class AppManager implements IAppManager {
 	 */
 	public function getAppWebPath($appId) {
 		if (($appRoot = $this->findAppInDirectories($appId)) !== false) {
-			return \OC::$WEBROOT . $appRoot['url'];
+			$ocWebRoot = $this->getOcWebRoot();
+			// consider all relative ../ in the app web path as an adjustment
+			// for oC web root
+			while (strpos($appRoot['url'], '../') === 0) {
+				$appRoot['url'] = substr($appRoot['url'], 3);
+				$ocWebRoot = dirname($ocWebRoot);
+			}
+			return $ocWebRoot . '/' . ltrim($appRoot['url'], '/');
 		}
 		return false;
 	}
@@ -554,7 +561,11 @@ class AppManager implements IAppManager {
 
 			$versionToLoad = [];
 			foreach ($possibleAppRoots as $possibleAppRoot) {
-				$version = $this->getAppVersionByPath($possibleAppRoot['path'] . '/' . $appId);
+				try {
+					$version = $this->getAppVersionByPath($possibleAppRoot['path'] . '/' . $appId);
+				} catch (\Exception $e) {
+					continue;
+				}
 				if (empty($versionToLoad) || version_compare($version, $versionToLoad['version'], '>')) {
 					$versionToLoad = array_merge($possibleAppRoot, ['version' => $version]);
 					$versionToLoad['path'] .= '/' . $appId;
@@ -577,6 +588,15 @@ class AppManager implements IAppManager {
 	 */
 	protected function saveAppPath($appId, $appData) {
 		$this->appDirs[$appId] = $appData;
+	}
+
+	/**
+	 * Get OC web root
+	 * Wrapper for easy mocking
+	 * @return string
+	 */
+	protected function getOcWebRoot() {
+		return \OC::$WEBROOT;
 	}
 
 	/**

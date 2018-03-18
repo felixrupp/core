@@ -31,6 +31,7 @@ use OCP\IL10N;
 use Sabre\DAV\PropPatch;
 use Sabre\DAV\Xml\Property\Href;
 use Sabre\DAVACL\IACL;
+use Sabre\DAV\Exception\NotFound;
 
 /**
  * Class CalDavBackendTest
@@ -41,6 +42,9 @@ use Sabre\DAVACL\IACL;
  */
 class CalDavBackendTest extends AbstractCalDavBackendTest {
 
+	/**
+	 * @throws \Sabre\DAV\Exception
+	 */
 	public function testCalendarOperations() {
 
 		$calendarId = $this->createTestCalendar();
@@ -87,11 +91,13 @@ class CalDavBackendTest extends AbstractCalDavBackendTest {
 
 	/**
 	 * @dataProvider providesSharingData
+	 * @throws NotFound
+	 * @throws \Sabre\DAV\Exception
 	 */
 	public function testCalendarSharing($userCanRead, $userCanWrite, $groupCanRead, $groupCanWrite, $add) {
 
 		/** @var IL10N | \PHPUnit_Framework_MockObject_MockObject $l10n */
-		$l10n = $this->getMockBuilder('\OCP\IL10N')
+		$l10n = $this->getMockBuilder(IL10N::class)
 			->disableOriginalConstructor()->getMock();
 		$l10n
 			->expects($this->any())
@@ -118,7 +124,7 @@ class CalDavBackendTest extends AbstractCalDavBackendTest {
 		$this->assertEquals(self::UNIT_TEST_USER, $calendar->getOwner());
 
 		// test acls on the child
-		$uri = $this->getUniqueID('calobj');
+		$uri = static::getUniqueID('calobj');
 		$calData = <<<'EOD'
 BEGIN:VCALENDAR
 VERSION:2.0
@@ -154,13 +160,8 @@ EOD;
 		$this->assertCount(0, $books);
 	}
 
-	public function testCalendarObjectsOperations() {
-
-		$calendarId = $this->createTestCalendar();
-
-		// create a card
-		$uri = $this->getUniqueID('calobj');
-		$calData = <<<'EOD'
+	public function providesCalendarData() {
+		$initialCalendar = <<<'EOD'
 BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:ownCloud Calendar
@@ -177,7 +178,107 @@ END:VEVENT
 END:VCALENDAR
 EOD;
 
-		$this->backend->createCalendarObject($calendarId, $uri, $calData);
+		$updatedCalendar = <<<'EOD'
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:ownCloud Calendar
+BEGIN:VEVENT
+CREATED;VALUE=DATE-TIME:20130910T125139Z
+UID:47d15e3ec8
+LAST-MODIFIED;VALUE=DATE-TIME:20130910T125139Z
+DTSTAMP;VALUE=DATE-TIME:20130910T125139Z
+SUMMARY:Test Event
+DTSTART;VALUE=DATE-TIME:20130912T130000Z
+DTEND;VALUE=DATE-TIME:20130912T140000Z
+END:VEVENT
+END:VCALENDAR
+EOD;
+
+		$initialCalendar2 = <<<'EOD'
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Sabre//Sabre VObject 3.5.0//EN
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VTIMEZONE
+TZID:Europe/Warsaw
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+CREATED:20170320T131655Z
+LAST-MODIFIED:20170320T135019Z
+DTSTAMP:20170320T135019Z
+UID:7e908a6d-4c4e-48d7-bd62-59ab80fbf1a3
+SUMMARY:TEST Z pg_escape_bytea
+ORGANIZER;RSVP=TRUE;PARTSTAT=ACCEPTED;ROLE=CHAIR:mailto:k.klimczak@gromar.e
+ u
+ATTENDEE;RSVP=TRUE;CN=Zuzanna Leszek;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICI
+ PANT:mailto:z.leszek@gromar.eu
+ATTENDEE;RSVP=TRUE;CN=Marcin Pisarski;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTIC
+ IPANT:mailto:m.pisarski@gromar.eu
+ATTENDEE;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICIPANT:mailto:klimcz
+ ak.k@gmail.com
+ATTENDEE;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICIPANT:mailto:k_klim
+ czak@tlen.pl
+DTSTART;TZID=Europe/Warsaw:20170325T150000
+DTEND;TZID=Europe/Warsaw:20170325T160000
+TRANSP:OPAQUE
+DESCRIPTION:Magiczna treść uzyskana za pomocą magicznego proszku.\n\nę
+ żźćńłóÓŻŹĆŁĘ€śśśŚŚ\n               \,\,))))))))\;\,\n  
+           __))))))))))))))\,\n \\|/       -\\(((((''''((((((((.\n -*-==///
+ ///((''  .     `))))))\,\n /|\\      ))| o    \;-.    '(((((              
+                     \,(\,\n          ( `|    /  )    \;))))'              
+                  \,_))^\;(~\n             |   |   |   \,))((((_     _____-
+ -----~~~-.        %\,\;(\;(>'\;'~\n             o_)\;   \;    )))(((` ~---
+ ~  `::           \\      %%~~)(v\;(`('~\n                   \;    ''''````
+          `:       `:::|\\\,__\,%%    )\;`'\; ~\n                  |   _   
+              )     /      `:|`----'     `-'\n            ______/\\/~    | 
+                 /        /\n          /~\;\;.____/\;\;'  /          ___--\
+ ,-(   `\;\;\;/\n         / //  _\;______\;'------~~~~~    /\;\;/\\    /\n 
+        //  | |                        / \;   \\\;\;\,\\\n       (<_  | \; 
+                      /'\,/-----'  _>\n        \\_| ||_                    
+  //~\;~~~~~~~~~\n            `\\_|                   (\,~~  -Tua Xiong\n  
+                                   \\~\\\n                                 
+     ~~\n\n
+SEQUENCE:1
+X-MOZ-GENERATION:1
+END:VEVENT
+END:VCALENDAR
+EOD;
+
+		return[
+			[$initialCalendar, $updatedCalendar],
+			[$initialCalendar2, $initialCalendar2],
+		];
+	}
+
+	/**
+	 * @dataProvider providesCalendarData
+	 * @param $initialCalendar
+	 * @param $updatedCalendar
+	 * @throws \Sabre\DAV\Exception
+	 * @throws \Sabre\DAV\Exception\BadRequest
+	 */
+	public function testCalendarObjectsOperations($initialCalendar, $updatedCalendar) {
+
+		$calendarId = $this->createTestCalendar();
+
+		// create a card
+		$uri = static::getUniqueID('calobj');
+		$this->backend->createCalendarObject($calendarId, $uri, $initialCalendar);
 
 		// get all the cards
 		$calendarObjects = $this->backend->getCalendarObjects($calendarId);
@@ -194,27 +295,12 @@ EOD;
 		$this->assertArrayHasKey('etag', $calendarObject);
 		$this->assertArrayHasKey('size', $calendarObject);
 		$this->assertArrayHasKey('classification', $calendarObject);
-		$this->assertEquals($calData, $calendarObject['calendardata']);
+		$this->assertEquals($initialCalendar, $calendarObject['calendardata']);
 
 		// update the card
-		$calData = <<<'EOD'
-BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:ownCloud Calendar
-BEGIN:VEVENT
-CREATED;VALUE=DATE-TIME:20130910T125139Z
-UID:47d15e3ec8
-LAST-MODIFIED;VALUE=DATE-TIME:20130910T125139Z
-DTSTAMP;VALUE=DATE-TIME:20130910T125139Z
-SUMMARY:Test Event
-DTSTART;VALUE=DATE-TIME:20130912T130000Z
-DTEND;VALUE=DATE-TIME:20130912T140000Z
-END:VEVENT
-END:VCALENDAR
-EOD;
-		$this->backend->updateCalendarObject($calendarId, $uri, $calData);
+		$this->backend->updateCalendarObject($calendarId, $uri, $updatedCalendar);
 		$calendarObject = $this->backend->getCalendarObject($calendarId, $uri);
-		$this->assertEquals($calData, $calendarObject['calendardata']);
+		$this->assertEquals($updatedCalendar, $calendarObject['calendardata']);
 
 		// delete the card
 		$this->backend->deleteCalendarObject($calendarId, $uri);
@@ -222,6 +308,9 @@ EOD;
 		$this->assertCount(0, $calendarObjects);
 	}
 
+	/**
+	 * @throws \Sabre\DAV\Exception
+	 */
 	public function testMultiCalendarObjects() {
 
 		$calendarId = $this->createTestCalendar();
@@ -243,11 +332,11 @@ CLASS:PUBLIC
 END:VEVENT
 END:VCALENDAR
 EOD;
-		$uri0 = $this->getUniqueID('card');
+		$uri0 = static::getUniqueID('card');
 		$this->backend->createCalendarObject($calendarId, $uri0, $calData);
-		$uri1 = $this->getUniqueID('card');
+		$uri1 = static::getUniqueID('card');
 		$this->backend->createCalendarObject($calendarId, $uri1, $calData);
-		$uri2 = $this->getUniqueID('card');
+		$uri2 = static::getUniqueID('card');
 		$this->backend->createCalendarObject($calendarId, $uri2, $calData);
 
 		// get all the cards
@@ -277,6 +366,7 @@ EOD;
 
 	/**
 	 * @dataProvider providesCalendarQueryParameters
+	 * @throws \Sabre\DAV\Exception
 	 */
 	public function testCalendarQuery($expectedEventsInResult, $propFilters, $compFilter) {
 		$calendarId = $this->createTestCalendar();
@@ -298,6 +388,9 @@ EOD;
 		$this->assertEquals($expectedEventsInResult, $result, '', 0.0, 10, true);
 	}
 
+	/**
+	 * @throws \Sabre\DAV\Exception
+	 */
 	public function testGetCalendarObjectByUID() {
 		$calendarId = $this->createTestCalendar();
 		$this->createEvent($calendarId, '20130912T130000Z', '20130912T140000Z');
@@ -317,6 +410,9 @@ EOD;
 		];
 	}
 
+	/**
+	 * @throws \Sabre\DAV\Exception
+	 */
 	public function testSyncSupport() {
 		$calendarId = $this->createTestCalendar();
 
@@ -332,12 +428,17 @@ EOD;
 		$this->assertEquals($event, $changes['added'][0]);
 	}
 
+	/**
+	 * @throws \Sabre\DAV\Exception
+	 * @throws \Sabre\DAV\Exception\NotFound
+	 */
 	public function testPublications() {
 		$this->backend->createCalendar(self::UNIT_TEST_USER, 'Example', []);
 
 		$calendarInfo = $this->backend->getCalendarsForUser(self::UNIT_TEST_USER)[0];
 
-		$l10n = $this->getMockBuilder('\OCP\IL10N')
+		/** @var IL10N $l10n */
+		$l10n = $this->getMockBuilder(IL10N::class)
 			->disableOriginalConstructor()->getMock();
 
 		$calendar = new Calendar($this->backend, $calendarInfo, $l10n);
@@ -356,11 +457,13 @@ EOD;
 		$this->assertFalse($calendar->getPublishStatus());
 
 		$publicCalendarURI = md5($this->config->getSystemValue('secret', '') . $calendar->getResourceId());
-		$this->setExpectedException('Sabre\DAV\Exception\NotFound');
-		$publicCalendar = $this->backend->getPublicCalendar($publicCalendarURI);
-
+		$this->expectException(NotFound::class);
+		$this->backend->getPublicCalendar($publicCalendarURI);
 	}
 
+	/**
+	 * @throws \Sabre\DAV\Exception\Forbidden
+	 */
 	public function testSubscriptions() {
 		$id = $this->backend->createSubscription(self::UNIT_TEST_USER, 'Subscription', [
 			'{http://calendarserver.org/ns/}source' => new Href('test-source'),
@@ -392,8 +495,84 @@ EOD;
 		$this->assertCount(0, $subscriptions);
 	}
 
-	public function testScheduling() {
-		$this->backend->createSchedulingObject(self::UNIT_TEST_USER, 'Sample Schedule', '');
+	public function providesSchedulingData() {
+		$data =<<<EOS
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Sabre//Sabre VObject 3.5.0//EN
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VTIMEZONE
+TZID:Europe/Warsaw
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+CREATED:20170320T131655Z
+LAST-MODIFIED:20170320T135019Z
+DTSTAMP:20170320T135019Z
+UID:7e908a6d-4c4e-48d7-bd62-59ab80fbf1a3
+SUMMARY:TEST Z pg_escape_bytea
+ORGANIZER;RSVP=TRUE;PARTSTAT=ACCEPTED;ROLE=CHAIR:mailto:k.klimczak@gromar.e
+ u
+ATTENDEE;RSVP=TRUE;CN=Zuzanna Leszek;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICI
+ PANT:mailto:z.leszek@gromar.eu
+ATTENDEE;RSVP=TRUE;CN=Marcin Pisarski;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTIC
+ IPANT:mailto:m.pisarski@gromar.eu
+ATTENDEE;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICIPANT:mailto:klimcz
+ ak.k@gmail.com
+ATTENDEE;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICIPANT:mailto:k_klim
+ czak@tlen.pl
+DTSTART;TZID=Europe/Warsaw:20170325T150000
+DTEND;TZID=Europe/Warsaw:20170325T160000
+TRANSP:OPAQUE
+DESCRIPTION:Magiczna treść uzyskana za pomocą magicznego proszku.\n\nę
+ żźćńłóÓŻŹĆŁĘ€śśśŚŚ\n               \,\,))))))))\;\,\n  
+           __))))))))))))))\,\n \\|/       -\\(((((''''((((((((.\n -*-==///
+ ///((''  .     `))))))\,\n /|\\      ))| o    \;-.    '(((((              
+                     \,(\,\n          ( `|    /  )    \;))))'              
+                  \,_))^\;(~\n             |   |   |   \,))((((_     _____-
+ -----~~~-.        %\,\;(\;(>'\;'~\n             o_)\;   \;    )))(((` ~---
+ ~  `::           \\      %%~~)(v\;(`('~\n                   \;    ''''````
+          `:       `:::|\\\,__\,%%    )\;`'\; ~\n                  |   _   
+              )     /      `:|`----'     `-'\n            ______/\\/~    | 
+                 /        /\n          /~\;\;.____/\;\;'  /          ___--\
+ ,-(   `\;\;\;/\n         / //  _\;______\;'------~~~~~    /\;\;/\\    /\n 
+        //  | |                        / \;   \\\;\;\,\\\n       (<_  | \; 
+                      /'\,/-----'  _>\n        \\_| ||_                    
+  //~\;~~~~~~~~~\n            `\\_|                   (\,~~  -Tua Xiong\n  
+                                   \\~\\\n                                 
+     ~~\n\n
+SEQUENCE:1
+X-MOZ-GENERATION:1
+END:VEVENT
+END:VCALENDAR
+EOS;
+
+		return [
+			'no data' => [''],
+			'failing on postgres' => [$data]
+		];
+	}
+
+	/**
+	 * @dataProvider providesSchedulingData
+	 * @param $objectData
+	 */
+	public function testScheduling($objectData) {
+		$this->backend->createSchedulingObject(self::UNIT_TEST_USER, 'Sample Schedule', $objectData);
 
 		$sos = $this->backend->getSchedulingObjects(self::UNIT_TEST_USER);
 		$this->assertCount(1, $sos);
@@ -409,6 +588,7 @@ EOD;
 
 	/**
 	 * @dataProvider providesCalDataForGetDenormalizedData
+	 * @throws \Sabre\DAV\Exception\BadRequest
 	 */
 	public function testGetDenormalizedData($expected, $key, $calData) {
 		$actual = $this->backend->getDenormalizedData($calData);
@@ -425,5 +605,17 @@ EOD;
 			'no class set -> public' => [CalDavBackend::CLASSIFICATION_PUBLIC, 'classification', "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//dmfs.org//mimedir.icalendar//EN\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nX-LIC-LOCATION:Europe/Berlin\r\nBEGIN:DAYLIGHT\r\nTZOFFSETFROM:+0100\r\nTZOFFSETTO:+0200\r\nTZNAME:CEST\r\nDTSTART:19700329T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r\nEND:DAYLIGHT\r\nBEGIN:STANDARD\r\nTZOFFSETFROM:+0200\r\nTZOFFSETTO:+0100\r\nTZNAME:CET\r\nDTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20160419T130000\r\nSUMMARY:Test\r\nTRANSP:OPAQUE\r\nDTEND;TZID=Europe/Berlin:20160419T140000\r\nLAST-MODIFIED:20160419T074202Z\r\nDTSTAMP:20160419T074202Z\r\nCREATED:20160419T074202Z\r\nUID:2e468c48-7860-492e-bc52-92fa0daeeccf.1461051722310\r\nEND:VEVENT\r\nEND:VCALENDAR"],
 			'unknown class -> private' => [CalDavBackend::CLASSIFICATION_PRIVATE, 'classification', "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//dmfs.org//mimedir.icalendar//EN\r\nBEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nX-LIC-LOCATION:Europe/Berlin\r\nBEGIN:DAYLIGHT\r\nTZOFFSETFROM:+0100\r\nTZOFFSETTO:+0200\r\nTZNAME:CEST\r\nDTSTART:19700329T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r\nEND:DAYLIGHT\r\nBEGIN:STANDARD\r\nTZOFFSETFROM:+0200\r\nTZOFFSETTO:+0100\r\nTZNAME:CET\r\nDTSTART:19701025T030000\r\nRRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20160419T130000\r\nSUMMARY:Test\r\nCLASS:VERTRAULICH\r\nTRANSP:OPAQUE\r\nSTATUS:CONFIRMED\r\nDTEND;TZID=Europe/Berlin:20160419T140000\r\nLAST-MODIFIED:20160419T074202Z\r\nDTSTAMP:20160419T074202Z\r\nCREATED:20160419T074202Z\r\nUID:2e468c48-7860-492e-bc52-92fa0daeeccf.1461051722310\r\nEND:VEVENT\r\nEND:VCALENDAR"],
 		];
+	}
+
+	/**
+	 * @throws \Sabre\DAV\Exception
+	 */
+	public function testHugeMultiGet() {
+		$calendarId = $this->createTestCalendar();
+		$urls = array_map(function($number){
+			return "url-$number";
+		}, range(0, 2000));
+		$calendarObjects = $this->backend->getMultipleCalendarObjects($calendarId, $urls);
+		$this->assertEquals([], $calendarObjects);
 	}
 }

@@ -57,8 +57,11 @@ class TransferOwnership extends Command {
 	/** @var ILogger  */
 	private  $logger;
 
-	/** @var FileInfo[] */
-	private $allFiles = [];
+	/** @var bool */
+	private $filesExist = false;
+
+	/** @var bool */
+	private $foldersExist = false;
 
 	/** @var FileInfo[] */
 	private $encryptedFiles = [];
@@ -153,6 +156,11 @@ class TransferOwnership extends Command {
 		// analyse source folder
 		$this->analyse($output);
 
+		if (!$this->filesExist and !$this->foldersExist) {
+			$output->writeln("<comment>No files/folders to transfer</comment>");
+			return 1;
+		}
+
 		// collect all the shares
 		$this->collectUsersShares($output);
 
@@ -188,6 +196,7 @@ class TransferOwnership extends Command {
 		if ( strlen($this->inputPath) > 0) {
 			if ($this->inputPath !== "$this->sourceUser/files") {
 				$walkPath = $this->inputPath;
+				$this->foldersExist = true;
 			}
 		}
 
@@ -199,10 +208,12 @@ class TransferOwnership extends Command {
 						if ($fileInfo->getInternalPath() === '' && $fileInfo->getPath() !== '') {
 							return false;
 						}
+
+						$this->foldersExist = true;
 						return true;
 					}
 					$progress->advance();
-					$this->allFiles[] = $fileInfo;
+					$this->filesExist = true;
 					if ($fileInfo->isEncrypted()) {
 						if (\OC::$server->getAppConfig()->getValue('encryption', 'useMasterKey', 0) !== 0) {
 							/**
@@ -301,6 +312,18 @@ class TransferOwnership extends Command {
 					}
 					if ($share->getSharedBy() === $this->sourceUser) {
 						$share->setSharedBy($this->destinationUser);
+					}
+					/*
+					 * If the share is already moved then updateShare would cause exception
+					 * This can happen if the folder is shared and file(s) inside the folder
+					 * has shares, for example public link
+					 */
+					if ($share->getShareType() === \OCP\Share::SHARE_TYPE_LINK) {
+						$sharePath = ltrim($share->getNode()->getPath(), '/');
+						if (strpos($sharePath, $this->finalTarget) !== false) {
+							//The share is already moved
+							continue;
+						}
 					}
 
 					$this->shareManager->updateShare($share);

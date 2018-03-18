@@ -29,11 +29,14 @@ namespace OCA\DAV\Tests\unit\Connector\Sabre;
 
 use OC\Authentication\Exceptions\PasswordLoginForbiddenException;
 use OC\Authentication\TwoFactorAuth\Manager;
+use OC\ForbiddenException;
+use OC\User\LoginException;
 use OC\User\Session;
 use OCA\DAV\Connector\Sabre\Auth;
 use OCP\IRequest;
 use OCP\ISession;
 use OCP\IUser;
+use Sabre\DAV\Exception\NotAuthenticated;
 use Sabre\HTTP\RequestInterface;
 use Sabre\HTTP\ResponseInterface;
 use Test\TestCase;
@@ -305,7 +308,7 @@ class AuthTest extends TestCase {
 		$this->request
 			->expects($this->any())
 			->method('getMethod')
-			->willReturn('PROPFIND');
+			->willReturn('POST');
 		$this->request
 			->expects($this->any())
 			->method('isUserAgent')
@@ -357,7 +360,7 @@ class AuthTest extends TestCase {
 		$this->request
 			->expects($this->any())
 			->method('getMethod')
-			->willReturn('PROPFIND');
+			->willReturn('POST');
 		$this->request
 			->expects($this->any())
 			->method('isUserAgent')
@@ -389,58 +392,6 @@ class AuthTest extends TestCase {
 		$this->twoFactorManager->expects($this->once())
 			->method('needsSecondFactor')
 			->will($this->returnValue(true));
-		$this->auth->check($request, $response);
-	}
-
-	/**
-	 * @expectedException \Sabre\DAV\Exception\NotAuthenticated
-	 * @expectedExceptionMessage CSRF check not passed.
-	 */
-	public function testAuthenticateAlreadyLoggedInWithoutCsrfTokenAndIncorrectlyDavAuthenticated() {
-		/** @var RequestInterface | \PHPUnit_Framework_MockObject_MockObject $request */
-		$request = $this->getMockBuilder(RequestInterface::class)
-			->disableOriginalConstructor()
-			->getMock();
-		/** @var ResponseInterface | \PHPUnit_Framework_MockObject_MockObject $response */
-		$response = $this->getMockBuilder(ResponseInterface::class)
-			->disableOriginalConstructor()
-			->getMock();
-		$this->userSession
-			->expects($this->any())
-			->method('isLoggedIn')
-			->willReturn(true);
-		$this->request
-			->expects($this->any())
-			->method('getMethod')
-			->willReturn('PROPFIND');
-		$this->request
-			->expects($this->any())
-			->method('isUserAgent')
-			->with([
-				'/^Mozilla\/5\.0 \([A-Za-z ]+\) (mirall|csyncoC)\/.*$/',
-				'/^Mozilla\/5\.0 \(Android\) ownCloud\-android.*$/',
-				'/^Mozilla\/5\.0 \(iOS\) ownCloud\-iOS.*$/',
-			])
-			->willReturn(false);
-		$this->session
-			->expects($this->any())
-			->method('get')
-			->with('AUTHENTICATED_TO_DAV_BACKEND')
-			->will($this->returnValue('AnotherUser'));
-		$user = $this->getMockBuilder('\OCP\IUser')
-			->disableOriginalConstructor()
-			->getMock();
-		$user->expects($this->any())
-			->method('getUID')
-			->will($this->returnValue('LoggedInUser'));
-		$this->userSession
-			->expects($this->any())
-			->method('getUser')
-			->will($this->returnValue($user));
-		$this->request
-			->expects($this->once())
-			->method('passesCSRFCheck')
-			->willReturn(false);
 		$this->auth->check($request, $response);
 	}
 
@@ -565,6 +516,25 @@ class AuthTest extends TestCase {
 
 		$response = $this->auth->check($request, $response);
 		$this->assertEquals([true, 'principals/users/MyWrongDavUser'], $response);
+	}
+
+	/**
+	 * @expectedException Sabre\DAV\Exception\NotAuthenticated
+	 */
+	public function testAutenticateWithLoggedInUserButLoginExceptionThrown() {
+		/** @var RequestInterface | \PHPUnit_Framework_MockObject_MockObject $request */
+		$request = $this->getMockBuilder(RequestInterface::class)
+			->disableOriginalConstructor()
+			->getMock();
+		/** @var ResponseInterface | \PHPUnit_Framework_MockObject_MockObject $response */
+		$response = $this->getMockBuilder(ResponseInterface::class)
+			->disableOriginalConstructor()
+			->getMock();
+		$this->userSession
+			->expects($this->any())
+			->method('isLoggedIn')
+			->willThrowException(new LoginException());
+		$response = $this->auth->check($request, $response);
 	}
 
 	public function testAuthenticateNoBasicAuthenticateHeadersProvided() {

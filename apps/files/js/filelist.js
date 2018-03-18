@@ -537,10 +537,16 @@
 				actionsWidth += $(action).outerWidth();
 			});
 
+			var customWidth = 0;
+			// custom controls
+			this.$el.find('#controls>div:not(.actions):not(.breadcrumb):not(.hidden)').each(function(index, el) {
+				customWidth += $(el).outerWidth();
+			});
+
 			// subtract app navigation toggle when visible
 			containerWidth -= $('#app-navigation-toggle').width();
 
-			this.breadcrumb.setMaxWidth(containerWidth - actionsWidth - 10);
+			this.breadcrumb.setMaxWidth(containerWidth - actionsWidth - customWidth - 10);
 
 			this.$table.find('>thead').width($('#app-content').width() - OC.Util.getScrollBarWidth());
 		},
@@ -888,7 +894,7 @@
 		elementToFile: function($el){
 			$el = $($el);
 			var data = {
-				id: parseInt($el.attr('data-id'), 10),
+				id: $el.attr('data-id'),
 				name: $el.attr('data-file'),
 				mimetype: $el.attr('data-mime'),
 				mtime: parseInt($el.attr('data-mtime'), 10),
@@ -1694,7 +1700,8 @@
 					encodedPath += '/' + encodeURIComponent(section);
 				}
 			});
-			return OC.linkToRemoteBase('webdav') + encodedPath;
+			var uid = encodeURIComponent(OC.getCurrentUser().uid);
+			return OC.linkToRemoteBase('dav') + '/files/' + uid + encodedPath;
 		},
 
 		/**
@@ -1703,7 +1710,7 @@
 		 * @param {int} urlSpec.x width
 		 * @param {int} urlSpec.y height
 		 * @param {String} urlSpec.file path to the file
-		 * @return preview URL
+		 * @return {String} preview URL
 		 */
 		generatePreviewUrl: function(urlSpec) {
 			urlSpec = urlSpec || {};
@@ -1718,7 +1725,16 @@
 			urlSpec.x = Math.ceil(urlSpec.x);
 			urlSpec.y = Math.ceil(urlSpec.y);
 			urlSpec.forceIcon = 0;
-			return OC.generateUrl('/core/preview.png?') + $.param(urlSpec);
+			var parts = urlSpec.file.split('/');
+			var encoded = [];
+			for (var i = 0; i < parts.length; i++) {
+				encoded.push(encodeURIComponent(parts[i]));
+			}
+			var file = encoded.join('/');
+			delete urlSpec.file;
+			urlSpec.preview = 1;
+
+			return OC.linkToRemoteBase('dav') + '/files/' + OC.getCurrentUser().uid + file + '?' + $.param(urlSpec);
 		},
 
 		/**
@@ -1805,7 +1821,7 @@
 		 * @param show true for enabling, false for disabling
 		 */
 		showActions: function(show){
-			this.$el.find('.actions,#file_action_panel').toggleClass('hidden', !show);
+			this.$el.find('.actions').toggleClass('hidden', !show);
 			if (show){
 				// make sure to display according to permissions
 				var permissions = this.getDirectoryPermissions();
@@ -1843,7 +1859,7 @@
 		remove: function(name, options){
 			options = options || {};
 			var fileEl = this.findFileEl(name);
-			var fileId = fileEl.data('id');
+			var fileId = fileEl.attr('data-id');
 			var index = fileEl.index();
 			if (!fileEl.length) {
 				return null;
@@ -1938,14 +1954,18 @@
 							self.remove(fileName);
 						}
 					})
-					.fail(function(status) {
+					.fail(function(status, result) {
 						if (status === 412) {
 							// TODO: some day here we should invoke the conflict dialog
 							OC.Notification.show(t('files', 'Could not move "{file}", target exists', 
-								{file: fileName}), {type: 'error'}
+								{file: fileName}, null, {escape: false}), {type: 'error'}
+							);
+						} else if (result != null && typeof result.message !== "undefined") {
+							OC.Notification.show(t('files', 'Could not move "{file}": {message}',
+								{file: fileName, message: result.message}), {type: 'error'}
 							);
 						} else {
-							OC.Notification.show(t('files', 'Could not move "{file}"', 
+							OC.Notification.show(t('files', 'Could not move "{file}"',
 								{file: fileName}), {type: 'error'}
 							);
 						}
@@ -2021,9 +2041,10 @@
 				td.children('a.name').show();
 			}
 
-			function updateInList(fileInfo) {
-				self.updateRow(tr, fileInfo);
-				self._updateDetailsView(fileInfo.name, false);
+			function updateInList(newFileInfo, oldFileInfo) {
+				self.updateRow(tr, newFileInfo);
+				self.fileSummary.updateHidden(newFileInfo, oldFileInfo);
+				self._updateDetailsView(newFileInfo.name, false);
 			}
 
 			// TODO: too many nested blocks, move parts into functions
@@ -2060,8 +2081,9 @@
 						var path = tr.attr('data-path') || self.getCurrentDirectory();
 						self.filesClient.move(OC.joinPaths(path, oldName), OC.joinPaths(path, newName))
 							.done(function() {
-								oldFileInfo.name = newName;
-								updateInList(oldFileInfo);
+								newFileInfo = Object.create(oldFileInfo);
+								newFileInfo.name = newName;
+								updateInList(newFileInfo, oldFileInfo);
 							})
 							.fail(function(status) {
 								// TODO: 409 means current folder does not exist, redirect ?
@@ -2091,7 +2113,7 @@
 										{fileName: oldName}), {type: 'error'}
 									);
 								}
-								updateInList(oldFileInfo);
+								updateInList(oldFileInfo, oldFileInfo);
 							});
 					} else {
 						// add back the old file info when cancelled

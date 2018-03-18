@@ -30,7 +30,7 @@ describe('OC.Share.ShareDialogExpirationView', function() {
 	beforeEach(function() {
 		configModel = new OC.Share.ShareConfigModel();
 		fileInfoModel = new OCA.Files.FileInfoModel({
-			id: 123,
+			id: '123',
 			name: 'shared_folder',
 			path: '/subdir',
 			size: 100,
@@ -67,8 +67,8 @@ describe('OC.Share.ShareDialogExpirationView', function() {
 		});
 		view.render();
 	});
-	afterEach(function() { 
-		tooltipStub.restore(); 
+	afterEach(function() {
+		tooltipStub.restore();
 		view.remove();
 	});
 
@@ -128,7 +128,6 @@ describe('OC.Share.ShareDialogExpirationView', function() {
 				setDefaultsStub = sinon.stub($.datepicker, 'setDefaults');
 
 				configModel.set({
-					enforcePasswordForPublicLink: false,
 					isDefaultExpireDateEnabled: false,
 					isDefaultExpireDateEnforced: false,
 					defaultExpireDate: 7
